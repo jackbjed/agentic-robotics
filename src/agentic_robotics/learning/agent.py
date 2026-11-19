@@ -91,7 +91,7 @@ def run_session(workspace, prompt, system_append, log_dir, model=None, max_budge
 
 
 def parse_stream(path):
-    init, final, n_tool = None, None, {}
+    init, results, n_tool = None, [], {}
     for line in open(path):
         try:
             e = json.loads(line)
@@ -105,10 +105,21 @@ def parse_stream(path):
                 if c.get("type") == "tool_use":
                     n_tool[c.get("name")] = n_tool.get(c.get("name"), 0) + 1
         elif e.get("type") == "result":
-            final = e
-    f = final or {}
-    return dict(init=init, cost_usd=f.get("total_cost_usd"), usage=f.get("usage"), model_usage=f.get("modelUsage"),
-                turns=f.get("num_turns"), duration_ms=f.get("duration_ms"), subtype=f.get("subtype"),
-                is_error=f.get("is_error"), result_text=(f.get("result") or "")[:4000],
-                denials=[dict(tool=d.get("tool_name"), input=str(d.get("tool_input"))[:200]) for d in f.get("permission_denials") or []],
+            results.append(e)
+    # (19-11: a session can end with more than one result event, e.g. one more turn after a background notice. Each
+    # event's num_turns, duration and usage are its own; total_cost_usd and modelUsage are cumulative.)
+    f = results[-1] if results else {}
+    usage = {}
+    for r in results:
+        for k, v in (r.get("usage") or {}).items():
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                usage[k] = usage.get(k, 0) + v
+    first = results[0] if results else {}
+    return dict(init=init, cost_usd=f.get("total_cost_usd"), usage=usage or None, model_usage=f.get("modelUsage"),
+                turns=sum(int(r.get("num_turns") or 0) for r in results) if results else None,
+                duration_ms=sum(int(r.get("duration_ms") or 0) for r in results) if results else None,
+                n_results=len(results), subtype=f.get("subtype"), is_error=any(bool(r.get("is_error")) for r in results),
+                result_text=(first.get("result") or "")[:4000],
+                denials=[dict(tool=d.get("tool_name"), input=str(d.get("tool_input"))[:200])
+                         for r in results for d in r.get("permission_denials") or []],
                 tool_calls=n_tool)
