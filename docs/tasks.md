@@ -11,7 +11,7 @@ time). The program is told `ctx.task`: `kind`, `instruction`, `object` (its name
 | place | "Put the yellow tape roll into the white box." (the box open, the lid at 100–120°) | inside the box's walls, released (no finger touching it), the box upright, nothing else in the box, nothing off the table |
 | close-box | "Close the lid of the white box." (the lid open 70–120°) | the lid < 8°, the box upright and not shoved more than 10 cm |
 | press | "Press the button on top of the kettle's handle (it releases the kettle's lid)." | the kettle's lid > 30° open (the 16 mm button cap pressed 2.5 mm releases the latch; a spring opens the lid), the kettle upright |
-| insert | "Put the wooden cylinder onto one of the vertical wooden sticks of the wooden stand with three vertical sticks: ..." | the cylinder (40 × 40 mm, 22 mm hole) on one of the 18 mm sticks (~17 cm tall), below its tip, released |
+| insert | "Put the short wooden cylinder onto one of the vertical wooden sticks of the wooden stand with three vertical sticks: ..." | the cylinder (40 × 40 mm, 22 mm hole) on one of the 18 mm sticks (~17 cm tall), below its tip, released |
 
 Objects:
 - **pick, place:** tape rolls (red Ø47, yellow Ø52, white Ø50 mm), the black block with holes (71 × 71 × 22 mm: only

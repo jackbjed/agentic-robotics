@@ -30,7 +30,7 @@ PHRASES_SUBSTITUTE = {"tape_red": "red can", "tape_yellow": "yellow can", "tape_
                       "hole_block": "black box", "cable": "black hoop", "screwdriver": "red and grey bar",
                       "glue": "red and white bottle", "sticky_pad": "purple disc"}
 PHRASES_TASKS = dict(PHRASES, box_white="white box", kettle="kettle", peg_stand="wooden stand with three vertical sticks",
-                     wood_cyl="wooden cylinder")
+                     wood_cyl="short wooden cylinder")   # (SAM3: "wooden cylinder" -> the stand's sticks in 9/10 layouts; this 10/10)
 # the objects the multi-task model adds (scripts/build_tasks_model.py), as task_bench / precision_bench describe them
 OBJ_TASKS = {"kettle": dict(kind="kettle", r=0.070, h=0.177, z0=0.0, desc="the steel kettle"),
              "peg_stand": dict(kind="peg_stand", h=0.173, z0=0.0, desc="the wooden stand with three vertical wooden sticks"),

@@ -70,8 +70,16 @@ def cmd_suite(a):
     t = task_config(X.get("task", "configs/tasks/clutter_pick.yaml"))
     skills = Path(a.skills or paths.ROOT / X["skill"])
     out = Path(a.out or paths.RUNS / "suites" / f"{a.suite}_{time.strftime('%Y%m%d_%H%M%S')}")
+    if a.tasks:
+        from .learning.loop import filter_suite
+        from . import tasks as TK
+        spec = filter_suite(spec, TK.parse(a.tasks))
+    V = None
+    if a.vlm_usd > 0 and (X.get("vlm") or {}).get("enabled"):     # (the one model call per episode, capped for this suite)
+        V = dict(X["vlm"], tag=f"suite:{out.name}", run_usd=a.vlm_usd)
     print(f"{a.suite}: {spec} -> {out}")
-    S = run_suite(skills, spec, t, out, workers=a.workers, sandbox=not a.no_sandbox, entry=X.get("entry", "skills/pick.py"))
+    S = run_suite(skills, spec, t, out, workers=a.workers, sandbox=not a.no_sandbox, entry=X.get("entry", "skills/pick.py"),
+                  vlm=V)
     print((out / "summary.md").read_text())
 
 
@@ -126,6 +134,8 @@ def main(argv=None):
     s.add_argument("--suite", required=True); s.add_argument("--experiment", default="configs/experiments/m1_clutter_pick.yaml")
     s.add_argument("--skills"); s.add_argument("--workers", type=int, default=8); s.add_argument("--out")
     s.add_argument("--no-sandbox", action="store_true"); s.add_argument("--allow-protected", action="store_true")
+    s.add_argument("--vlm-usd", type=float, default=0.0, help="allow the experiment's one model call per episode, this suite capped at $X")
+    s.add_argument("--tasks", help="multi-task suites: only these tasks")
     s = sub.add_parser("services"); s.set_defaults(fn=cmd_services)
     s.add_argument("action", choices=("start", "stop", "status")); s.add_argument("names", nargs="*")
     s = sub.add_parser("layouts"); s.set_defaults(fn=cmd_layouts)
