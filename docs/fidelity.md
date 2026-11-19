@@ -133,3 +133,44 @@ differs from practice (`learning.test_note`):
 - B: the same objects, but realistic (scanned) colour at test;
 - C: other objects (other shapes and names, the same roles) and realistic colour at test. C's docs name only its own
   practice objects.
+
+### Results (2026-11-19)
+
+All on the common target (`heldout_target`): the real objects, splat colour, SAM3, the calibrated cameras, test L0–3 × 50.
+
+| training condition | own dev (val L1–3 × 30) after s01 / s02 (kept) | practice used | agent usage (API-equivalent) | Astra spent (practice + dev + held-out) | **held-out /200** | L0 / L1 / L2 / L3 (/50) | s per success |
+|---|---|---|---|---|---|---|---|
+| reference: the robot's own skill, with its library | – | – | – | – | 154 | 50 / 50 / 47 / 7 | 15.7 |
+| A (splat colour, real objects) | 89 / 90 (s02) | 385 / 400 | $13.98 | $0.01 (practice only) | **198** | 50 / 50 / 50 / 48 | 10.6 |
+| B (plain colour, real objects) | 88 (s01) / 89 (s02 rejected) | 369 / 400 | $11.62 | $0 | **180** | 47 / 47 / 47 / 39 | 9.5 |
+| C (plain colour, substitute objects) | 84 / 88 (s02) | 400 / 400 | $14.10 | $1.68 ($0.84 + $0.34 + $0.50) | **155** | 46 / 43 / 44 / 22 | 10.8 |
+
+Every initial (empty) skill scores 0. Each final skill was written from nothing in two sessions, about 1–1.5 h of
+agent wall time per session.
+
+**A, training on the target's own rendering, transfers almost completely:** 198/200, 30 % faster than the robot's
+own skill, which it beats at level 3 by 48 to 7.
+
+**B, plain colour, loses 18 episodes to rendering alone.**
+- The same skill scores 199/200 on the same layouts in plain colour (`runs/suites/fidelity2/B_s01_heldout_B`): 20 lost,
+  1 gained, p = 2e-5.
+- All 19 of its wrong-object failures lift the WHITE tape roll when told to pick the yellow one. In the scanned colour
+  the white roll is cream, and it passes the skill's yellow hue / saturation gate (`helpers/percep.py`), tuned on
+  MuJoCo's flat yellow; SAM3 also names it "yellow tape roll".
+- It is a colour heuristic fitted to the practice renderer.
+
+**C, substitute objects, does not transfer its grasping:**
+- 155/200, no better than the robot's own skill (154).
+- 40 failures are touched-not-lifted: 34 "failed after retries", 6 "lost the target".
+- Its grasp planner was built on the solid cans' depth (grasp height from a solid top); the real rolls are rings.
+- It was told that its test objects would differ, and its perception did generalize: it found the real rolls under
+  their own names; 4 wrong objects. The geometry did not.
+- C is the only condition whose skill uses its Astra call: when SAM3 is ambiguous, on 81 of the 200 held-out episodes,
+  $0.50.
+
+**What this run does and does not show:**
+- One run per condition: the ranking A > B > C is large (p < 1e-4 for each step), but seeds are still to come.
+- The study isolates rendering (A vs B) and object shape (B vs C) in simulation. It is not evidence about the real
+  robot, where the gap to the scan (lighting, sensor colour) is a further step.
+- B's and C's failures are specific and fixable: a colour gate, a solid-top assumption. A training set mixing
+  renderings, or the brief's test note naming the risk, might close them.
