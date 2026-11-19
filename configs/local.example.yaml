@@ -16,3 +16,5 @@ services:
     sam3: /path/to/envs/sam3/bin/python        # torch + transformers with Sam3Model; facebook/sam3 in the HF cache
     splat: /path/to/envs/twin/bin/python       # torch + gsplat + scipy
   cuda_device: 1
+real:
+  python: ~/miniforge3/envs/<robot client env>/bin/python   # real/: the robot client's Python (pyrealsense2, mujoco 2.3.7)

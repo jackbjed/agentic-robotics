@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# real/run: real-robot evaluation of skill programs (real/README.md), with the project's own environment.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH CONDA_PREFIX
+export PYTHONNOUSERSITE=1
+cd "$ROOT" && exec "$ROOT/.venv/bin/python" -I "$ROOT/real/run.py" "$@"

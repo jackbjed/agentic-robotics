@@ -1,0 +1,12 @@
+# Simulation check before real-robot runs (2026-11-19, user: "do 1"): skills trained with the twin's camera mounts,
+# re-run with the cameras at the real rig's calibrated poses (configs/tasks/clutter_pick_A_rig.yaml), on the same
+# fresh test episodes as opus_A.yaml's heldout_fresh_200 (test idx 100-149 per level, seed 5): paired with the
+# twin-camera records under runs/learning/opusA*_r1/heldout/heldout_fresh_200_*.
+name: realcam_check
+task: configs/tasks/clutter_pick_A_rig.yaml
+skill: initial_skills/clutter_pick
+entry: skills/pick.py
+suites:
+  fresh_200_rig: {split: test, levels: [0, 1, 2, 3], idx: [100, 150], seed: 5, protected: true, task: configs/tasks/clutter_pick_A_rig.yaml}
+learning:
+  library: true
