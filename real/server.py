@@ -209,7 +209,7 @@ class RealEpisode:
         for d in ("frames", "plan"):
             (self.out / d).mkdir(parents=True, exist_ok=True)
         self.be = RobotBackend(spec, self.out) if spec["backend"] == "robot" else TwinBackend(spec, self.out)
-        self.task = dict(spec["task"]) if spec.get("task") else dict(self.be.task)
+        self.task = dict(spec["task"]) if spec.get("task") else dict(getattr(self.be, "task", None) or {})
         self.limit = float(spec.get("robot_time_limit_s", 150.0))
         self.max_traj = int(spec.get("max_trajectories", 40))
         self.t_wall0 = time.time()

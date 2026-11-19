@@ -249,6 +249,8 @@ def write_readme(out, r):
 # ---------------------------------------------------------------------------------------------------- check, summary
 def check(a):
     """No motion. The arm server's hello and the arm's state, a frame from each camera, SAM3 on the scene frame."""
+    if a.object and not services_ok(a.sam3):
+        raise SystemExit(f"SAM3 ({a.sam3}) is not answering: bin/ar services start sam3_text sam3_points (or --object '' to skip it)")
     stamp = time.strftime("%Y%m%d_%H%M%S")
     out = RESULTS / f"check_{stamp}_{a.backend}"; out.mkdir(parents=True)
     code = r'''
@@ -256,9 +258,11 @@ import json, sys, time
 from pathlib import Path
 sys.path.insert(0, sys.argv[1] + "/src"); sys.path.insert(0, sys.argv[1] + "/real")
 out, backend, phrase, sam3_which = Path(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+port, replay = (int(sys.argv[6]) if sys.argv[6] else None), (sys.argv[7] or None)
 import numpy as np, cv2
 from server import RobotBackend, TwinBackend, RealEpisode
-spec = dict(mode="dry", backend=backend, sam3=sam3_which, robot_time_limit_s=1, record=False,
+spec = dict(mode="dry", backend=backend, sam3=sam3_which, robot_time_limit_s=1, record=False, port=port, replay_frames=replay,
+            task=dict(kind="clutter_pick", instruction=f"Pick up the {phrase} and lift it.", object=phrase) if backend == "robot" else None,
             twin=dict(task_config="configs/tasks/clutter_pick_A_rig.yaml", split="val", level=1, idx=0, seed=13))
 ep = RealEpisode(spec, out)
 rep = dict(arm=ep.be.hello_info, state={k: v for k, v in ep.be.state().items() if k in ("q", "width", "f_ext", "mode", "errors")})
@@ -284,10 +288,14 @@ print(json.dumps(rep, default=str)[:3000])
 import os; sys.stdout.flush(); os._exit(0)
 '''
     py = robot_python() if a.backend == "robot" else VENV_PY
-    r = subprocess.run([py, "-I", "-c", code, str(ROOT), str(out), a.backend, a.object or "", a.sam3], env=base_env(), cwd=str(ROOT),
-                       capture_output=True, text=True, timeout=300)
+    r = subprocess.run([py, "-I", "-c", code, str(ROOT), str(out), a.backend, a.object or "", a.sam3, str(a.port or ""),
+                        a.replay_frames or ""], env=base_env(), cwd=str(ROOT), capture_output=True, text=True, timeout=300)
     print(r.stdout[-3000:] or r.stderr[-3000:])
-    print(f"check written to {out}")
+    if r.returncode != 0 or not (out / "check.json").exists():
+        print(f"CHECK FAILED (exit {r.returncode}): {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'see above'}")
+        print(f"(partial output in {out})")
+        sys.exit(1)
+    print(f"check written to {out}: {', '.join(sorted(p.name for p in out.glob('*.png')))}")
 
 
 def set_verdict(a):
@@ -322,6 +330,8 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("check"); s.add_argument("--backend", default="robot", choices=("robot", "twin"))
     s.add_argument("--object", default="red tape roll"); s.add_argument("--sam3", default="ours", choices=("ours", "robot"))
+    s.add_argument("--port", type=int, default=None, help="the arm server's port (default rig.json's)")
+    s.add_argument("--replay-frames", help="tests: a real run's frames/ dir instead of the cameras")
     s = sub.add_parser("episode")
     s.add_argument("--skills", required=True); s.add_argument("--entry", default="skills/pick.py")
     s.add_argument("--object", help="robot: the target's name, as the task names it ('red tape roll')")
