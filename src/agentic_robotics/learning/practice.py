@@ -109,7 +109,20 @@ def cmd_status(a):
 
 def checks_used(run_dir, session):
     f = run_dir / "ledger.jsonl"
-    return sum(1 for r in map(json.loads, open(f)) if r.get("kind") == "scene_check" and r.get("session") == session) if f.exists() else 0
+    if not f.exists():
+        return 0
+    R = [r for r in map(json.loads, open(f)) if r.get("session") == session]
+    return sum(r.get("kind") == "scene_check" for r in R) - sum(r.get("kind") == "scene_check_void" for r in R)
+
+
+def eval_runs_used(run_dir, session):
+    """Evaluation-set runs that count: those started, minus those spoiled by platform errors. (19-11: this counted the
+    'started' and the 'done' record of each run, so the agent got 2 of its 3 runs.)"""
+    f = run_dir / "ledger.jsonl"
+    if not f.exists():
+        return 0
+    R = [r for r in map(json.loads, open(f)) if r.get("kind") == "eval_exposed" and r.get("session") == session]
+    return sum(r.get("status") == "started" for r in R) - sum(bool(r.get("platform_errors")) for r in R if r.get("status") == "done")
 
 
 def build_scene(ws, run_dir, budget, scene_path, out_dir, family="clutter-pick"):
@@ -123,10 +136,14 @@ def build_scene(ws, run_dir, budget, scene_path, out_dir, family="clutter-pick")
     if not sp.exists():
         fail(f"{scene_path}: no such file")
     out_dir.mkdir(parents=True, exist_ok=True)
+    from ..execution.episode import wait_for_gpu
+    wait_for_gpu()                                 # (19-11: checks rendered on a full GPU failed: EGL_NOT_INITIALIZED)
     r = subprocess.run([str(paths.ROOT / ".venv/bin/python"), "-I", "-m", "agentic_robotics.sim.custom", "--scene", str(sp),
                         "--object-set", t["object_set"], "--colour", t["colour"], "--out", str(out_dir), "--task", family],
                        env=base_env(), cwd=str(paths.ROOT), capture_output=True, text=True, timeout=300)
-    rep = json.loads((out_dir / "report.json").read_text()) if (out_dir / "report.json").exists() else dict(ok=False, why=r.stderr[-500:])
+    rep = json.loads((out_dir / "report.json").read_text()) if (out_dir / "report.json").exists() else \
+        dict(ok=False, platform_error=True, why="the scene builder crashed (a platform problem, not your scene; not "
+             "counted against your budget): " + r.stderr[-400:])
     lay = json.loads((out_dir / "layout.json").read_text()) if rep.get("ok") and (out_dir / "layout.json").exists() else None
     return rep, lay
 
@@ -149,6 +166,10 @@ def cmd_scene(a):
         shutil.rmtree(out)
     fam = a.task or default_family(budget); family_ranges(budget, fam)
     rep, _ = build_scene(ws, run_dir, budget, a.path, out, fam)
+    if rep.get("platform_error"):
+        with ledger_lock(run_dir):
+            with open(run_dir / "ledger.jsonl", "a") as f:
+                f.write(json.dumps(dict(kind="scene_check_void", session=s, t=time.time(), scene=a.path)) + "\n")
     print(json.dumps(rep, indent=1))
     if rep.get("ok"):
         print(f"preview: {out.relative_to(ws)}/preview.png (scene camera | top view: x away from the robot points down, y right)")
@@ -209,6 +230,12 @@ def cmd_run(a):
         rep, layout = build_scene(ws, run_dir, budget, a.scene, out / "scene", fam)
         if layout is None:
             print(json.dumps(rep, indent=1))
+            if rep.get("platform_error"):
+                with ledger_lock(run_dir):
+                    with open(run_dir / "ledger.jsonl", "a") as f:
+                        f.write(json.dumps(dict(kind="practice", session=s, t=time.time(), episodes=-len(eps), robot_s=0.0,
+                                                wall_s=0.0, status="refund", why="scene builder crashed")) + "\n")
+                fail("the scene builder crashed (a platform problem; the reserved episodes were refunded)")
             fail("the scene is not valid (nothing was run; the reserved episodes still count)")
     snap = run_dir / "practice_snapshots" / f"{s}_{n:03d}"
     snapshot(ws, snap)                                        # (the code this call ran, kept outside the workspace)
@@ -237,8 +264,9 @@ def cmd_run(a):
     robot = sum(float(r.get("robot_time_s") or 0) for *_, r in rows)
     with ledger_lock(run_dir):
         with open(run_dir / "ledger.jsonl", "a") as f:
-            f.write(json.dumps(dict(kind="practice", session=s, t=time.time(), episodes=0, robot_s=round(robot, 2),
-                                    wall_s=round(wall, 1), status="done", call=n, seed=seed,
+            n_void = sum(r.get("category") == "platform_error" for *_, r in rows)   # (voided: refunded)
+            f.write(json.dumps(dict(kind="practice", session=s, t=time.time(), episodes=-n_void, robot_s=round(robot, 2),
+                                    wall_s=round(wall, 1), status="done", call=n, seed=seed, platform_errors=n_void,
                                     eps=[[lv, i] for _, lv, i, _ in rows],
                                     successes=sum(bool(r.get("success")) for *_, r in rows))) + "\n")
     where = (f"your scene {a.scene}" if a.scene else "train split") + f", task {fam}"
@@ -257,6 +285,9 @@ def cmd_run(a):
     (out / "summary.md").write_text("\n".join(L) + "\n")
     print("\n".join(L))
     u = usage(run_dir, s)
+    if n_void:
+        print(f"\n{n_void} episode(s) voided by a platform error (category platform_error: not your program's fault); "
+              "refunded")
     print(f"\nbudget: {u['episodes']}/{P['episodes_per_session']} practice episodes used this session")
 
 
@@ -268,7 +299,7 @@ def cmd_eval(a):
         fail("the evaluation set is not available in this run")
     s = meta.get("session")
     with ledger_lock(run_dir):
-        used = sum(1 for r in map(json.loads, open(run_dir / "ledger.jsonl")) if r.get("kind") == "eval_exposed" and r.get("session") == s)
+        used = eval_runs_used(run_dir, s)
         if used >= E["runs_per_session"]:
             fail(f"budget: {E['runs_per_session']} evaluation-set runs per session used")
         with open(run_dir / "ledger.jsonl", "a") as f:
@@ -287,8 +318,12 @@ def cmd_eval(a):
         with open(run_dir / "ledger.jsonl", "a") as f:
             f.write(json.dumps(dict(kind="eval_exposed", session=s, t=time.time(), suite=E["suite"], status="done", call=n,
                                     episodes_run=S["n"], successes=S["successes"], robot_s=S["robot_time_total_s"],
+                                    platform_errors=int(S["categories"].get("platform_error", 0)),
                                     wall_s=round(time.time() - t0, 1), model_cost_usd=S["model_cost_usd"])) + "\n")
     print((out / "summary.md").read_text())
+    if S["categories"].get("platform_error"):
+        print(f"{S['categories']['platform_error']} episodes were voided by platform errors (not your program's fault): "
+              "this run does not count against your evaluation runs")
     print(f"per episode: practice/eval/{n:03d}/episodes/<name>/ (result.json, keyframes.png, events.jsonl, program/)")
 
 
