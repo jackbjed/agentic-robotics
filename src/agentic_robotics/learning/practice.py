@@ -7,6 +7,11 @@ the agent). Every episode runs the workspace's CURRENT skill code, frozen for th
   ar-practice run [--levels 1,2] [--n 4] [--idx 5,17,...] [--seed 123] [--observations none|wrist|all]
                                                     N practice episodes (train layouts) -> practice/runs/NNN/
   ar-practice test                                  pytest on tests/ inside the program sandbox (no world, no network)
+  ar-practice scene check practice/scenes/S.yaml     (when allowed) build a scene YOU wrote (sim/custom.py: objects at
+                                                    x, y, yaw), check it, report + preview.png -> practice/scenes/S.check/
+  ar-practice run --scene practice/scenes/S.yaml --n 3 [--seed S]   episodes on that scene (different sensor seeds)
+  ar-practice eval                                  (ablation --add-evaluation-set only) the evaluation set on the
+                                                    current code, per-episode results -> practice/eval/NNN/
 
 Each practice run writes practice/runs/NNN/summary.md and, per episode, result.json (the judge's verdict, robot time),
 events.jsonl, keyframes.png (a contact sheet), video.mp4, program/ (the program's own output and errors) and, if asked,
@@ -70,15 +75,75 @@ def cmd_status(a):
     s = meta.get("session")
     u, U = usage(run_dir, s), usage(run_dir)
     P = budget["practice"]
-    print(json.dumps(dict(session=s, this_session=u, session_limit_episodes=P["episodes_per_session"],
-                          run_total=U, run_limit_episodes=P["episodes_total"],
-                          permitted=dict(split=P["split"], levels=P["levels"], idx_range=P["idx_range"],
-                                         seed_range=P["seed_range"], max_per_call=P["max_per_call"])), indent=1))
+    out = dict(session=s, this_session=u, session_limit_episodes=P["episodes_per_session"],
+               run_total=U, run_limit_episodes=P["episodes_total"],
+               permitted=dict(split=P["split"], levels=P["levels"], idx_range=P["idx_range"],
+                              seed_range=P["seed_range"], max_per_call=P["max_per_call"]))
+    if budget.get("scenes", {}).get("allowed"):
+        out["scene_checks"] = f"{checks_used(run_dir, s)}/{budget['scenes']['checks_per_session']} this session"
+    V = budget.get("vlm") or {}
+    if V.get("enabled"):
+        from ..perception.vlm import spent
+        out["model"] = dict(calls_per_episode=V["max_calls_per_episode"], usd_spent_this_run=round(spent(meta["run_id"]), 3),
+                            usd_run_cap=V["run_usd"])
+    print(json.dumps(out, indent=1))
+
+
+def checks_used(run_dir, session):
+    f = run_dir / "ledger.jsonl"
+    return sum(1 for r in map(json.loads, open(f)) if r.get("kind") == "scene_check" and r.get("session") == session) if f.exists() else 0
+
+
+def build_scene(ws, run_dir, budget, scene_path, out_dir):
+    """Build a scene the agent wrote, in a privileged process (sim/custom.py) -> (report, layout or None)."""
+    from ..config import task_config
+    from ..execution.episode import base_env
+    t = task_config(budget["task"])
+    sp = (ws / scene_path).resolve()
+    if not str(sp).startswith(str(ws / "practice" / "scenes") + os.sep) or sp.suffix not in (".yaml", ".yml"):
+        fail("scenes are .yaml files under practice/scenes/")
+    if not sp.exists():
+        fail(f"{scene_path}: no such file")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run([str(paths.ROOT / ".venv/bin/python"), "-I", "-m", "agentic_robotics.sim.custom", "--scene", str(sp),
+                        "--object-set", t["object_set"], "--colour", t["colour"], "--out", str(out_dir)],
+                       env=base_env(), cwd=str(paths.ROOT), capture_output=True, text=True, timeout=300)
+    rep = json.loads((out_dir / "report.json").read_text()) if (out_dir / "report.json").exists() else dict(ok=False, why=r.stderr[-500:])
+    lay = json.loads((out_dir / "layout.json").read_text()) if rep.get("ok") and (out_dir / "layout.json").exists() else None
+    return rep, lay
+
+
+def cmd_scene(a):
+    ws, meta, run_dir, budget = context()
+    S = budget.get("scenes") or {}
+    if not S.get("allowed"):
+        fail("writing your own scenes is not part of this run")
+    if a.action != "check":
+        fail("ar-practice scene check practice/scenes/NAME.yaml")
+    s = meta.get("session")
+    with ledger_lock(run_dir):
+        if checks_used(run_dir, s) >= S["checks_per_session"]:
+            fail(f"budget: {S['checks_per_session']} scene checks per session used")
+        with open(run_dir / "ledger.jsonl", "a") as f:
+            f.write(json.dumps(dict(kind="scene_check", session=s, t=time.time(), scene=a.path)) + "\n")
+    out = (ws / a.path).with_suffix(".check")
+    if out.exists():
+        shutil.rmtree(out)
+    rep, _ = build_scene(ws, run_dir, budget, a.path, out)
+    print(json.dumps(rep, indent=1))
+    if rep.get("ok"):
+        print(f"preview: {out.relative_to(ws)}/preview.png (scene camera | top view: x away from the robot points down, y right)")
 
 
 def cmd_run(a):
     ws, meta, run_dir, budget = context()
     P = budget["practice"]
+    layout = None
+    if a.scene:
+        if not (budget.get("scenes") or {}).get("allowed"):
+            fail("writing your own scenes is not part of this run")
+        if a.idx or a.levels:
+            fail("--scene runs that scene only (no --idx / --levels)")
     levels = [int(x) for x in a.levels.split(",")] if a.levels else list(P["levels"])
     if any(lv not in P["levels"] for lv in levels):
         fail(f"levels must be within {P['levels']}")
@@ -86,12 +151,14 @@ def cmd_run(a):
     if not P["seed_range"][0] <= seed < P["seed_range"][1]:
         fail(f"seed must be in {P['seed_range']}")
     rng = np.random.default_rng(seed)
-    if a.idx:
+    if a.scene:
+        eps = [(-1, k) for k in range(a.n)]
+    elif a.idx:
         idx = [int(x) for x in a.idx.split(",")]
         eps = [(levels[k % len(levels)], i) for k, i in enumerate(idx)]
     else:
         eps = [(levels[k % len(levels)], int(rng.integers(*P["idx_range"]))) for k in range(a.n)]
-    if any(not P["idx_range"][0] <= i < P["idx_range"][1] for _, i in eps):
+    if not a.scene and any(not P["idx_range"][0] <= i < P["idx_range"][1] for _, i in eps):
         fail(f"layout indices must be in {P['idx_range']}")
     if not 1 <= len(eps) <= P["max_per_call"]:
         fail(f"1 to {P['max_per_call']} episodes per call")
@@ -115,6 +182,11 @@ def cmd_run(a):
     pr = ws / "practice" / "runs"; pr.mkdir(parents=True, exist_ok=True)
     n = len([d for d in pr.iterdir() if d.is_dir()]) + 1
     out = pr / f"{n:03d}"; out.mkdir()
+    if a.scene:
+        rep, layout = build_scene(ws, run_dir, budget, a.scene, out / "scene")
+        if layout is None:
+            print(json.dumps(rep, indent=1))
+            fail("the scene is not valid (nothing was run; the reserved episodes still count)")
     snap = run_dir / "practice_snapshots" / f"{s}_{n:03d}"
     snapshot(ws, snap)                                        # (the code this call ran, kept outside the workspace)
     obs = {"none": "none", "wrist": "all", "all": "all"}[a.observations]
@@ -122,9 +194,12 @@ def cmd_run(a):
     from concurrent.futures import ThreadPoolExecutor
     def one(k_ep):
         k, (lv, i) = k_ep
-        ep = dict(episode_base(t, record=dict(video=True, observations=obs, keyframes=True)),
-                  split=P["split"], level=lv, idx=i, seed=episode_seed(seed, lv, i))
-        d = out / f"{k:02d}_L{lv}_{i:04d}"
+        V = dict(budget["vlm"], tag=f"{meta['run_id']}:practice") if (budget.get("vlm") or {}).get("enabled") else None
+        ep = dict(episode_base(t, record=dict(video=True, observations=obs, keyframes=True), vlm=V),
+                  split=P["split"] if layout is None else "custom", level=lv, idx=i, seed=episode_seed(seed, max(lv, 0), i))
+        if layout is not None:
+            ep["layout"] = layout
+        d = out / (f"{k:02d}_L{lv}_{i:04d}" if layout is None else f"{k:02d}_scene_{Path(a.scene).stem}")
         r = run_episode(snap, ep, d, entry=budget.get("entry", "skills/pick.py"), sandbox=True, wall_limit_s=t["wall_limit_s"])
         if a.observations == "wrist" and (d / "observations").exists():
             for f in (d / "observations").glob("*d415*"):
@@ -141,18 +216,55 @@ def cmd_run(a):
                                     wall_s=round(wall, 1), status="done", call=n, seed=seed,
                                     eps=[[lv, i] for _, lv, i, _ in rows],
                                     successes=sum(bool(r.get("success")) for *_, r in rows))) + "\n")
-    L = [f"practice run {n:03d}: seed {seed}, {len(rows)} episodes (train split), {wall:.0f} s wall", "",
+    where = f"your scene {a.scene}" if a.scene else "train split"
+    L = [f"practice run {n:03d}: seed {seed}, {len(rows)} episodes ({where}), {wall:.0f} s wall", "",
          "| # | level | layout | result | robot s to success | program result | error |", "|---|---|---|---|---|---|---|"]
     for k, lv, i, r in rows:
         pr_ = r.get("program_result") or {}
+        lv, i = (lv, i) if layout is None else ("scene", k)
         L.append(f"| {k:02d} | {lv} | {i} | {r.get('category')} | {r.get('t_success')} | "
                  f"{pr_.get('result') if isinstance(pr_, dict) else pr_} | {(r.get('program_error') or '')[:80]} |")
     ok = sum(bool(r.get("success")) for *_, r in rows)
-    L += ["", f"{ok}/{len(rows)} successes. Per episode: result.json, keyframes.png, events.jsonl, program/, video.mp4"]
+    usd = sum(float((r.get("program") or {}).get("model_cost_usd") or 0) for *_, r in rows)
+    calls = sum(int((r.get("program") or {}).get("model_calls") or 0) for *_, r in rows)
+    L += ["", f"{ok}/{len(rows)} successes. Model calls {calls} (${usd:.3f}). Per episode: result.json, keyframes.png, "
+          f"events.jsonl (incl. any model request/reply), program/, video.mp4"]
     (out / "summary.md").write_text("\n".join(L) + "\n")
     print("\n".join(L))
     u = usage(run_dir, s)
     print(f"\nbudget: {u['episodes']}/{P['episodes_per_session']} practice episodes used this session")
+
+
+def cmd_eval(a):
+    """(ablation only) the evaluation set on the current code: per-episode results into practice/eval/NNN/."""
+    ws, meta, run_dir, budget = context()
+    E = budget.get("eval_access")
+    if not E:
+        fail("the evaluation set is not available in this run")
+    s = meta.get("session")
+    with ledger_lock(run_dir):
+        used = sum(1 for r in map(json.loads, open(run_dir / "ledger.jsonl")) if r.get("kind") == "eval_exposed" and r.get("session") == s)
+        if used >= E["runs_per_session"]:
+            fail(f"budget: {E['runs_per_session']} evaluation-set runs per session used")
+        with open(run_dir / "ledger.jsonl", "a") as f:
+            f.write(json.dumps(dict(kind="eval_exposed", session=s, t=time.time(), suite=E["suite"], status="started")) + "\n")
+    from ..config import task_config
+    from ..evaluation.runner import run_suite
+    ev = ws / "practice" / "eval"; ev.mkdir(parents=True, exist_ok=True)
+    n = len([d for d in ev.iterdir() if d.is_dir()]) + 1
+    out = ev / f"{n:03d}"
+    V = dict(budget["vlm"], tag=f"{meta['run_id']}:eval") if (budget.get("vlm") or {}).get("enabled") else None
+    t0 = time.time()
+    S = run_suite(ws, E["spec"], task_config(budget["task"]), out, workers=E.get("workers", 16), sandbox=True,
+                  record=dict(video=True, observations="none", keyframes=True), entry=budget.get("entry", "skills/pick.py"),
+                  log=None, vlm=V)
+    with ledger_lock(run_dir):
+        with open(run_dir / "ledger.jsonl", "a") as f:
+            f.write(json.dumps(dict(kind="eval_exposed", session=s, t=time.time(), suite=E["suite"], status="done", call=n,
+                                    episodes_run=S["n"], successes=S["successes"], robot_s=S["robot_time_total_s"],
+                                    wall_s=round(time.time() - t0, 1), model_cost_usd=S["model_cost_usd"])) + "\n")
+    print((out / "summary.md").read_text())
+    print(f"per episode: practice/eval/{n:03d}/episodes/<name>/ (result.json, keyframes.png, events.jsonl, program/)")
 
 
 def cmd_test(a):
@@ -175,8 +287,11 @@ def main(argv=None):
     sub.add_parser("status").set_defaults(fn=cmd_status)
     s = sub.add_parser("run"); s.set_defaults(fn=cmd_run)
     s.add_argument("--levels"); s.add_argument("--n", type=int, default=4); s.add_argument("--idx"); s.add_argument("--seed", type=int)
-    s.add_argument("--observations", default="none")
+    s.add_argument("--observations", default="none"); s.add_argument("--scene")
     sub.add_parser("test").set_defaults(fn=cmd_test)
+    sub.add_parser("eval").set_defaults(fn=cmd_eval)
+    s = sub.add_parser("scene"); s.set_defaults(fn=cmd_scene)
+    s.add_argument("action", choices=("check",)); s.add_argument("path")
     a = ap.parse_args(argv)
     a.fn(a)
 

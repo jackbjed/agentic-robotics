@@ -30,7 +30,7 @@ def main():
     from ..sim import twin
     library = twin.skill_library()
     from ..robot.client import make_robot
-    from ..perception.client import Segmenter, library_perception
+    from ..perception.client import Segmenter, VLMClient, library_perception
     from .context import SkillContext
     robot, link = make_robot(a.sock)
     hello = link.call("hello")[0]
@@ -38,7 +38,7 @@ def main():
     seg = Segmenter(link)
     per = library_perception(robot, seg, out, library)
     ctx = SkillContext(task=task, robot=robot, segmenter=seg, library=library, perception=per, out=out, link=link,
-                       t0=float(hello["t0"]), limit_s=float(hello["robot_time_limit_s"]))
+                       t0=float(hello["t0"]), limit_s=float(hello["robot_time_limit_s"]), vlm=VLMClient(link))
     sys.path.insert(0, str(Path(a.skills).resolve()))       # (the program's own helpers: `import helpers.x`)
     result, error = None, None
     w_setup = time.time() - w0

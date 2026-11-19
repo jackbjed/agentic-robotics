@@ -24,7 +24,9 @@ def condition(t):
     return dict(colour=t["colour"], object_set=t["object_set"], perception=t["perception"], preset=t["preset"])
 
 
-def episode_base(t, record=None, parity=False):
+def episode_base(t, record=None, parity=False, vlm=None):
+    """vlm: None (no model calls) or the experiment's vlm block + tag (+ cache_dir): perception/vlm.py."""
     return dict(scene=dict(preset=t["preset"], colour_noise=t["colour_noise"], colour=t["colour"], object_set=t["object_set"]),
                 perception=t["perception"], robot_time_limit_s=t["robot_time_limit_s"],
-                record=record or dict(video=True, observations="none"), parity=bool(parity))
+                record=record or dict(video=True, observations="none"), parity=bool(parity),
+                vlm=vlm if (vlm or {}).get("enabled") else None)

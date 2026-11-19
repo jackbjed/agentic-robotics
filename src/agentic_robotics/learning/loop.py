@@ -36,6 +36,20 @@ from . import agent
 CODE_DIRS = ("skills", "helpers", "tests")
 
 
+def strip_vlm(txt):
+    """A doc without its ctx.vlm parts: the table row and the '## The model call' section."""
+    lines = [l for l in txt.splitlines(keepends=True) if not l.startswith("| `ctx.vlm` |")]
+    out, skip = [], False
+    for l in lines:
+        if l.startswith("## The model call"):
+            skip = True; continue
+        if skip and l.startswith("## "):
+            skip = False
+        if not skip:
+            out.append(l)
+    return "".join(out)
+
+
 def run_dir(run_id):
     return paths.RUNS / "learning" / run_id
 
@@ -65,7 +79,9 @@ def experiment(path):
 
 
 # ---------------------------------------------------------------------------------------------------- init
-def init(run_id, exp_path):
+def init(run_id, exp_path, add_eval_set=False):
+    """add_eval_set (ablation, `--add-evaluation-set`): the agent may run the evaluation set itself (learning.
+    exposed_eval_suite) during its sessions and see its per-episode results."""
     X = experiment(exp_path)
     L = X["learning"]
     ws, rd = paths.WORKSPACES / run_id, run_dir(run_id)
@@ -78,11 +94,16 @@ def init(run_id, exp_path):
         if (src / d).exists():
             shutil.copytree(src / d, ws / d, ignore=shutil.ignore_patterns("__pycache__"))
     (ws / "practice").mkdir()
+    if L.get("allow_custom_scenes"):
+        (ws / "practice" / "scenes").mkdir()
     (ws / "notes.md").write_text("# Notes\n\n(What you tried, what you saw in practice, what you changed and why.)\n")
     (ws / "docs").mkdir()
-    for f in ("skill_api.md", "robot.md", "perception.md", "task_clutter_pick.md"):
+    for f in ("skill_api.md", "robot.md", "perception.md", "task_clutter_pick.md") + (("scenes.md",) if L.get("allow_custom_scenes") else ()):
         if (paths.ROOT / "docs" / f).exists():
-            shutil.copy2(paths.ROOT / "docs" / f, ws / "docs" / f)
+            txt = (paths.ROOT / "docs" / f).read_text()
+            if not (X.get("vlm") or {}).get("enabled"):
+                txt = strip_vlm(txt)                          # (runs without model calls: no word of ctx.vlm)
+            (ws / "docs" / f).write_text(txt)
     ref = ws / "reference"
     shutil.copytree(paths.VENDOR, ref, ignore=shutil.ignore_patterns("__pycache__", "*.obj", "*.stl", "*.json", "__init__.py"))
     (ref / "README.md").write_text(REFERENCE_README)
@@ -95,7 +116,14 @@ def init(run_id, exp_path):
                                 episodes_total=L["practice_episodes_total"], max_per_call=L.get("practice_max_per_call", 12)),
                   agent=dict(model=L.get("model"), effort=L.get("effort"), usd_per_session=L["agent_usd_per_session"],
                              usd_total=L["agent_usd_total"], wall_s_per_session=L["agent_wall_s_per_session"]),
-                  selection=L["selection"], dev_suite=L["dev_suite"])
+                  selection=L["selection"], dev_suite=L["dev_suite"],
+                  vlm=X.get("vlm") if (X.get("vlm") or {}).get("enabled") else None,
+                  scenes=dict(allowed=True, checks_per_session=L.get("scene_checks_per_session", 40))
+                  if L.get("allow_custom_scenes") else None,
+                  eval_access=dict(suite=L.get("exposed_eval_suite", "heldout_target_200"),
+                                   spec=X["suites"][L.get("exposed_eval_suite", "heldout_target_200")],
+                                   runs_per_session=L.get("eval_runs_per_session", 3), workers=L.get("dev_workers", 16))
+                  if add_eval_set else None)
     (rd / "budget.json").write_text(json.dumps(budget, indent=1))
     (rd / "experiment.json").write_text(json.dumps(X, indent=1, default=str))
     (ws / ".ar_run.json").write_text(json.dumps(dict(run_id=run_id, session=None)))
@@ -103,7 +131,7 @@ def init(run_id, exp_path):
     (ws / "CLAUDE.md").write_text("See AGENTS.md (the brief for this workspace).\n")
     ck = rd / "checkpoints" / "000_initial"
     snapshot(ws, ck)
-    ledger(run_id, kind="init", experiment=X["_path"], skill=X["skill"])
+    ledger(run_id, kind="init", experiment=X["_path"], skill=X["skill"], add_eval_set=bool(add_eval_set))
     print(f"workspace {ws}\nrun {rd}\nthe initial skill on the dev suite ...")
     S = dev_eval(run_id, "000_initial", ck, X)
     state(run_id, incumbent="000_initial", iteration=0, incumbent_dev=S)
@@ -116,8 +144,10 @@ def dev_eval(run_id, name, skill_dir, X):
     spec = X["suites"][L["dev_suite"]]
     out = run_dir(run_id) / "dev" / name
     t0 = time.time()
+    V = X.get("vlm") or {}
+    V = dict(V, tag=f"{run_id}:dev", cache_dir=str(run_dir(run_id) / "vlm_cache")) if V.get("enabled") else None
     S = run_suite(skill_dir, spec, task_config(X["task"]), out, workers=L.get("dev_workers", 16), sandbox=True,
-                  entry=X.get("entry", "skills/pick.py"), log=None)
+                  entry=X.get("entry", "skills/pick.py"), log=None, vlm=V)
     ledger(run_id, kind="dev", name=name, episodes=S["n"], successes=S["successes"], robot_s=S["robot_time_total_s"],
            wall_s=round(time.time() - t0, 1), model_cost_usd=S["model_cost_usd"])
     return dict(successes=S["successes"], n=S["n"], t_success_mean=S["t_success_mean"], by_level=S["by_level"],
@@ -229,8 +259,10 @@ def evaluate(run_id, suite="heldout", workers=16, baseline=None):
     for name in names:
         d = rd / "heldout" / f"{suite}_{name}"
         print(f"[{run_id}] {suite}: {name}")
+        V = X.get("vlm") or {}
+        V = dict(V, tag=f"{run_id}-heldout:{suite}", run_usd=V.get("heldout_usd", 0.0)) if V.get("enabled") else None
         out[name] = run_suite(rd / "checkpoints" / name, spec, task_config(X["task"]), d, workers=workers, sandbox=True,
-                              entry=X.get("entry", "skills/pick.py"), log=print)
+                              entry=X.get("entry", "skills/pick.py"), log=print, vlm=V)
     if st["incumbent"] != "000_initial":
         from ..evaluation.compare import compare_md
         c = compare(rd / "heldout" / f"{suite}_000_initial", rd / "heldout" / f"{suite}_{st['incumbent']}")
@@ -261,6 +293,51 @@ PERCEPTION_NOTE = {
 COLOUR_NOTE = {"mujoco": "plain MuJoCo rendering", "splat": "the splat composite (scanned table and objects, MuJoCo's arm)"}
 
 
+SCENES_TEXT = """**Your own test scenes.** Besides the training layouts, you can write scenes: a YAML file under `practice/scenes/`
+placing the objects where you want them (to reproduce a failure, or to test one situation: a tight gap on one side, a
+blocker the fingers would hit, the other roll touching the target ...). Format and checks: docs/scenes.md. In short:
+
+    target: tape_red                          # the object the task names: tape_red or tape_yellow
+    objects:                                  # id: [x, y, yaw_deg], world frame (m, deg)
+      tape_red:    [-0.30, 0.020, 0]
+      tape_yellow: [-0.30, 0.075, 0]
+      hole_block:  [-0.22, 0.020, 45]
+    arm_start: [-0.30, 0.00, 0.22, 0]         # optional: fingertips x, y, z, hand yaw
+
+Object ids (what the task calls them in this run): {names}. Work area x -0.49..-0.12 (away from the robot), y
+-0.18..0.21. `{practice} scene check practice/scenes/NAME.yaml` builds and checks it ({n} checks per session): gaps
+to the target, its visibility, the free straight-down grasp directions, and a preview image (NAME.check/preview.png).
+`{practice} run --scene practice/scenes/NAME.yaml --n 3` runs your skill there (each episode counts). Your scenes are
+for practice: the evaluation uses layouts you never see.
+
+"""
+
+VLM_TEXT = """**One model call per episode (Astra, `ctx.vlm`).** Your program may ask a vision-language model (gpt-6-astra) ONE
+question per episode, typically at the start with the scene camera's (and/or the wrist camera's) first frame: to point
+at the target or at the objects in its way (ask for pixel coordinates as JSON and turn them into 3D points with the
+frame's depth), or to suggest a plan. `r = ctx.vlm.ask(prompt, [frame, ...])` -> `r["ok"]`, `r["text"]` (docs/
+skill_api.md). A second call in the same episode is refused. A short pointing answer costs about $0.006 (more if the
+model writes more); this run's model budget is ${usd} for practice and development together (`status` shows what is
+spent); when it is used up, calls are refused, so the program must still work without an answer. The model sees only
+what you send; it can be wrong.
+
+"""
+
+
+EVAL_TEXT = """**The evaluation set (you may use it in this run).** After the session your version is scored on a fixed set of
+{n} layouts. You can run exactly that set on your current code: `{practice} eval` ({runs} times per session; it takes
+a while: give it a timeout of 600000 ms, or run it in the background and check its summary). It writes
+`practice/eval/NNN/`: `summary.md` and per episode `result.json`, `keyframes.png`, `events.jsonl`, `program/`. Its
+episodes do not count against the practice budget; its model calls count against the model budget.
+
+"""
+
+
+def _suite_eps(spec):
+    from ..evaluation.suites import episodes
+    return episodes(spec)
+
+
 def brief(B, X):
     P = B["practice"]
     practice = str(paths.ROOT / "bin" / "ar-practice")
@@ -270,6 +347,15 @@ def brief(B, X):
     ph = OBJECT_SETS[t["object_set"]]["phrases"]
     objects = f'"{ph["tape_red"]}" or "{ph["tape_yellow"]}"'
     perception, perception_note, colour = t["perception"], PERCEPTION_NOTE[t["perception"]], COLOUR_NOTE[t["colour"]]
+    scenes_text = SCENES_TEXT.format(practice=practice, n=B["scenes"]["checks_per_session"],
+                                     names="; ".join(f"{k} = \"{v}\"" for k, v in ph.items())) if B.get("scenes") else ""
+    V = B.get("vlm") or {}
+    vlm_text = VLM_TEXT.format(usd=V.get("run_usd")) if V.get("enabled") else ""
+    E = B.get("eval_access")
+    eval_text = EVAL_TEXT.format(practice=practice, runs=E["runs_per_session"], n=len(_suite_eps(E["spec"]))) if E else ""
+    timeout_note = ((f"A practice call takes about 30 s per {B.get('practice_workers', 8)} episodes (longer while the "
+                     "machine is busy): give these shell commands a timeout of 600000 ms (10 min).\n\n")
+                    if (X.get("learning") or {}).get("practice_timeout_note") else "")
     return f"""# Your task in this workspace
 
 You improve a robot skill program by practising it in simulation. The robot is a Franka Panda arm with a two-finger
@@ -298,12 +384,12 @@ own code). Practise in simulation with exactly these commands (the only shell co
     {practice} run --levels 3 --n 4 --observations wrist    # also save the camera frames the program got
     {practice} test                               # your tests in tests/ (pytest), in the sandbox, no robot
 
-Practice uses training layouts (levels {P['levels']}: 0 = objects 6-10 cm apart ... 3 = boxed in, no free straight-down
+{timeout_note}Practice uses training layouts (levels {P['levels']}: 0 = objects 6-10 cm apart ... 3 = boxed in, no free straight-down
 grasp). Each run writes `practice/runs/NNN/`: `summary.md`, and per episode `result.json` (the verdict, robot time),
 `events.jsonl` (what your program logged), `keyframes.png` (8 frames: overview | wrist camera; read it to see what
 happened), `video.mp4`, `program/` (program.json, errors). Look at failures before changing code.
 
-**Budget.** {P['episodes_per_session']} practice episodes in this session (`status` shows what is left), and your own
+{scenes_text}{vlm_text}{eval_text}**Budget.** {P['episodes_per_session']} practice episodes in this session (`status` shows what is left), and your own
 session's spending cap. Failed and crashed episodes count too. Stop when the budget is used or you have a version you
 believe is better.
 
@@ -343,9 +429,11 @@ def cli(a):
     ap.add_argument("--iterations", type=int, default=1)
     ap.add_argument("--suite", default="heldout"); ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--baseline", help="reuse this suite run of the same initial skill (evaluate)")
+    ap.add_argument("--add-evaluation-set", "--add_evaluation_set", dest="add_eval_set", action="store_true",
+                    help="init, ablation: the agent may run the evaluation set (learning.exposed_eval_suite) itself")
     o = ap.parse_args(a.rest)
     if a.action == "init":
-        init(o.run_id, o.experiment)
+        init(o.run_id, o.experiment, o.add_eval_set)
     elif a.action == "run":
         for _ in range(o.iterations):
             iterate(o.run_id)

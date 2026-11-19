@@ -5,6 +5,8 @@
   ctx.segmenter    perception (perception/client.py): segment(rgb, phrase), segment_points(rgb, pts, labels)
   ctx.library      the vendored robot skill library (astra_skills_real module: SkillProgram, pick_direct, ...)
   ctx.perception   the library's perception object over ctx.robot + ctx.segmenter (library_perception)
+  ctx.vlm          the vision-language model, when the experiment allows it: ctx.vlm.ask(prompt, images) (ONE call
+                   per episode; perception/client.py VLMClient)
   ctx.log(what, **data)       an event in the episode's log (robot time stamped by the server)
   ctx.save_image(name, rgb)   a debug image in the episode's program/ directory
   ctx.out          the episode's program/ directory (writable)
@@ -27,6 +29,7 @@ class SkillContext:
     link: object
     t0: float
     limit_s: float
+    vlm: object = None
     events: list = field(default_factory=list)
 
     def log(self, what, **data):

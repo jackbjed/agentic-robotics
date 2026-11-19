@@ -20,10 +20,29 @@ never sees. Robot time is limited per episode (60 s); after that, motion is refu
 | `ctx.segmenter` | segmentation (docs/perception.md): `segment(rgb, phrase)`, `segment_points(rgb, pts, labels)` |
 | `ctx.library` | the robot skill library, the vendored `astra_skills_real` module (below) |
 | `ctx.perception` | the library's perception object over `ctx.robot` and `ctx.segmenter` (`track_run.TrackPerception`) |
+| `ctx.vlm` | when the run allows it: the vision-language model (Astra, gpt-6-astra), **one call per episode** (below) |
 | `ctx.log(what, **data)` | an event in the episode's `events.jsonl`, stamped with robot time |
 | `ctx.save_image(name, rgb)` | a PNG in the episode's `program/` directory |
 | `ctx.out` | the writable `program/` directory |
 | `ctx.time_left()` | robot seconds left before motion is refused |
+
+## The model call (`ctx.vlm`, when the run allows it)
+
+```python
+obs = ctx.robot.observe_frame("d415")                         # the scene camera's first frame
+r = ctx.vlm.ask('Give the pixel [x, y] of the centre of the red tape roll as JSON {"target": [x, y]}.', [obs])
+if r["ok"]:
+    text = r["text"]                                          # parse it yourself; it can be wrong or malformed
+```
+
+- **One call per episode.** A second call is refused (`ok: False`). The images are 1–4 frames this episode's cameras
+  delivered, as `observe_frame` dicts or their `rgb`.
+- **Cost.** A short pointing answer costs about $0.006; a long answer (a plan) costs more. The run's model budget is in
+  the brief. When it is used up, calls are refused, so the program must work without an answer.
+- **Time.** Robot time does not advance while the model answers. Its wait is recorded separately, along with every
+  request and reply, in the episode's `events.jsonl`.
+- **A pixel to 3D:** `P, ok = ctx.library.F.world(obs)`; then `P[v, u]` is the world point at pixel (u, v) if
+  `ok[v, u]` holds (noisy depth: use a small neighbourhood).
 
 ## The library (`ctx.library`, source in the workspace's `reference/`)
 

@@ -79,12 +79,16 @@ class ClutterPickScene:
 
     # ------------------------------------------------------------------ reset (PickEnv.reset, options=layout)
     def reset(self, split, level, idx, seed):
-        from gymnasium.utils import seeding
-        np_random, _ = seeding.np_random(int(seed))
         key = (split, int(level))
         if key not in self.banks:
             self.banks[key] = load_bank(split, level, self.object_set)
-        self.L = L = self.banks[key][int(idx)]
+        return self.reset_layout(self.banks[key][int(idx)], seed, split, level, idx)
+
+    def reset_layout(self, L, seed, split="custom", level=-1, idx=-1):
+        """The episode on layout L (a bank entry, or a scene the agent wrote: sim/custom.py), reset seed `seed`."""
+        from gymnasium.utils import seeding
+        np_random, _ = seeding.np_random(int(seed))
+        self.L = L
         self.split, self.level, self.layout_idx = split, int(level), int(idx)
         P = self.P
         P.reset_world(active=L["objs"])

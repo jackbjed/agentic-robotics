@@ -1,0 +1,43 @@
+# A long self-improvement session (2026-11-18, user: "with opus 5.5 medium effort as the agent, with much more allowed
+# practice episodes, to see how good it can get"): condition A (splat colour, the real objects, SAM3, the realistic
+# D415 depth), the agent may write its own test scenes and give the skill ONE Astra call per episode.
+name: opus_A_smoke   # the features smoke test: tiny budgets
+task: configs/tasks/clutter_pick_A.yaml
+skill: initial_skills/clutter_pick
+entry: skills/pick.py
+suites:
+  heldout_target:     {split: test, levels: [0, 1, 2, 3], n: 100, seed: 5, protected: true, task: configs/tasks/clutter_pick_A.yaml}
+  heldout_target_200: {split: test, levels: [0, 1, 2, 3], n: 50, seed: 5, protected: true, task: configs/tasks/clutter_pick_A.yaml}   # the evaluation set (the ablation's agent may run it)
+  heldout_fresh_200:  {split: test, levels: [0, 1, 2, 3], idx: [100, 150], seed: 5, protected: true, task: configs/tasks/clutter_pick_A.yaml}   # never seen by any run
+  dev:                {split: val, levels: [1, 2, 3], n: 30, seed: 11}
+  smoke:              {split: val, levels: [0, 1, 2], idx: [90, 92], seed: 13}
+practice:
+  split: train
+  levels: [0, 1, 2, 3]
+  idx_range: [0, 2000]
+  seed_range: [100, 999]
+vlm:                             # perception/vlm.py; configs/models.yaml (total cap $18 over everything)
+  enabled: true
+  model: astra
+  max_calls_per_episode: 1
+  max_usd_per_episode: 0.10
+  run_usd: 0.30                   # practice + development (+ the ablation's evaluation-set runs) of this run
+  heldout_usd: 3.0               # the final held-out evaluations
+learning:
+  dev_suite: smoke
+  dev_workers: 16
+  practice_workers: 12
+  practice_episodes_per_session: 6
+  practice_episodes_total: 6
+  practice_max_per_call: 16
+  allow_custom_scenes: true
+  practice_timeout_note: true
+  exposed_eval_suite: smoke   # ablation --add-evaluation-set: the set the agent may run
+  eval_runs_per_session: 3
+  scene_checks_per_session: 3
+  model: claude-opus-5-5
+  effort: medium
+  agent_usd_per_session: 40.0    # the CLI's API-equivalent estimate (the sessions run on the subscription login)
+  agent_usd_total: 40.0
+  agent_wall_s_per_session: 14400
+  selection: {min_gain: 2, min_dt_s: 0.5}

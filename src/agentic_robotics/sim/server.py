@@ -67,7 +67,15 @@ class World:
         sc = spec.get("scene", {})
         self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
                                       colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"))
-        self.task = self.scene.reset(spec["split"], spec["level"], spec["idx"], spec["seed"])
+        if spec.get("layout") is not None:                          # (a scene the agent wrote: sim/custom.py, practice)
+            self.task = self.scene.reset_layout(spec["layout"], spec["seed"])
+        else:
+            self.task = self.scene.reset(spec["split"], spec["level"], spec["idx"], spec["seed"])
+        self.vlm = None
+        if (spec.get("vlm") or {}).get("enabled"):                 # (Astra: perception/vlm.py, budgets there)
+            from ..perception.vlm import VLM
+            v = spec["vlm"]
+            self.vlm = VLM(v, tag=v.get("tag", "untagged"), cache_dir=v.get("cache_dir"))
         if spec.get("parity"):
             self.task = dict(self.task, hint=self.scene.truth_hint())
         if spec.get("test_name_other_roll"):                       # (judge validation only: the program is told the
@@ -169,6 +177,20 @@ class World:
                 return dict(ok=False, why=f"perception backend {self.perc!r} unknown"), []
             self.wall["perception"] += time.time() - t0w
             return dict(ok=True, scores=[s for _, s in res]), [m.astype(np.uint8) for m, _ in res]
+        if cmd == "vlm":
+            if self.vlm is None:
+                return dict(ok=False, why="no model calls in this experiment"), []
+            ims = []
+            for a_ in arrays:
+                if self.scene.labels_for(a_) is None:
+                    return dict(ok=False, why="images must be frames this episode's cameras delivered"), []
+                ims.append(a_)
+            if not 1 <= len(ims) <= 4:
+                return dict(ok=False, why="1 to 4 images per call"), []
+            self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what="vlm request", data=dict(prompt=str(h.get("prompt"))[:4000], n_images=len(ims)))) + "\n")
+            r = self.vlm.ask(h.get("prompt", ""), ims, detail=h.get("detail", "high"))
+            self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what="vlm reply", data={k: v for k, v in r.items()})) + "\n")
+            return dict(r), []
         if cmd == "event":
             self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what=h.get("what"), data=h.get("data"))) + "\n")
             return dict(ok=True), []
@@ -213,8 +235,10 @@ class World:
                    robot_time_limit_s=self.limit, time_limit_hit=t_prog_end >= self.limit,
                    wall=dict({k: round(v, 3) for k, v in self.wall.items()}, video_render=round(self.rec.render_wall, 3),
                              server_total=round(time.time() - self.t_wall0, 3)),
-                   program=h.get("usage") or {}, counts=self.counts, judge_calls=self.rec.n_judge,
-                   task=self.task, episode={k: self.spec[k] for k in ("split", "level", "idx", "seed")})
+                   program=dict(h.get("usage") or {}, **(self.vlm.usage() if self.vlm is not None else {})),
+                   counts=self.counts, judge_calls=self.rec.n_judge,
+                   task=self.task, episode={k: self.spec.get(k) for k in ("split", "level", "idx", "seed")},
+                   custom_scene=(self.spec.get("layout") or {}).get("custom") if self.spec.get("layout") else None)
         json.dump(res, open(self.out / "result.json", "w"), indent=1, default=protocol._default)
         self.finished = res
 

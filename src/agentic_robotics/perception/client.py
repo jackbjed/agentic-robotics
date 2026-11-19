@@ -45,3 +45,22 @@ def library_perception(robot, seg, out_dir, library):
             return seg.segment_points(img, pts, labels)
 
     return LinkedPerception(robot, np.random.default_rng(0), out_dir, "skill")
+
+
+class VLMClient:
+    """ctx.vlm: the experiment's vision-language model (Astra, gpt-6-astra), called by the world server for the
+    program. AT MOST ONE call per episode (the server refuses more), with frames this episode's cameras delivered.
+
+      ctx.vlm.ask(prompt, images, detail="high") -> dict(ok, text, usd, wait_s, tokens) or dict(ok=False, why)
+    images: 1-4 frames (observe_frame(...) dicts or their "rgb" arrays). The reply is text; ask for JSON in the prompt
+    if you want to parse it (e.g. pixel coordinates of objects, which you can turn into 3D points with the frame's
+    depth). Robot time does not advance while the model answers (its wall time is recorded separately)."""
+
+    def __init__(self, link):
+        self.link, self.calls = link, 0
+
+    def ask(self, prompt, images, detail="high"):
+        ims = [np.ascontiguousarray(i["rgb"] if isinstance(i, dict) else i) for i in images]
+        self.calls += 1
+        h, _ = self.link.call("vlm", arrays=ims, prompt=str(prompt), detail=str(detail))
+        return h

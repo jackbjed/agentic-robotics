@@ -1,0 +1,13 @@
+# Model APIs the world server may call for a skill program (perception/vlm.py). Keys: configs/local.yaml
+# secrets.*_key_file (never in a sandbox, never logged).
+models:
+  astra:
+    provider: openai_responses
+    model: gpt-6-astra
+    effort: medium
+    max_output_tokens: 6000
+    # $ per million tokens: panda_twin astra_e2e.py's table (an upper bound: uncached input billed as cache writes);
+    # not re-checked against the provider's current prices
+    price_per_mtok: {in: 12.5, cached: 1.0, out: 50.0}
+budget:
+  total_usd: 18.0     # hard cap on ALL model spending by this repository (the user's credit: $20 on 2026-11-18)
