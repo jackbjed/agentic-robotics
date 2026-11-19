@@ -23,7 +23,7 @@ def snapshot(skill_root, dst):
     dst = Path(dst)
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(skill_root, dst, ignore=shutil.ignore_patterns("__pycache__", "practice", "runs", "*.pyc", "notes.md"))
+    shutil.copytree(skill_root, dst, ignore=shutil.ignore_patterns("__pycache__", "practice", "runs", "*.pyc", "notes.md", "reference", "docs", "AGENTS.md", "CLAUDE.md"))
     for p in dst.rglob("*"):
         p.chmod(0o555 if p.is_dir() else 0o444)
     return dst

@@ -1,0 +1,33 @@
+# Milestone 1: one reproducible skill-improvement loop on the clutter pick.
+name: m1_smoke   # the loop's smoke test: tiny suites and budgets
+task: configs/tasks/clutter_pick.yaml
+skill: initial_skills/clutter_pick        # the no-practice baseline (preserved; workspaces start from a copy)
+entry: skills/pick.py
+suites:
+  # held-out (protected: the learning agent never runs or reads these; evaluation only, by the operator)
+  parity_test: {split: test, levels: [0, 1, 2], n: 100, seed: 5, parity: true, protected: true}   # = the 11-18 baseline
+  heldout:     {split: test, levels: [0, 1, 2, 3], n: 100, seed: 5, protected: true}
+  # development validation (the outer loop's selection; the agent sees only its summary, never per-episode records)
+  dev:         {split: val, levels: [1, 2, 3], n: 30, seed: 11}
+  # smoke tests (local, cheap)
+  smoke:       {split: val, levels: [0, 1, 2], idx: [90, 92], seed: 13}
+# practice: the agent's own episodes, train split only (2000 layouts per level), seeds of its choice within the range
+practice:
+  split: train
+  levels: [0, 1, 2, 3]
+  idx_range: [0, 2000]
+  seed_range: [100, 999]
+# the learning loop (learning/loop.py): budgets are explicit; the coding agent's cost is the CLI's own accounting
+learning:
+  dev_suite: smoke
+  dev_workers: 16
+  practice_workers: 8
+  practice_episodes_per_session: 4
+  practice_episodes_total: 4
+  practice_max_per_call: 4
+  model: sonnet                  # Claude Code model alias for the learning sessions
+  effort: null
+  agent_usd_per_session: 1.0     # --max-budget-usd per session (API-equivalent dollars, as the CLI reports them)
+  agent_usd_total: 1.0          # all sessions of a run
+  agent_wall_s_per_session: 600
+  selection: {min_gain: 2, min_dt_s: 0.5}

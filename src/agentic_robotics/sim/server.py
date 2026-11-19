@@ -69,6 +69,10 @@ class World:
         self.task = self.scene.reset(spec["split"], spec["level"], spec["idx"], spec["seed"])
         if spec.get("parity"):
             self.task = dict(self.task, hint=self.scene.truth_hint())
+        if spec.get("test_name_other_roll"):                       # (judge validation only: the program is told the
+            other = "tape_yellow" if self.scene.target == "tape_red" else "tape_red"   # OTHER roll's name; the judge
+            from .scene import PHRASES                              # still judges the true target: wrong_object)
+            self.task = dict(self.task, object=PHRASES[other], instruction=f"Pick up the {PHRASES[other]} and lift it.")
         P = self.scene.P
         self.arm = P.arm
         rc = spec.get("record", {})
