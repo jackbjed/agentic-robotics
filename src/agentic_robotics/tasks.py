@@ -13,6 +13,9 @@ judge_*; every 1/30 s of robot time, success = the condition held for 1 s):
                 lid open > 30 deg (the latch gave way, its spring opened it), the kettle upright
   insert        the wooden cylinder (40 x 40 mm, 22 mm bore) onto one of the stand's three wooden sticks (18 mm,
                 ~17 cm tall): the cylinder's axis within 2 mm + 3 mm of a stick's, below its tip, released
+  pack          2-3 named objects into the open white box, then its lid closed: every one inside its walls, released,
+                the lid < 8 deg, the box upright, nothing else in it, nothing off the table (the real robot's box task,
+                2026-11-19); 180 s of robot time
 press and insert use the multi-task model (scripts/build_tasks_model.py); their scenes have plain MuJoCo colour only (no
 scans of the kettle, stand or cylinder in the splat compositor)."""
 from __future__ import annotations
@@ -28,6 +31,10 @@ TASKS = {
                   instruction="Put the {object} into the white box.", destination="white box"),
     "close-box": dict(object_set="real", banks="layouts_close", judge="lid_closed", entry="skills/close_box.py", levels=[0],
                       targets=["box_white"], instruction="Close the lid of the {object}."),
+    "pack": dict(object_set="real", banks="layouts_pack", judge="packed", entry="skills/pack.py", levels=[0],
+                 targets=["tape_red", "tape_yellow", "tape_white", "hole_block", "screwdriver", "cable"], fixed=["box_white"],
+                 instruction="Put {objects} into the {destination}, then close its lid.", destination="white box",
+                 time_limit_s=180.0),
     "press": dict(object_set="tasks", banks="layouts_press", judge="kettle_open", entry="skills/press.py", levels=[0],
                   targets=["kettle"], colour_only="mujoco",
                   instruction="Press the button on top of the {object}'s handle (it releases the kettle's lid).",

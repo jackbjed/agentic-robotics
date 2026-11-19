@@ -138,7 +138,8 @@ class ClutterPickScene:
         if L.get("joints"):
             P.mj.mj_forward(P.m, P.d)
         self.target = L["target"]; P.target = self.target; P.L = {"objs": list(L["objs"])}
-        self.distractors = list(L["distractors"])
+        self.targets = list(L.get("targets") or [self.target])        # (pack: every object to put in the box)
+        self.distractors = [k for k in L["distractors"] if k not in self.targets]
         rng = np.random.default_rng(int(np_random.integers(1 << 62)))
         self.ep_corrupt = self.corr.reset(rng, self.latency_s, light_hook=self._scale_lights)
         P.settle(0.2)
@@ -170,6 +171,12 @@ class ClutterPickScene:
         t = self.tdef
         if self.task_name == "clutter-pick":                         # (milestone 1's exact task dict: parity)
             return dict(kind="clutter_pick", instruction=f"Pick up the {ph} and lift it.", object=ph)
+        if self.task_name == "pack":                                 # (several objects, named in the instruction)
+            names = [self.phrases[k] for k in self.targets]
+            the = [f"the {n}" for n in names]
+            lst = the[0] if len(the) == 1 else ", ".join(the[:-1]) + " and " + the[-1]
+            return dict(kind="pack", objects=names, object=names[0], destination=t["destination"],
+                        instruction=t["instruction"].format(objects=lst, destination=t["destination"]))
         out = dict(kind=self.task_name.replace("-", "_"), object=ph,
                    instruction=t["instruction"].format(object=ph, destination=t.get("destination", "")))
         for k in ("destination", "part"):
@@ -234,6 +241,14 @@ class ClutterPickScene:
             bt = tilt("box_white")
             cond = inside and not touch_t and bt < 10 and not others and not off and wrong is None
             return cond, dict(inside_box=bool(inside), others_in_box=others, box_tilt_deg=round(bt, 1))
+        if kind == "packed":
+            ins = [k for k in self.targets if TB.inside_box(w, k)]
+            held = any(P.touching_fingers(k) for k in self.targets)
+            others = [k for k in self.distractors if k != "box_white" and TB.inside_box(w, k)]
+            lid = math.degrees(P.d.qpos[w.lid_q]); bt = tilt("box_white")
+            cond = len(ins) == len(self.targets) and not held and lid < 8 and bt < 10 and not others and not off and wrong is None
+            return cond, dict(in_box=ins, n_in_box=len(ins), n_targets=len(self.targets), lid_deg=round(lid, 1),
+                              box_tilt_deg=round(bt, 1), others_in_box=others)
         if kind == "lid_closed":
             lid = math.degrees(P.d.qpos[w.lid_q]); bt = tilt("box_white")
             moved = float(np.linalg.norm(w.pose("box_white")[0][:2] - self.xy0["box_white"]))
@@ -276,7 +291,8 @@ class ClutterPickScene:
         else:
             cat = "not_touched"
         dist = max(jd["disturb"].values()) if jd["disturb"] else 0.0
-        task_state = {k: jd[k] for k in ("inside_box", "others_in_box", "box_tilt_deg", "lid_deg", "box_moved_mm",
+        task_state = {k: jd[k] for k in ("inside_box", "in_box", "n_in_box", "n_targets", "others_in_box", "box_tilt_deg",
+                                          "lid_deg", "box_moved_mm",
                                           "kettle_lid_deg", "button_mm", "latched", "kettle_tilt_deg", "on_stick",
                                           "cyl_to_stick_mm", "stick") if k in jd}
         return dict(task=self.task_name, task_state=task_state, category=cat, success=self.t_success is not None,

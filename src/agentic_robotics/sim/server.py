@@ -113,6 +113,10 @@ class World:
             self.arm.rec, self.arm.state_log = self.rec, None
         self.rec.next_j = self.rec.next_v = float(P.d.time)
         self.limit = float(spec.get("robot_time_limit_s", 60.0))
+        from .. import tasks as TK                                 # (a task with its own robot-time limit: pack)
+        fam_limit = TK.get(spec.get("family", "clutter-pick")).get("time_limit_s")
+        if fam_limit:
+            self.limit = max(self.limit, float(fam_limit))
         self.save_obs = rc.get("observations", "all")               # all | none
         self.perc = spec.get("perception", "oracle")
         self.n_obs = 0

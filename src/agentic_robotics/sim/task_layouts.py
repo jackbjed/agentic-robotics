@@ -7,6 +7,7 @@ by sim/custom.py's builder (the same rules as the agent's own scenes and the clu
   close-box  the white box, lid open 70-120 deg, + 0-2 others >= 8 cm away
   press      the kettle at any yaw whose lid-release button the hand reaches from above + 0-2 others
   insert     the stand with three sticks (their tips reachable from above) + the cylinder upright 8-16 cm away + 0-1 other
+  pack       the open white box (lid 100-120 deg) + 2-3 of its targets 16-28 cm from its middle, >= 9 cm apart, + 0-1 other
 Splits train / val / test, 300 / 60 / 100 layouts (level 0 only), seeds per task and split (SEEDS).
 
     bin/ar layouts --task press --split train --n 300"""
@@ -21,7 +22,7 @@ import numpy as np
 
 from .. import paths, tasks as TK
 
-SEEDS = {"pick": 2101, "place": 2201, "close-box": 2301, "press": 2401, "insert": 2501}
+SEEDS = {"pick": 2101, "place": 2201, "close-box": 2301, "press": 2401, "insert": 2501, "pack": 2601}
 SPLIT_OFF = {"train": 0, "val": 10, "test": 20}
 N_DEFAULT = {"train": 300, "val": 60, "test": 100}
 AREA_X, AREA_Y = (-0.43, -0.18), (-0.13, 0.17)
@@ -37,7 +38,9 @@ def _near(rng, c, r_lo, r_hi):
     return [float(c[0] + r * math.cos(a)), float(c[1] + r * math.sin(a))]
 
 
-def spec_for(task, rng):
+def spec_for(task, rng, rng_choice=None):
+    """rng_choice (pack): the objects' choice, fixed per layout index, so that a layout redrawn for a bad placement keeps
+    its objects (else the long ones, the screwdriver and the cable, would be under-represented)."""
     td = TK.get(task)
     pool = ["tape_red", "tape_yellow", "tape_white", "hole_block", "cable", "screwdriver", "glue", "sticky_pad"]
     yaw = lambda: float(rng.uniform(0, 360))
@@ -59,6 +62,27 @@ def spec_for(task, rng):
         objs[t] = b + [yaw()]; joints["box_lid_deg"] = float(rng.uniform(70, 120))
         for k in rng.choice(pool, int(rng.integers(0, 3)), replace=False):
             objs[str(k)] = _near(rng, b, 0.18, 0.26) + [yaw()]
+    elif task == "pack":
+        b = [float(rng.uniform(-0.37, -0.27)), float(rng.uniform(-0.05, 0.09))]
+        objs["box_white"] = b + [yaw()]; joints["box_lid_deg"] = float(rng.uniform(100, 120))
+        rc = rng_choice if rng_choice is not None else rng
+        ts = [str(k) for k in rc.choice(td["targets"], int(rc.integers(2, 4)), replace=False)]
+        others = [k for k in pool if k not in ts and k not in sum((RED_CONFLICTS.get(t_, []) for t_ in ts), [])]
+        extra = [str(rc.choice(others))] if rc.random() < 0.4 else []
+
+        HALF = {"screwdriver": 0.10, "cable": 0.06}           # (long objects kept further from the area's edges)
+
+        def free_spot(k):                                      # (anywhere on the free table: clear of the box and
+            mg = HALF.get(k, 0.035)                            # its open lid, >= 9 cm from the others)
+            for _ in range(200):
+                c = [float(rng.uniform(-0.49 + mg, -0.12 - mg)), float(rng.uniform(-0.18 + mg, 0.21 - mg))]
+                if 0.16 <= math.dist(c, b) <= 0.32 and all(math.dist(c, objs[o][:2]) >= 0.09 for o in objs if o != "box_white"):
+                    return c
+            return _near(rng, b, 0.16, 0.28)
+        for k in ts + extra:
+            objs[k] = free_spot(k) + [yaw()]
+        sp = dict(target=ts[0], targets=ts, objects=objs, joints=joints)
+        return sp
     elif task == "press":
         t = "kettle"; c = [float(rng.uniform(-0.38, -0.24)), float(rng.uniform(-0.06, 0.12))]; objs[t] = c + [yaw()]
         for k in rng.choice(pool, int(rng.integers(0, 3)), replace=False):
@@ -97,7 +121,7 @@ def sample(P, task, seed, idx, max_tries=60):
     why = "?"
     for sub in range(max_tries):
         rng = np.random.default_rng([seed, idx, sub])
-        spec = spec_for(task, rng)
+        spec = spec_for(task, rng, np.random.default_rng([seed, idx, 7]))
         try:
             L, rep = build(P, spec, task)
         except SceneError as e:

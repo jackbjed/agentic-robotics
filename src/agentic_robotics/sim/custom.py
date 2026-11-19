@@ -47,7 +47,7 @@ def parse(spec, task="clutter-pick"):
     if t not in targets:
         raise SceneError(f"task {task}: target must be one of {targets}")
     objs = spec.get("objects") or {}
-    lo = 1 if task in ("pick", "close-box", "press") else 2
+    lo = 1 if task in ("pick", "close-box", "press") else 3 if task == "pack" else 2
     if not isinstance(objs, dict) or not lo <= len(objs) <= 6:
         raise SceneError(f"objects: {lo} to 6 entries id: [x, y, yaw_deg]")
     if t not in objs:
@@ -138,7 +138,15 @@ def build(P, spec, task="clutter-pick"):
         free, _ = P.kin_grasps(target, yaws=18, widths=(0.080,), dz=(0.0,), margin=0.004)
         n_free = len({round(f[0], 4) for f in free})
     others = [k for k in pose if k != target]
-    L = dict(split="custom", seed=None, level=-1, idx=-1, sub=0, target=target, distractors=others,
+    targets = [target]
+    if task == "pack":                                            # (several targets: all of them into the box)
+        from .. import tasks as TK
+        targets = list(spec.get("targets") or [target])
+        allowed = TK.get(task)["targets"]
+        if not 2 <= len(targets) <= 3 or len(set(targets)) != len(targets) or targets[0] != target or \
+                any(k not in pose or k not in allowed for k in targets):
+            raise SceneError(f"pack: targets = 2-3 distinct objects of the scene from {allowed}, the first = target")
+    L = dict(split="custom", seed=None, level=-1, idx=-1, sub=0, target=target, targets=targets, distractors=others,
              objs={k: d.qpos[w.oq[k]:w.oq[k] + 7].round(6).tolist() for k in pose},
              rest_com_z={k: round(P.com_z(k), 5) for k in pose},
              start=dict(tip=np.round(st_tip, 5).tolist(), yaw=round(st_yaw, 5), q=np.asarray(q).round(6).tolist()),

@@ -493,6 +493,10 @@ TASK_SUCCESS = {
              "releases the latch and the lid's spring opens it; the kettle upright, for 1 s",
     "insert": "the wooden cylinder (40 x 40 mm, a 22 mm hole along its axis) on one of the stand's three 18 mm wooden "
               "sticks (~17 cm tall): the stick through the hole, the cylinder below the stick's tip, released, for 1 s",
+    "pack": "every named object (2-3 of: the red, yellow and white tape rolls, the black block with holes, the "
+            "screwdriver, the coiled cable) inside the white box's walls and released, then the box's lid closed (< 8 deg), "
+            "the box upright, nothing else in it, nothing off the table, for 1 s; this task has 180 s of robot time "
+            "(ctx.task: \"objects\" = their names, \"destination\" = the box)",
 }
 
 
@@ -501,7 +505,8 @@ def tasks_section(B, practice):
     rows = []
     for f in B["tasks"]:
         td = TK.get(f)
-        ex = td["instruction"].format(object="<object>", destination=td.get("destination", ""))
+        ex = td["instruction"].format(object="<object>", objects="the <object>, the <object> and the <object>",
+                                      destination=td.get("destination", ""))
         rows.append(f"- **{f}** (`{td['entry']}`): told e.g. \"{ex}\" Success: {TASK_SUCCESS[f]}.")
     return ("**Tasks in this run.** The program is one skill per task, each with its own entry file (`run(ctx)`); "
             "`ctx.task[\"kind\"]` says which task an episode is. Each is evaluated on its own layouts.\n" + "\n".join(rows) +
@@ -552,9 +557,13 @@ def brief(B, X):
     else:
         vlm_bit = (" and, once per episode, the vision-language model Astra, for example to point at the object "
                    "(`ctx.vlm`)") if V.get("enabled") else ""
+        sn = (X.get("learning") or {}).get("start_note")
+        prog_text = ("The program is one skill per task (its entry file, `run(ctx)`, in **Tasks in this run** below), with "
+                     "helpers in `helpers/`." if B.get("tasks") else
+                     "The program is `skills/pick.py` (entry point `run(ctx)`), with helpers in `helpers/`.")
         intro = (f"You write a robot skill program and improve it by practising it in simulation. The robot is {robot_text}. "
-                 "The program is `skills/pick.py` (entry point `run(ctx)`), with helpers in `helpers/`.\n\n"
-                 "**It is empty: no skill is written yet.** Write the skill as code, using what the robot gives you: its "
+                 f"{prog_text}\n\n"
+                 f"**{sn or 'It is empty: no skill is written yet.'}** Write the skill{'s' if B.get('tasks') else ''} as code, using what the robot gives you: its "
                  "motion interface and cameras (`ctx.robot`, docs/robot.md), the depth and the camera geometry "
                  f"(`ctx.tools`), the segmentation model (`ctx.segmenter`, docs/perception.md){vlm_bit}. There is no skill "
                  "library: the robot's own skill code is neither available to your program nor shown to you "
@@ -631,6 +640,12 @@ def session_prompt(it, st, B, L, real_note="", resumed=False):
                 f"{d.get('t_success_mean')} s robot time per success).{prev}{real_note} "
                 f"You have {eps} practice episodes in this session. End with your best version in place and notes.md "
                 f"updated.")
+    if B.get("tasks"):                                         # (several tasks: each its own entry file)
+        return (f"Session {it}. Read AGENTS.md (the tasks, their entry files and success checks), then docs/skill_api.md "
+                f"and docs/tasks.md, then write and improve the skills by practising them. The current version solves "
+                f"{d.get('successes')}/{d.get('n')} development episodes ({lv}; {d.get('t_success_mean')} s robot time per "
+                f"success).{prev}{real_note} You have {eps} practice episodes. End with your best version in place and "
+                f"notes.md updated.")
     if B.get("library", True) is False and st.get("incumbent") == "000_initial" and not d.get("successes"):
         return (f"Session {it}. Read AGENTS.md, then docs/skill_api.md and docs/robot.md, then write skills/pick.py: "
                 f"it is empty, no skill is written yet (it solves 0/{d.get('n')} development episodes).{prev}{real_note} "

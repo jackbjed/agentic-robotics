@@ -1,0 +1,56 @@
+# Packing (2026-11-19, user: "packaging several objects into the box and closing it ... [not] only a composition of
+# skills outside of what the agent built"): the agent's OWN skills, no robot skill library. It starts from its clutter
+# pick (fidelity2_A_r1 s02, initial_skills/pack_own_pick) and writes the pack skill (pick each object, put it in the
+# white box, close the lid) itself. Condition A at the calibrated cameras (splat colour: the box and its lid have their
+# own scans), SAM3, the fitted D415 depth. Clutter-pick stays in the run so the pick skill cannot regress (selection:
+# max_task_loss). The hand-written baseline: initial_skills/tasks/skills/pack.py (the robot's own box program).
+name: pack_A
+task: configs/tasks/clutter_pick_A_rig.yaml
+skill: initial_skills/pack_own_pick
+entry: skills/pick.py
+tasks: [pack, clutter-pick]
+suites:
+  dev:
+    families:
+      pack:         {split: val, n: 30, seed: 11}
+      clutter-pick: {split: val, levels: [1, 2, 3], n: 8, seed: 11}
+  heldout:
+    protected: true
+    families:
+      pack:         {split: test, n: 50, seed: 5}
+      clutter-pick: {split: test, levels: [0, 1, 2, 3], n: 25, seed: 5}
+  smoke:
+    families:
+      pack:         {split: val, idx: [50, 52], seed: 13}
+practice:
+  split: train
+  seed_range: [100, 999]
+  families:
+    pack:         {levels: [0], idx_range: [0, 275]}
+    clutter-pick: {levels: [0, 1, 2, 3], idx_range: [0, 2000]}
+vlm:
+  enabled: true
+  model: astra
+  max_calls_per_episode: 1
+  max_usd_per_episode: 0.03
+  run_usd: 1.0
+  dev_usd: 1.5
+  heldout_usd: 2.5
+learning:
+  library: false
+  start_note: "skills/pick.py is your own clutter pick from an earlier run (written from an empty file; it lifts a named tape roll out of clutter in simulation and on the real robot). skills/pack.py is not written yet."
+  test_note: "Your version is evaluated on new layouts of the same kinds, with the same objects, colour and cameras as in your practice."
+  resume_session: true
+  dev_suite: dev
+  dev_workers: 16
+  practice_workers: 12
+  practice_episodes_per_session: 200
+  practice_episodes_total: 400
+  practice_max_per_call: 12
+  practice_timeout_note: true
+  model: claude-opus-5-5
+  effort: medium
+  agent_usd_per_session: 25.0
+  agent_usd_total: 50.0
+  agent_wall_s_per_session: 14400
+  selection: {min_gain: 2, min_dt_s: 0.5, max_task_loss: 1}
