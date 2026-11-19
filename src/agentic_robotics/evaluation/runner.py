@@ -67,8 +67,11 @@ def run_suite(skill_root, spec, task_cfg, out_dir, workers=8, sandbox=True, reco
             r = json.load(open(rf))
             if r.get("category") != "platform_error":
                 return ep, r
-        return ep, run_episode(snap, dict(base, **ep), d, entry=entry, sandbox=sandbox,
-                               wall_limit_s=task_cfg.get("wall_limit_s", 900))
+        try:
+            return ep, run_episode(snap, dict(base, **ep), d, entry=entry, sandbox=sandbox,
+                                   wall_limit_s=task_cfg.get("wall_limit_s", 900))
+        except Exception as e:                                  # (the platform failed, not the program: void)
+            return ep, dict(success=False, category="platform_error", error=f"{type(e).__name__}: {e}"[:500])
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = [ex.submit(one, ep) for ep in eps]
