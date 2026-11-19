@@ -53,3 +53,46 @@ Dynamics are held fixed on purpose. Changes in object dynamics (friction, mass) 
 
 Results are **simulation generalization**. Nothing here is evidence of sim-to-real transfer without physical
 experiments.
+
+## First run (2026-11-18/19): one Sonnet run per condition
+
+Experiments `fidelity_{A,B,C}.yaml`, runs `fid{A,B,C}_r1`.
+
+**Setup:**
+- Agent: Claude Sonnet 5.5.
+- Two sessions per condition, with at most 120 practice episodes per run (40 per session).
+- The initial skill is the same for all three conditions (`initial_skills/clutter_pick`).
+
+**Evaluation:** all held-out scores are on the common target (`heldout_target`: real objects, splat colour, test L0–3 × 100).
+
+| training condition | own dev (val L1–3 × 30): initial → kept | practice used | agent cost (API-equivalent) | **heldout_target /400** | L0 / L1 / L2 / L3 (/100) | s per success |
+|---|---|---|---|---|---|---|
+| — (initial skill) | — | — | — | 315 | 95 / 98 / 95 / 27 | 16.4 |
+| A (splat, real objects) | 65 → 65 (nothing kept) | 24 / 120 | $0.37 | 315 (= initial) | 95 / 98 / 95 / 27 | 16.4 |
+| B (plain colour, real objects) | 65 → 77 | 38 / 120 | $0.26 | **361** | 100 / 99 / 99 / 63 | 19.7 |
+| C (plain colour, substitute objects) | 0 → 86 | 46 / 120 | $0.29 | 317 | 91 / 94 / 94 / 38 | 17.4 |
+
+**B vs the initial skill:**
+- B gains 46 episodes and loses none (McNemar p < 1e-6).
+- The gain is all at level 3, where its successes take longer (32 s).
+
+**C vs the initial skill:**
+- C's changes fixed its own world: SAM3 phrase fallbacks for "can" objects seen as discs from above, plus a retry.
+- On the target they make no difference: 19 episodes gained, 17 lost (p = 0.87).
+- It does better at level 3 and slightly worse at levels 0–2.
+
+**A:**
+- The agent stopped early in both sessions, after 12 practice episodes each.
+- Its level-3 fallbacks (`pick_seg` clearing, then drag and remove-blocker) gained nothing, and it reverted them.
+- It concluded that the fingertips do not fit a tape's hole.
+- The Opus sessions in the same condition did use an inside grasp in that hole (`docs/results_opus_A.md`).
+
+**What this run does and does not show:**
+- **One run per condition, with a small budget that the agent mostly left unused.** The A result reflects that
+  session's search, not the condition: under condition A, Opus with 400 practice episodes reached 196–200/200
+  (`docs/results_opus_A.md`, a different budget and held-out subset).
+- **The most solid point:** C's large gain on its own dev did not transfer to the real objects. This is because its
+  fixes were about the substitutes' appearance and names.
+- **B's transfer from plain colour to splat colour worked here.** It is a single run, though.
+- **Not yet measured:** a fair comparison of A, B and C needs the same agent and budget per condition (e.g. Opus with
+  400 episodes) and more than one seed.
