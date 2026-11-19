@@ -85,3 +85,44 @@ Rejected revisions count like accepted ones. `ar learn status` sums them.
 The initial skill (`checkpoints/000_initial`) and the final incumbent run on the protected `heldout` suite: test
 layouts, the same episodes for both, through the same frozen-snapshot path. The results are written to
 `runs/learning/ID/heldout/`, where no session ever looks, along with the paired comparison.
+
+## Real-robot feedback and continuous sessions (2026-11-19)
+
+**Real runs into the loop.** After running a version of the skill on the robot with `real/run episode ...`, the operator
+copies the episodes into the run's workspace:
+
+```
+ar learn add-real --run-id ID real/results/<run> [real/results/<run> ...]
+ar learn extend   --run-id ID --practice 100 --agent-usd 15     # if the run's practice / agent budget is used up
+ar learn run      --run-id ID [--resume-session]
+```
+
+- **What `add-real` copies.** Each episode goes to `workspaces/ID/real/NNN_<name>/` (learning/real_feedback.py):
+  - `summary.md`: which version of this run's skill it was (matched by its code hash), dry or live, the operator's
+    verdict and note, robot time, trajectories planned / sent / refused, the program's result;
+  - `keyframes.png` (8 frames of `episode.mp4`), `frames/`, `plan/`, `events.jsonl`, `actions.md` (no joint arrays),
+    `program/`.
+
+  No machine paths or keys are copied.
+- **The next session's prompt** names the new runs (live / dry, version, outcome) and points to `real/`. The brief of
+  runs made from now on says that `real/` may appear. Selection is unchanged: a change for the real robot is kept only
+  if it also passes the simulated development evaluation.
+- **The ledger** records every import (kind `real`), each budget extension (kind `budget`) and, per session, which
+  real runs it was told about.
+
+**Continuous sessions.** By default each iteration is a fresh Claude Code process, with no conversation; continuity
+comes from the workspace (code, `notes.md`, practice records, `real/`) and the session prompt.
+
+With `learning.resume_session: true` in the experiment, or `ar learn run --resume-session`, the conversation is saved
+and the next iteration resumes it (`claude -p --resume <session id>`).
+- The agent keeps its whole context; Claude Code compacts it when the window fills.
+- The prompt says what changed since: the dev result, the keep / reject decision (a reset of the code if rejected), and
+  new real runs.
+- The restrictions are the same on every invocation. The session id stays the same, and each invocation's cost is its
+  own (checked 2026-11-19): the per-session and total caps hold as before.
+- Saved conversations live in Claude Code's own store, `~/.claude/projects/<workspace path>/`, outside the workspace.
+  The first `--resume-session` iteration of a run whose earlier sessions were not saved starts fresh and is saved from
+  then on.
+
+Use the workspace record for comparisons across coding agents: another agent cannot resume a Claude session, but any
+agent reads the same `notes.md` and `real/`.

@@ -88,6 +88,17 @@ real/run summary                                   # results/summary.md: every e
 - twin: the simulator's judge;
 - dry: none.
 
+## Feeding real runs back into a learning run
+
+```
+bin/ar learn add-real --run-id fidelity2_A_r1 real/results/<run> [...]   # into the agent's workspace, real/
+bin/ar learn extend   --run-id fidelity2_A_r1 --practice 100 --agent-usd 15   # if its budgets are used up
+bin/ar learn run      --run-id fidelity2_A_r1 --resume-session             # the next iteration sees them
+```
+
+The next session's prompt announces the new runs. docs/learning.md, "Real-robot feedback and continuous sessions", has
+the details.
+
 ## What a dry run shows, and what it does not
 
 The program gets live frames and the arm's real state, so its first perception and its first plan are real: where it

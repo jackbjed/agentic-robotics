@@ -12,6 +12,14 @@
   ar learn evaluate --run-id ID [--suite heldout] [--workers 16]
       OPERATOR ONLY, after learning: the initial skill and the final incumbent on the held-out suite (results under
       runs/learning/ID/heldout/, outside every workspace), paired comparison
+  ar learn add-real --run-id ID real/results/<run> [...]
+      OPERATOR: real-robot episodes (real/run.py) into the workspace's real/, announced in the next session's prompt
+      (learning/real_feedback.py)
+  ar learn extend --run-id ID [--practice N] [--agent-usd X]
+      OPERATOR: more practice episodes / agent budget for further iterations (e.g. after real-robot feedback)
+  ar learn run ... --resume-session | --no-resume-session
+      continue the previous session's conversation (its whole context) instead of a fresh one; default: the
+      experiment's learning.resume_session (off)
 
 SELECTION RULE (dev suite, the same episodes for candidate and incumbent, robot speed and limits unchanged):
   void   any platform error in the candidate's dev run -> rejected (re-run by the operator if the platform is at fault)
@@ -193,7 +201,8 @@ def init(run_id, exp_path, add_eval_set=False, tasks=None, initial=None):
                                 episodes_per_session=L["practice_episodes_per_session"],
                                 episodes_total=L["practice_episodes_total"], max_per_call=L.get("practice_max_per_call", 12)),
                   agent=dict(model=L.get("model"), effort=L.get("effort"), usd_per_session=L["agent_usd_per_session"],
-                             usd_total=L["agent_usd_total"], wall_s_per_session=L["agent_wall_s_per_session"]),
+                             usd_total=L["agent_usd_total"], wall_s_per_session=L["agent_wall_s_per_session"],
+                             resume=bool(L.get("resume_session", False))),
                   selection=L["selection"], dev_suite=L["dev_suite"],
                   vlm=X.get("vlm") if (X.get("vlm") or {}).get("enabled") else None,
                   scenes=dict(allowed=True, checks_per_session=L.get("scene_checks_per_session", 40))
@@ -238,7 +247,17 @@ def dev_eval(run_id, name, skill_dir, X):
 
 
 # ---------------------------------------------------------------------------------------------------- one iteration
-def iterate(run_id):
+def last_session_id(L):
+    """The id of the last session if it was saved (resumable), else None."""
+    for r in reversed(L):
+        if r.get("kind") == "session":
+            return r.get("session_id") if r.get("persisted") else None
+    return None
+
+
+def iterate(run_id, resume=None):
+    """resume: None = the run's setting (budget agent.resume), True / False = this iteration."""
+    from .real_feedback import prompt_note
     rd, ws = run_dir(run_id), paths.WORKSPACES / run_id
     X = json.loads((rd / "experiment.json").read_text())
     B = json.loads((rd / "budget.json").read_text())
@@ -252,15 +271,24 @@ def iterate(run_id):
     sid = f"s{it:02d}"
     meta = json.loads((ws / ".ar_run.json").read_text()); meta["session"] = sid
     (ws / ".ar_run.json").write_text(json.dumps(meta))
-    prompt = session_prompt(it, st, B, read_ledger(run_id))
-    print(f"[{run_id}] iteration {it}: session {sid} (cap ${min(A['usd_per_session'], left):.2f}, {A['wall_s_per_session']} s)")
+    resume_on = bool(A.get("resume")) if resume is None else bool(resume)
+    prev_sid = last_session_id(read_ledger(run_id)) if resume_on else None
+    real_new = list(st.get("real_pending") or [])
+    prompt = session_prompt(it, st, B, read_ledger(run_id), real_note=prompt_note(real_new), resumed=bool(prev_sid))
+    print(f"[{run_id}] iteration {it}: session {sid} (cap ${min(A['usd_per_session'], left):.2f}, {A['wall_s_per_session']} s"
+          f"{', resuming ' + prev_sid if prev_sid else (', saved for resuming' if resume_on else '')}"
+          f"{f', {len(real_new)} new real runs' if real_new else ''})")
     res = agent.run_session(ws, prompt, (ws / "AGENTS.md").read_text(), rd / "sessions" / sid, model=A.get("model"),
                             max_budget_usd=min(A["usd_per_session"], left), wall_limit_s=A["wall_s_per_session"],
                             effort=A.get("effort"),
-                            env_extra=dict(AR_WORKSPACE=str(ws.resolve()), AR_RUN=run_id))
+                            env_extra=dict(AR_WORKSPACE=str(ws.resolve()), AR_RUN=run_id), persist=resume_on, resume=prev_sid)
     ledger(run_id, kind="session", session=sid, cost_usd=res.get("cost_usd"), usage=res.get("usage"), turns=res.get("turns"),
            wall_s=res.get("wall_s"), subtype=res.get("subtype"), denials=len(res.get("denials") or []),
-           tool_calls=res.get("tool_calls"), model=(res.get("init") or {}).get("model"))
+           tool_calls=res.get("tool_calls"), model=(res.get("init") or {}).get("model"),
+           session_id=(res.get("init") or {}).get("session_id"), persisted=res.get("persisted"), resumed_from=prev_sid,
+           real_announced=[r["name"] for r in real_new])
+    if real_new:
+        state(run_id, real_pending=[], real_announced=(st.get("real_announced") or []) + [r["name"] for r in real_new])
     print(f"  session done: ${res.get('cost_usd')}, {res.get('turns')} turns, {res.get('wall_s')} s, "
           f"{len(res.get('denials') or [])} denied tool calls, exit {res.get('exit')}")
     cand = rd / "candidates" / sid
@@ -381,6 +409,18 @@ def evaluate(run_id, suite="heldout", workers=16, baseline=None):
         (rd / "heldout" / f"{suite}_comparison.md").write_text(md)
         print(md)
     return out
+
+
+def extend(run_id, practice=0, agent_usd=0.0):
+    """More practice episodes and agent budget for further iterations (recorded in the ledger)."""
+    f = run_dir(run_id) / "budget.json"
+    B = json.loads(f.read_text())
+    B["practice"]["episodes_total"] += int(practice)
+    B["agent"]["usd_total"] = round(B["agent"]["usd_total"] + float(agent_usd), 2)
+    f.write_text(json.dumps(B, indent=1))
+    ledger(run_id, kind="budget", practice_added=int(practice), agent_usd_added=float(agent_usd),
+           episodes_total=B["practice"]["episodes_total"], agent_usd_total=B["agent"]["usd_total"])
+    print(f"{run_id}: practice episodes total {B['practice']['episodes_total']}, agent budget ${B['agent']['usd_total']}")
 
 
 # ---------------------------------------------------------------------------------------------------- texts
@@ -554,7 +594,10 @@ grasp). Each run writes `practice/runs/NNN/`: `summary.md`, and per episode `res
 `events.jsonl` (what your program logged), `keyframes.png` (8 frames: overview | wrist camera; read it to see what
 happened), `video.mp4`, `program/` (program.json, errors). Look at failures before changing code.
 
-{tasks_text}{scenes_text}{vlm_text}{eval_text}**Budget.** {P['episodes_per_session']} practice episodes in this session (`status` shows what is left), and your own
+{tasks_text}{scenes_text}{vlm_text}{eval_text}**Real-robot runs.** Between sessions the operator may run a version of your skill on the real Panda.
+Those runs appear in `real/` (`real/README.md`, then each run's `summary.md`), and the session's prompt says so.
+
+**Budget.** {P['episodes_per_session']} practice episodes in this session (`status` shows what is left), and your own
 session's spending cap. Failed and crashed episodes count too. Stop when the budget is used or you have a version you
 believe is better.
 
@@ -568,7 +611,7 @@ layouts you never see and kept only if it is better than the current version.
 """
 
 
-def session_prompt(it, st, B, L):
+def session_prompt(it, st, B, L, real_note="", resumed=False):
     d = st.get("incumbent_dev") or {}
     last = st.get("last")
     prev = ""
@@ -581,17 +624,31 @@ def session_prompt(it, st, B, L):
         lv = "tasks " + ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in d["by_family"].items())
     else:
         lv = "levels " + ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in (d.get("by_level") or {}).items())
+    eps = practice_left(B, L)
+    if resumed:                                               # (the conversation goes on: what changed since)
+        return (f"Session {it} (you are continuing your previous session; your context from it is above). "
+                f"The current version solves {d.get('successes')}/{d.get('n')} development episodes ({lv}; "
+                f"{d.get('t_success_mean')} s robot time per success).{prev}{real_note} "
+                f"You have {eps} practice episodes in this session. End with your best version in place and notes.md "
+                f"updated.")
     if B.get("library", True) is False and st.get("incumbent") == "000_initial" and not d.get("successes"):
         return (f"Session {it}. Read AGENTS.md, then docs/skill_api.md and docs/robot.md, then write skills/pick.py: "
-                f"it is empty, no skill is written yet (it solves 0/{d.get('n')} development episodes).{prev} Write the "
-                f"skill as code and improve it by practising it. You have {B['practice']['episodes_per_session']} "
+                f"it is empty, no skill is written yet (it solves 0/{d.get('n')} development episodes).{prev}{real_note} "
+                f"Write the skill as code and improve it by practising it. You have {eps} "
                 f"practice episodes. End with your best version in place and notes.md updated.")
     return (f"Session {it}. Read AGENTS.md, then docs/skill_api.md, then improve skills/pick.py by practising it. "
             f"The current version solves {d.get('successes')}/{d.get('n')} development episodes "
             f"({lv}; "
-            f"{d.get('t_success_mean')} s robot time per success).{prev} "
-            f"You have {B['practice']['episodes_per_session']} practice episodes. End with your best version in place "
+            f"{d.get('t_success_mean')} s robot time per success).{prev}{real_note} "
+            f"You have {eps} practice episodes. End with your best version in place "
             f"and notes.md updated.")
+
+
+def practice_left(B, L):
+    """This session's practice episodes: the per-session allowance, within what is left of the run's total."""
+    P = B["practice"]
+    used = sum(r.get("episodes", 0) for r in L if r.get("kind") == "practice")
+    return max(0, min(P["episodes_per_session"], P["episodes_total"] - used))
 
 
 # ---------------------------------------------------------------------------------------------------- cli
@@ -606,12 +663,25 @@ def cli(a):
     ap.add_argument("--initial", help="init: scratch | ported (the experiment's initial: mapping)")
     ap.add_argument("--add-evaluation-set", "--add_evaluation_set", dest="add_eval_set", action="store_true",
                     help="init, ablation: the agent may run the evaluation set (learning.exposed_eval_suite) itself")
+    ap.add_argument("--resume-session", dest="resume", action="store_true", default=None,
+                    help="run: continue the previous session's conversation (saved for resuming from now on)")
+    ap.add_argument("--no-resume-session", dest="resume", action="store_false", help="run: a fresh session")
+    ap.add_argument("dirs", nargs="*", help="add-real: real/results/<run> directories")
+    ap.add_argument("--practice", type=int, default=0, help="extend: more practice episodes for the run")
+    ap.add_argument("--agent-usd", type=float, default=0.0, help="extend: more agent budget for the run")
     o = ap.parse_args(a.rest)
     if a.action == "init":
         init(o.run_id, o.experiment, o.add_eval_set, o.tasks, o.initial)
     elif a.action == "run":
         for _ in range(o.iterations):
-            iterate(o.run_id)
+            iterate(o.run_id, resume=o.resume)
+    elif a.action == "add-real":
+        from .real_feedback import add_real
+        if not o.dirs:
+            raise SystemExit("add-real: give real/results/<run> directories")
+        add_real(o.run_id, o.dirs)
+    elif a.action == "extend":
+        extend(o.run_id, o.practice, o.agent_usd)
     elif a.action == "status":
         st = state(o.run_id); L = read_ledger(o.run_id)
         cost = sum(r.get("cost_usd") or 0 for r in L if r.get("kind") == "session")
