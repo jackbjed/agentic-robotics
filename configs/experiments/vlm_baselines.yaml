@@ -1,0 +1,24 @@
+# The VLM baselines (docs/baselines.md; 2026-11-19, user: "build the paid VLM baselines"), on the fidelity study 2's
+# held-out target (the real objects, splat colour, SAM3, the real rig's calibrated cameras, test layouts), so their
+# episodes pair with the skill programs':
+#   baselines/direct_vlm   Astra is the whole controller (look / locate / move / gripper / done; astra_e2e.py)
+#   baselines/vlm_skills   Astra picks skills after every skill's report (astra_skills_real.py SkillEpisode)
+# They spend real money (OpenAI): run by the operator only, with an explicit cap (ar suite --vlm-usd / ar run --vlm-usd).
+name: vlm_baselines
+task: configs/tasks/clutter_pick_A_rig.yaml
+skill: baselines/vlm_skills
+entry: skills/pick.py
+suites:
+  heldout_target: {split: test, levels: [0, 1, 2, 3], n: 50, seed: 5, protected: true, task: configs/tasks/clutter_pick_A_rig.yaml}
+  heldout_small:  {split: test, levels: [0, 1, 2, 3], n: 5, seed: 5, protected: true, task: configs/tasks/clutter_pick_A_rig.yaml}   # the first 5 per level of heldout_target
+  smoke:          {split: val, levels: [1], idx: [0, 1], seed: 13}
+vlm:                             # perception/vlm.py respond(): several calls per episode, each booked and capped
+  enabled: true
+  model: astra
+  converse: true
+  allow_drawn_images: true       # (as originally: the wrist image with the fingertip marks; the skill's close view)
+  max_calls_per_episode: 75      # (direct control: 70 tool calls + nudges; skills: 25 + nudges)
+  max_usd_per_episode: 1.0
+  max_usd_per_call: 0.15         # (reserved before each call against the run / total caps, settled after)
+learning:
+  library: true

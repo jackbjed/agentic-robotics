@@ -96,3 +96,40 @@ Experiments `fidelity_{A,B,C}.yaml`, runs `fid{A,B,C}_r1`.
 - **B's transfer from plain colour to splat colour worked here.** It is a single run, though.
 - **Not yet measured:** a fair comparison of A, B and C needs the same agent and budget per condition (e.g. Opus with
   400 episodes) and more than one seed.
+
+## Second design (2026-11-19): the same Opus agent, an empty start, the real camera poses
+
+Experiments `fidelity2_{A,B,C}.yaml`, runs `fidelity2_{A,B,C}_r1`, launched side by side (`runs/learning/fidelity2.sh`).
+User, 11-19: "fair fidelity run. but start with the skills empty: nothing yet; the agent has to write them from
+scratch"; "switch the twin's cameras to the calibrated real poses"; "tell the condition C agent that its test objects
+differ".
+
+**Identical in every condition:**
+- **Agent:** Claude Opus 5.5, medium effort; 2 sessions × 200 practice episodes; $25 per session of API-equivalent
+  usage (subscription), 4 h wall per session; the same selection rule (+2 dev successes, or as many and 0.5 s faster).
+- **Empty start** (`initial_skills/empty`, `learning.library: false`):
+  - `skills/pick.py` returns "not implemented";
+  - no skill library: `ctx.library` / `ctx.perception` are None, no `reference/` code, and the program's own imports of
+    the robot code are refused (execution/guard.py; a version reaching for it is rejected before its dev run);
+  - the program has the robot interface (`ctx.robot`, the same RealSim), the cameras and their depth, `ctx.tools`
+    (the hand-down rotation, pixel <-> 3D, constants: execution/tools.py), SAM3 (`ctx.segmenter`) and one Astra call
+    per episode (`ctx.vlm`, e.g. to point at the object);
+  - the brief says so (docs/skill_api_scratch.md is its skill_api.md).
+- **Cameras at the real rig's calibrated poses** (`configs/cameras/d415_rig.yaml`, `d415_splat_rig.yaml`): calib.json
+  (10-29). The scene D415 sits 5.1 cm further back, 3.3 cm sideways, 0.9 cm higher and about 2.4° turned compared
+  with the twin's mount. The wrist D415 sits at (51.0, 2.8, 47.7) mm on the hand instead of (71.5, 0, 66), so its view
+  shows the fingertips, as the real one does. The program believes these poses; the per-episode calibration error
+  (5 mm / 1°, 3 mm / 1°) comes on top. The intrinsics stay the twin's (617.2 px, centred; the real ones are about
+  615 px with the principal point about 13 px off centre).
+- **Astra budgets per run:** $1.00 practice, $1.50 development, $3.00 held-out (one call per episode, about $0.011 for a
+  pointing answer).
+- **Held-out:** one common target, `heldout_target` = the real objects, splat colour, SAM3, calibrated cameras, test
+  L0–3 × 50 (200 episodes). Reference row: the robot's own skill (`initial_skills/clutter_pick`, with its library) on
+  the same 200 (`runs/suites/fidelity2/ported_heldout_target`).
+
+**What differs:** the training condition (the task config), and one sentence of the brief on how the evaluation
+differs from practice (`learning.test_note`):
+- A: "the same objects, colour and cameras as in your practice";
+- B: the same objects, but realistic (scanned) colour at test;
+- C: other objects (other shapes and names, the same roles) and realistic colour at test. C's docs name only its own
+  practice objects.
