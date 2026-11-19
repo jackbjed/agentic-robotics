@@ -67,7 +67,18 @@ def wait_for_gpu(max_wait_s=3600):
 
 
 def run_episode(skill_root, ep, out_dir, entry="skills/pick.py", sandbox=True, egl_device=None, wall_limit_s=900):
-    gpu_wait = wait_for_gpu()
+    import fcntl
+    lockf = open(paths.RUNS.parent / ".gpu_start.lock", "w")      # (one world server starts at a time, machine-wide:
+    fcntl.flock(lockf, fcntl.LOCK_EX)                              # its memory shows before the next one checks)
+    try:
+        gpu_wait = wait_for_gpu()
+        return _run_episode(skill_root, ep, out_dir, entry, sandbox, egl_device, wall_limit_s, gpu_wait, lockf)
+    finally:
+        lockf.close()
+
+
+def _run_episode(skill_root, ep, out_dir, entry, sandbox, egl_device, wall_limit_s, gpu_wait, lockf):
+    import fcntl
     skill_root = Path(skill_root).resolve()
     out = Path(out_dir).resolve(); out.mkdir(parents=True, exist_ok=True)
     prog_out = out / "program"; prog_out.mkdir(exist_ok=True)
@@ -88,6 +99,7 @@ def run_episode(skill_root, ep, out_dir, entry="skills/pick.py", sandbox=True, e
             if time.time() - t0 > 180:
                 raise RuntimeError("world server did not start in 180 s")
             time.sleep(0.05)
+        fcntl.flock(lockf, fcntl.LOCK_UN)                           # (its renderers exist now: the next may check)
         cmd = [PY, "-I", "-m", "agentic_robotics.execution.host", "--skills", str(skill_root), "--entry", entry,
                "--sock", str(sock), "--out", str(prog_out)]
         if sandbox:

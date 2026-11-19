@@ -12,3 +12,4 @@ data/
 configs/local.yaml
 secrets/
 *.key
+.gpu_start.lock
