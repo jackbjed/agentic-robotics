@@ -1,0 +1,96 @@
+{
+ "_doc": "Measured on the real rig. tool.adapter_dz: 2026-10-28 hover (real_box.py hover, closed fingertips settled ~10 mm over the table at (-0.30, 0), (-0.24, 0), (-0.30, 0.06)): ruler gaps 5, 6, 6 mm vs 9.3, 9.6, 9.9 mm by the kinematics with -0.011 -> the hand 3.9 mm lower -> -0.0071 (the hand ~7 mm nearer the flange, higher, than the twin's model). The first estimate, -0.011, came from a long ruler in the ready pose (358 mm vs 346.9 mm), less precise.",
+ "tool": {
+  "adapter_dz": -0.0071
+ },
+ "wrist_cam": {
+  "T_hand_cam": [
+   [
+    2.5382574055490825e-05,
+    -0.9999761075705512,
+    0.006912571429947309,
+    0.0509528725428759
+   ],
+   [
+    0.9999730343426532,
+    -2.5382574055914622e-05,
+    -0.007343700924720649,
+    0.0028275943045478506
+   ],
+   [
+    0.00734370092472064,
+    0.006912571429947294,
+    0.9999491419132045,
+    0.0476720622982374
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ],
+  "rms_px": 0.8139980435371399,
+  "n_views": 10,
+  "fit": "table",
+  "date": "2026-10-29 13:58"
+ },
+ "board": {
+  "T_world_board": [
+   [
+    -0.9998851463494818,
+    -0.015155662627398009,
+    0.0,
+    -0.08054563358496243
+   ],
+   [
+    -0.015155662627398009,
+    0.9998851463494818,
+    0.0,
+    0.04428470729446929
+   ],
+   [
+    0.0,
+    0.0,
+    -1.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ]
+ },
+ "scene_cam": {
+  "T_world_cam": [
+   [
+    -0.03491128892105483,
+    0.34776914761384675,
+    -0.9369299983850496,
+    0.8643264392508702
+   ],
+   [
+    0.9992523717453936,
+    -0.003434809206395444,
+    -0.03850843604876155,
+    -0.007945407781647495
+   ],
+   [
+    -0.016610221764821225,
+    -0.9375739021824646,
+    -0.34738923195641686,
+    0.5718962255533555
+   ],
+   [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  ],
+  "date": "2026-10-29 14:06",
+  "method": "10-29: pitch, roll, height from the table plane in its depth (calib_board scene, levelled); x, y, yaw moved (+2.0 deg, (49.9, 3.9) mm about the world origin) so the A4 board's corners on its image land where the wrist calibration puts them (residuals ~5 mm): the scene camera expressed in the ARM's frame. Before it, the yellow tape was 36 mm from the wrist camera's position, after 12 mm."
+ }
+}

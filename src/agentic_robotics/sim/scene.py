@@ -1,0 +1,186 @@
+"""The clutter-pick scene (PRIVILEGED: lives only in the world server). One target tape roll (red or yellow) among 2-4
+touching or nearby objects on the table; success = the target lifted >= 5 cm, held by both fingers, nothing else
+lifted, for 1 s. Reset, judge and sensor state are ported from panda_pick_rgbd's PickEnv (pickrgbd/env.py, commit
+75c201f: reset() without the RL observation/reward parts, _judge(), episode_summary()), so that an episode here is the
+same episode as there: the same layout bank entry, start pose, settle, per-episode camera calibration error, depth
+noise stream and judge.
+
+Levels (layout banks, panda_pick_rgbd/pickrgbd/layouts.py): the gap between the target's outline and each other
+object's: L0 6-10 cm, L1 3.5-6 cm, L2 1.5-3.5 cm, L3 boxed in (2-12 mm all round, no free straight-down grasp).
+Splits: train (seed 101, 2000 / level), val (202, 100), test (303, 200)."""
+from __future__ import annotations
+
+import json
+import math
+from pathlib import Path
+
+import numpy as np
+
+from .. import paths
+from .picktwin import PickTwin
+from .sensors import Corruptor
+from .twin import B, MIN_Z
+
+TASK = dict(lift_ok=0.05, hold_s=1.0, wrong_lift=0.03, disturb_mm=30.0)     # pickrgbd/config.py TaskCfg (judge)
+PHRASES = {"tape_red": "red tape roll", "tape_yellow": "yellow tape roll", "tape_white": "white tape roll",
+           "hole_block": "black block with holes", "cable": "coiled black cable", "screwdriver": "screwdriver",
+           "glue": "glue bottle", "sticky_pad": "sticky note pad"}
+
+
+def load_bank(split, level):
+    f = paths.DATA / "layouts" / f"{split}_L{level}.jsonl"
+    if not f.exists():
+        raise FileNotFoundError(f"{f}: run scripts/link_assets.py (assets/manifest.yaml: clutter_layouts)")
+    return [json.loads(s) for s in open(f) if s.strip()]
+
+
+class ClutterPickScene:
+    def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0)):
+        self.P = P = PickTwin(render=True)
+        P.use_cameras("twin")
+        self.preset, self.colour_noise, self.latency_s = preset, colour_noise, tuple(latency_s)
+        self.corr = Corruptor(preset, P.world, MIN_Z)
+        self.banks = {}
+        self.seg_cache, self.seg_order = {}, []
+        m = P.m
+        names = [m.body(b).name for b in range(m.nbody)]
+        kid = {f"obj_{k}": i for i, k in enumerate(P.obj_keys)}
+        self.geom_obj = np.array([kid.get(names[r], -1) for r in P.root], np.int16)
+
+    # ------------------------------------------------------------------ reset (PickEnv.reset, options=layout)
+    def reset(self, split, level, idx, seed):
+        from gymnasium.utils import seeding
+        np_random, _ = seeding.np_random(int(seed))
+        key = (split, int(level))
+        if key not in self.banks:
+            self.banks[key] = load_bank(split, level)
+        self.L = L = self.banks[key][int(idx)]
+        self.split, self.level, self.layout_idx = split, int(level), int(idx)
+        P = self.P
+        P.reset_world(active=L["objs"])
+        for k, q7 in L["objs"].items():
+            P.put(k, 0, 0, 0, qpos7=np.asarray(q7))
+        P.teleport_arm(L["start"]["tip"], L["start"]["yaw"], q=L["arm_q"])
+        self.target = L["target"]; P.target = self.target; P.L = {"objs": list(L["objs"])}
+        self.distractors = list(L["distractors"])
+        rng = np.random.default_rng(int(np_random.integers(1 << 62)))
+        self.ep_corrupt = self.corr.reset(rng, self.latency_s, light_hook=self._scale_lights)
+        P.settle(0.2)
+        P.sync_controller()
+        self.rest = {k: float(v) for k, v in L["rest_com_z"].items()}
+        self.xy0 = {k: P.world.pose(k)[0][:2].copy() for k in L["objs"]}
+        self.top_t = P.footprint(self.target)[1]
+        self.hold_t0 = None; self.max_lift = 0.0; self.ever_touched = False
+        self.t0 = float(P.d.time)
+        self.jd = self.judge()
+        self.t_success = None
+        # PickEnv.reset rendered the policy's first observation here (both cameras through the sensor model): the
+        # same draws from the depth noise stream keep every later frame identical to the original episodes
+        for cam in ("d415", "L_wrist"):
+            rgb, z, gid = P.render(cam, depth=True, seg=self.corr.d415 is not None)
+            self.corr.rgb(rgb, cam)
+            self.corr.depth(z, gid if gid is not None else np.full(z.shape, -1, np.int32), cam)
+        return self.task()
+
+    def _scale_lights(self, s):
+        m = self.P.m
+        d0, a0, s0, hd, ha = self.P.light0
+        m.light_diffuse[:] = d0 * s; m.light_specular[:] = s0 * s; m.light_ambient[:] = a0 * min(s, 1.3)
+        m.vis.headlight.diffuse[:] = hd * s; m.vis.headlight.ambient[:] = ha * min(s, 1.3)
+
+    def task(self):
+        """What the skill is told: the instruction and the object's name. Nothing else about the scene."""
+        ph = PHRASES[self.target]
+        return dict(kind="clutter_pick", instruction=f"Pick up the {ph} and lift it.", object=ph)
+
+    def truth_hint(self):
+        """PARITY ONLY (never in learning or evaluation): the seed point the 11-18 skill baseline gave the skill, the
+        target's true top centre (Astra's point stand-in)."""
+        P, k = self.P, self.target
+        top = float(P.world.pose(k)[0][2] + self.top_t)
+        return dict(p=[*map(float, P.d.xipos[P.world.ob[k]][:2]), min(top, 0.06)])
+
+    # ------------------------------------------------------------------ judge (PickEnv._judge)
+    def judge(self):
+        P = self.P
+        fc = P.finger_contacts()
+        lift = P.com_z(self.target) - self.rest[self.target]
+        held = P.held_by_both(self.target, fc)
+        touch_t = P.touching_fingers(self.target, fc)
+        self.ever_touched |= touch_t
+        self.max_lift = max(self.max_lift, lift)
+        wrong = None; disturb = {}
+        for k in self.distractors:
+            lk = P.com_z(k) - self.rest[k]
+            if lk >= TASK["wrong_lift"] and P.touching_fingers(k, fc):
+                wrong = k
+            disturb[k] = float(np.linalg.norm(P.world.pose(k)[0][:2] - self.xy0[k]))
+        off = [k for k in self.L["objs"] if P.com_z(k) < -0.05]
+        cond = lift >= TASK["lift_ok"] and held and wrong is None
+        now = float(P.d.time)
+        if cond:
+            self.hold_t0 = now if self.hold_t0 is None else self.hold_t0
+        else:
+            self.hold_t0 = None
+        success = cond and (now - self.hold_t0) >= TASK["hold_s"]
+        if success and self.t_success is None and hasattr(self, "t0"):
+            self.t_success = now - self.t0
+        return dict(lift=lift, held=held, touch=touch_t, wrong=wrong, off_table=off, disturb=disturb, success=bool(success))
+
+    def summary(self):
+        jd = self.jd
+        if self.t_success is not None:
+            cat = "success"
+        elif jd["wrong"]:
+            cat = "wrong_object"
+        elif jd["off_table"]:
+            cat = "off_table"
+        elif self.max_lift >= 0.02:
+            cat = "dropped"
+        elif self.ever_touched:
+            cat = "touched_not_lifted"
+        else:
+            cat = "not_touched"
+        dist = max(jd["disturb"].values()) if jd["disturb"] else 0.0
+        return dict(category=cat, success=self.t_success is not None,
+                    t_success=None if self.t_success is None else round(self.t_success, 3),
+                    max_lift_mm=round(self.max_lift * 1000, 1), max_disturb_mm=round(dist * 1000, 1),
+                    disturbed=bool(dist * 1000 > TASK["disturb_mm"]), touched_target=bool(self.ever_touched),
+                    wrong_object=jd["wrong"], off_table=jd["off_table"], target=self.target,
+                    n_distractors=len(self.distractors), corrupt={k: v for k, v in self.ep_corrupt.items() if not k.startswith("_")
+                                                                  and k in ("preset", "calib", "depth_scale", "latency_s", "light")})
+
+    # ------------------------------------------------------------------ cameras (what the robot's cameras deliver)
+    def camera(self, cam):
+        """A frame of camera cam now: colour (plain MuJoCo render from the TRUE camera pose; the sensor's colour
+        variation only with colour_noise), depth through the D415 model (the episode's calibration error included),
+        and the intrinsics. The true segmentation is kept here (server side) for the oracle segmentation service."""
+        P = self.P
+        rgb, z, gid = P.render(cam, depth=True, seg=True)
+        depth = self.corr.depth(z, gid, cam)
+        if self.colour_noise:
+            rgb = self.corr.rgb(rgb, cam)
+        m = P.m; cid = m.camera(cam).id
+        Wc, Hc = B.SIZE[cam]
+        f = Hc / 2 / math.tan(math.radians(m.cam_fovy[cid]) / 2)
+        K = (Wc, Hc, f, f, Wc / 2, Hc / 2)
+        lab = np.where(gid >= 0, self.geom_obj[np.clip(gid, 0, None)], -1).astype(np.int16)
+        k = frame_key(rgb)
+        self.seg_cache[k] = lab; self.seg_order.append(k)
+        if len(self.seg_order) > 96:
+            self.seg_cache.pop(self.seg_order.pop(0), None)
+        return rgb, depth.astype(np.float32), K
+
+    def labels_for(self, rgb):
+        return self.seg_cache.get(frame_key(rgb))
+
+    def overview(self, W=480, H=360):
+        """A third-person view for videos (a free camera looking at the target's area)."""
+        P = self.P
+        tp = self.xy0.get(self.target, np.zeros(2))
+        return P.free_view(np.r_[tp, 0.10], distance=0.95, azimuth=205.0, elevation=-32.0)
+
+
+def frame_key(rgb):
+    import hashlib
+    return hashlib.md5(np.ascontiguousarray(rgb[::4, ::4]).tobytes()).hexdigest()

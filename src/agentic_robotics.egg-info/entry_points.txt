@@ -1,0 +1,2 @@
+[console_scripts]
+ar = agentic_robotics.cli:main

@@ -1,0 +1,11 @@
+# The robot every skill drives (the twin of the user's Franka Panda, left arm). Values are NOT set here: they are
+# the vendored rig.json (panda_twin/code/real/rig.json, byte-identical to the original; see docs/robot.md for each
+# key and whether it is measured, fitted or chosen). This file only records how the twin runs it, and must stay the
+# same across every comparison (robot speed and operating limits constant).
+rig: src/agentic_robotics/vendor/panda_twin/code/real/rig.json
+calib: none                 # the twin's own camera mounts and no flange adapter (calib.json is the real rig's)
+model: src/agentic_robotics/vendor/panda_twin/model/twin_6522_wedge.xml   # wedge = the real fin-ray fingers' outline
+arm: TwinArm (compliant: rig.json control.kp/kd), 15 Hz goals, limit checks server side (rig.json safety)
+realsim_speed: 1.0          # RealSim(speed=1.0) as panda_pick_rgbd/clutter_env (rig.json's real-robot "speed" is 0.5)
+task_timing: true           # real_sim FREE_PHASES / SETTLE_PHASES timing (real_box run, 10-30)
+force_abort_n: 150          # the twin's (rig.json control.force_abort_twin); the real arm server's is 35

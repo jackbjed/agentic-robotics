@@ -1,0 +1,9 @@
+# Both cameras are Intel RealSense D415 (scene: fixed, across the table; wrist: on the hand), 640x480, colour + depth
+# aligned to colour. The depth delivered to programs is panda_twin's D415 model FITTED to real frames on 10-27
+# (d415_model.py: noise, holes on dark objects and the black table, edge fattening, stereo shadow, the left blind band,
+# 0.275 m minimum range, +-0.5 % scale) with a random camera-pose error per episode (scene 5 mm / 1 deg, wrist
+# 3 mm / 1 deg: the program keeps using the nominal poses). Colour = a plain MuJoCo render (condition B of
+# docs/fidelity.md); colour_noise adds the d415 preset's colour variation (sensor-inspired, NOT calibrated).
+preset: d415
+colour_noise: false
+latency_s: [0.0, 0.0]

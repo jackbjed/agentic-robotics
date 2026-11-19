@@ -1,0 +1,14 @@
+# environments and caches
+.venv/
+.uv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# generated
+workspaces/
+runs/
+data/
+# machine-local configuration and secrets
+configs/local.yaml
+secrets/
+*.key

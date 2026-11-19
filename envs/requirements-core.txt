@@ -1,0 +1,13 @@
+# Core environment (.venv): simulator, skills, evaluation, learning loop. Versions = the ones the panda_twin /
+# panda_pick_rgbd / embodied-agents results were produced with (MuJoCo stays at 2.3.7).
+mujoco==2.3.7
+numpy==1.26.4
+scipy==1.15.3
+opencv-python-headless==4.11.0.86
+imageio==2.37.0
+imageio-ffmpeg==0.6.0
+pyzmq==27.0.0
+PyYAML==6.0.2
+requests==2.32.4
+gymnasium==0.29.1
+pytest==8.4.1

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# ar-practice: the learning agent's only command (see src/agentic_robotics/learning/practice.py). Lives outside every
+# workspace: the agent cannot edit it. It runs the agent's code only inside the program sandbox.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH CONDA_PREFIX
+export PYTHONNOUSERSITE=1
+exec "$ROOT/.venv/bin/python" -I -m agentic_robotics.learning.practice "$@"

@@ -1,0 +1,18 @@
+[project]
+name = "agentic-robotics"
+version = "0.1.0"
+description = "A coding agent develops reusable robot skill programs through simulated practice (Franka Panda twin)"
+requires-python = ">=3.10"
+
+[project.scripts]
+ar = "agentic_robotics.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
