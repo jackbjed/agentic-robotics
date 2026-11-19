@@ -95,6 +95,8 @@ class SocketCams:
 def make_robot(sock_path):
     from ..sim import twin
     link = Link(sock_path)
-    S = twin.RealSim(SocketArm(link), SocketCams(link), twin.load_rig(), {}, speed=1.0, v_max=None, log_dir=None)
+    mounts = link.call("hello")[0].get("camera_mounts", "twin")   # (the poses the program believes: as the world's)
+    S = twin.RealSim(SocketArm(link), SocketCams(link), twin.load_rig(), twin.camera_calib(mounts), speed=1.0, v_max=None,
+                     log_dir=None)
     S.task_timing = True                                   # (the robot path's timing: real_box run, PickTwin)
     return S, link

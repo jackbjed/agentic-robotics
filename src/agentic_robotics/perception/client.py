@@ -64,3 +64,13 @@ class VLMClient:
         self.calls += 1
         h, _ = self.link.call("vlm", arrays=ims, prompt=str(prompt), detail=str(detail))
         return h
+
+    def converse(self, input, images=(), instructions=None, tools=None, previous=None, effort=None, max_output_tokens=None):
+        """(The VLM baselines only: runs with converse allowed.) One turn of a Responses API conversation: input items,
+        an image given as {"type": "input_image", "image": k} = images[k]; previous = the last reply's id.
+        -> dict(ok, id, status, output, usd, wait_s, tokens) or dict(ok=False, why)"""
+        ims = [np.ascontiguousarray(i["rgb"] if isinstance(i, dict) else i) for i in images]
+        self.calls += 1
+        h, _ = self.link.call("vlm_converse", arrays=ims, input=input, instructions=instructions, tools=tools,
+                              previous=previous, effort=effort, max_output_tokens=max_output_tokens)
+        return h

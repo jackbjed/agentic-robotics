@@ -43,7 +43,7 @@ def compact(ep, r):
 
 
 def run_suite(skill_root, spec, task_cfg, out_dir, workers=8, sandbox=True, record=None, entry="skills/pick.py", log=print,
-              vlm=None):
+              vlm=None, library=True):
     """spec may name its own task config (spec["task"]): a suite with a FIXED condition, whatever the experiment's
     training condition (the fidelity study's common held-out target distribution)."""
     if spec.get("task"):
@@ -56,7 +56,7 @@ def run_suite(skill_root, spec, task_cfg, out_dir, workers=8, sandbox=True, reco
     eps = suites.episodes(spec)
     record = record or dict(video=True, observations="none")
     from ..config import episode_base
-    base = episode_base(task_cfg, record=record, parity=spec.get("parity", False), vlm=vlm)
+    base = episode_base(task_cfg, record=record, parity=spec.get("parity", False), vlm=vlm, library=library)
     json.dump(dict(spec=spec, task=task_cfg, base=base, skills=tree_hash(snap), n=len(eps)), open(out / "suite.json", "w"), indent=1)
     t0 = time.time()
     results = {}

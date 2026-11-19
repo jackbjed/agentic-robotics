@@ -78,8 +78,9 @@ def cmd_suite(a):
     if a.vlm_usd > 0 and (X.get("vlm") or {}).get("enabled"):     # (the one model call per episode, capped for this suite)
         V = dict(X["vlm"], tag=f"suite:{out.name}", run_usd=a.vlm_usd)
     print(f"{a.suite}: {spec} -> {out}")
+    lib = (X.get("learning") or {}).get("library", True) if a.library == "experiment" else a.library == "on"
     S = run_suite(skills, spec, t, out, workers=a.workers, sandbox=not a.no_sandbox, entry=X.get("entry", "skills/pick.py"),
-                  vlm=V)
+                  vlm=V, library=lib)
     print((out / "summary.md").read_text())
 
 
@@ -136,6 +137,8 @@ def main(argv=None):
     s.add_argument("--no-sandbox", action="store_true"); s.add_argument("--allow-protected", action="store_true")
     s.add_argument("--vlm-usd", type=float, default=0.0, help="allow the experiment's one model call per episode, this suite capped at $X")
     s.add_argument("--tasks", help="multi-task suites: only these tasks")
+    s.add_argument("--library", default="experiment", choices=("experiment", "on", "off"),
+                   help="the robot skill library for the program (off: skills from scratch); default: the experiment's")
     s = sub.add_parser("services"); s.set_defaults(fn=cmd_services)
     s.add_argument("action", choices=("start", "stop", "status")); s.add_argument("names", nargs="*")
     s = sub.add_parser("layouts"); s.set_defaults(fn=cmd_layouts)

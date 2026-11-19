@@ -5,6 +5,7 @@
 # 3 mm / 1 deg: the program keeps using the nominal poses). Colour = a plain MuJoCo render (condition B of
 # docs/fidelity.md); colour_noise adds the d415 preset's colour variation (sensor-inspired, NOT calibrated).
 preset: d415
+mounts: twin                 # the twin's nominal mounts (d415_rig*.yaml: the real rig's calibrated poses)
 colour: mujoco               # condition B / C: plain MuJoCo colour
 colour_noise: false
 latency_s: [0.0, 0.0]

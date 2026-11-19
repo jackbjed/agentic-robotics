@@ -7,7 +7,11 @@ against hard spending caps (one ledger for all runs: runs/budget/openai.jsonl, f
   episode_usd     the experiment's vlm.max_usd_per_episode   (reserved before the call, settled after)
 Costs from the reply's token usage and configs/models.yaml's price table. An exact-request cache (sha256 of the request)
 can serve repeated identical requests (dev comparisons: the same first frames for candidate and incumbent): a hit costs
-nothing and is recorded as one."""
+nothing and is recorded as one.
+
+respond(): the VLM baselines' multi-turn calls (the Responses API's conversation: instructions, function tools,
+previous_response_id), allowed only when the vlm block says converse: true (max_calls_per_episode calls, each one
+checked against the caps above; max_usd_per_episode is then the episode's total). Never cached."""
 from __future__ import annotations
 
 import base64
@@ -41,12 +45,14 @@ def _lock():
 
 
 def spent(tag_prefix=None):
+    """All spending, or one run's: the tags whose part before ':' is tag_prefix (exactly: run X's 'X:practice' and
+    'X:dev', not 'X-heldout:...' or 'X-dev:dev', which are budgets of their own)."""
     if not LEDGER.exists():
         return 0.0
     s = 0.0
     for line in open(LEDGER):
         r = json.loads(line)
-        if tag_prefix is None or str(r.get("tag", "")).startswith(tag_prefix):
+        if tag_prefix is None or str(r.get("tag", "")).split(":")[0] == tag_prefix:
             s += float(r.get("usd", 0.0))
     return s
 
@@ -139,6 +145,78 @@ class VLM:
             (self.cache / f"{h}.json").write_text(json.dumps(j))
         return dict(ok=True, text=_text(j), usd=round(usd, 5), wait_s=round(wait, 2),
                     tokens=dict(input=pin, cached=cached, output=out, reasoning=reas), cache_hit=False)
+
+    def respond(self, input, images, instructions=None, tools=None, previous=None, effort=None, max_output_tokens=None):
+        """One turn of a conversation. input: Responses API input items; an image is {"type": "input_image",
+        "image": k} -> images[k] (RGB array) as a PNG. -> dict(ok, id, status, output (the reply's items), usd, wait_s,
+        tokens) or dict(ok=False, why)."""
+        if not self.cfg.get("converse"):
+            return dict(ok=False, why="no multi-turn model calls in this run")
+        if self.calls >= self.max_calls:
+            return dict(ok=False, why=f"at most {self.max_calls} model calls per episode")
+        if self.usd >= self.ep_cap:
+            return dict(ok=False, why=f"this episode's model budget (${self.ep_cap:.2f}) is spent")
+
+        def fill(x):
+            if isinstance(x, dict):
+                if x.get("type") == "input_image" and "image" in x:
+                    return png_item(images[int(x["image"])], x.get("detail", "high"))
+                return {k: fill(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [fill(v) for v in x]
+            return x
+        body = {"model": self.m["model"], "input": fill(list(input)), "parallel_tool_calls": False,
+                "reasoning": {"effort": effort or self.m.get("effort", "medium")},
+                "max_output_tokens": int(max_output_tokens or self.m.get("max_output_tokens", 6000))}
+        if instructions:
+            body["instructions"] = str(instructions)
+        if tools:
+            body["tools"] = tools
+        if previous:
+            body["previous_response_id"] = str(previous)
+        h = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+        self.calls += 1
+        res = float(self.cfg.get("max_usd_per_call", min(self.ep_cap, 0.25)))
+        with _lock():
+            tot, run = spent(), spent(self.tag.split(":")[0])
+            if tot + res > self.total_cap:
+                return dict(ok=False, why=f"model budget: ${tot:.2f} of ${self.total_cap:.2f} total spent")
+            if self.run_cap and run + res > self.run_cap:
+                return dict(ok=False, why=f"model budget: ${run:.2f} of this run's ${self.run_cap:.2f} spent")
+            _record(tag=self.tag, usd=res, reserve=True, request=h[:16])
+        import requests
+        t0 = time.time(); err = None; j = None
+        for attempt in range(4):
+            try:
+                r = requests.post("https://api.openai.com/v1/responses", json=body, timeout=600,
+                                  headers={"Authorization": f"Bearer {self.key()}"})
+                if r.status_code == 200:
+                    j = r.json(); break
+                err = f"{r.status_code}: {r.text[:300]}"
+                if r.status_code in (400, 401, 403, 404):
+                    break
+            except requests.RequestException as e:
+                err = repr(e)[:300]
+            time.sleep(5 * 2 ** attempt)
+        wait = time.time() - t0
+        self.wait_s += wait
+        u = (j or {}).get("usage") or {}
+        pin, out = int(u.get("input_tokens", 0)), int(u.get("output_tokens", 0))
+        cached = int((u.get("input_tokens_details") or {}).get("cached_tokens", 0) or 0)
+        reas = int((u.get("output_tokens_details") or {}).get("reasoning_tokens", 0) or 0)
+        P = self.m["price_per_mtok"]
+        usd = ((pin - cached) * P["in"] + cached * P["cached"] + out * P["out"]) / 1e6
+        with _lock():
+            _record(tag=self.tag, usd=-res, reserve=False, request=h[:16])
+            _record(tag=self.tag, usd=usd, model=self.m["model"], tokens_in=pin, cached=cached, tokens_out=out,
+                    reasoning=reas, wait_s=round(wait, 2), ok=j is not None, request=h[:16], turn=True)
+        self.usd += usd
+        for k_, v in (("input", pin), ("cached", cached), ("output", out), ("reasoning", reas)):
+            self.tokens[k_] += v
+        if j is None:
+            return dict(ok=False, why=f"model call failed: {err}", usd=round(usd, 5), wait_s=round(wait, 2))
+        return dict(ok=True, id=j.get("id"), status=j.get("status"), output=j.get("output") or [], usd=round(usd, 5),
+                    wait_s=round(wait, 2), tokens=dict(input=pin, cached=cached, output=out, reasoning=reas))
 
     def usage(self):
         return dict(model_calls=self.calls, model_cost_usd=round(self.usd, 5), model_wait_s=round(self.wait_s, 2),

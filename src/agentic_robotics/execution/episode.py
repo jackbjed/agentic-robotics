@@ -102,6 +102,8 @@ def _run_episode(skill_root, ep, out_dir, entry, sandbox, egl_device, wall_limit
         fcntl.flock(lockf, fcntl.LOCK_UN)                           # (its renderers exist now: the next may check)
         cmd = [PY, "-I", "-m", "agentic_robotics.execution.host", "--skills", str(skill_root), "--entry", entry,
                "--sock", str(sock), "--out", str(prog_out)]
+        if ep.get("library", True) is False:                    # (skills from scratch: execution/guard.py)
+            cmd.append("--no-library")
         if sandbox:
             cmd = sbx.program_cmd(cmd, skill_root, prog_out, sock_dir)
             henv = None

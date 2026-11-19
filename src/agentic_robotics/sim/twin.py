@@ -46,6 +46,19 @@ CAMS = ("d415", "L_wrist")   # scene D415 (fixed) and wrist D415
 MIN_Z = B.MIN_Z              # D415 minimum depth at 640x480 (0.275 m)
 
 
+def camera_calib(mounts="twin"):
+    """The calibration RealSim believes for the cameras (its nominal_camera): {} = the twin's mounts; calibrated = the
+    real rig's poses from the vendored calib.json (scene_cam, wrist_cam only: the twin's hand has no 7.1 mm adapter
+    offset, so not its `tool`)."""
+    if mounts == "twin":
+        return {}
+    if mounts != "calibrated":
+        raise ValueError(f"camera mounts {mounts!r}")
+    import json
+    c = json.loads((PT_CODE / "real" / "calib.json").read_text())
+    return {k: c[k] for k in ("scene_cam", "wrist_cam")}
+
+
 def skill_library():
     """The robot pick skill's modules (real_box -> track_run -> astra_skills_real), imported from the vendored copies.
     (Those files put ~/tdieudonne/panda_twin/code on sys.path themselves; importing them here first makes every later

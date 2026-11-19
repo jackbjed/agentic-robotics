@@ -13,6 +13,8 @@ Requests a skill program may send (the world answers each with ok=True, or ok=Fa
   camera   cam ("d415" | "L_wrist")          -> rgb uint8 (H,W,3), depth float32 (H,W) m (inf = none), K
   segment  phrase, [rgb]                     -> masks of that phrase in a frame this world delivered (perception service)
   segment_points pts, labels, [rgb]          -> masks at clicked pixels
+  vlm      prompt, [rgb...]                  -> the experiment's model, one call per episode (perception/vlm.py)
+  vlm_converse input, instructions, tools, previous, [rgb...]   -> one turn of a conversation (the VLM baselines only)
   event    what, data                        -> appended to the episode's event log
   done     result, usage                     -> the program's last word (the server judges and writes the record)
 """

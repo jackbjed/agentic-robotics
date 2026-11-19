@@ -3,8 +3,10 @@
   ctx.task         dict: kind, instruction, object (the object's name). Nothing about where it is.
   ctx.robot        the robot (robot/api.py): RealSim over the world socket; motion, cameras, joint/gripper/force state
   ctx.segmenter    perception (perception/client.py): segment(rgb, phrase), segment_points(rgb, pts, labels)
-  ctx.library      the vendored robot skill library (astra_skills_real module: SkillProgram, pick_direct, ...)
-  ctx.perception   the library's perception object over ctx.robot + ctx.segmenter (library_perception)
+  ctx.library      the vendored robot skill library (astra_skills_real module: SkillProgram, pick_direct, ...);
+                   None in runs where skills are written from scratch
+  ctx.perception   the library's perception object over ctx.robot + ctx.segmenter (library_perception); None then
+  ctx.tools        (from-scratch runs only) the robot's conventions and camera geometry: execution/tools.py
   ctx.vlm          the vision-language model, when the experiment allows it: ctx.vlm.ask(prompt, images) (ONE call
                    per episode; perception/client.py VLMClient)
   ctx.log(what, **data)       an event in the episode's log (robot time stamped by the server)
@@ -30,6 +32,7 @@ class SkillContext:
     t0: float
     limit_s: float
     vlm: object = None
+    tools: object = None
     events: list = field(default_factory=list)
 
     def log(self, what, **data):

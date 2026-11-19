@@ -62,6 +62,15 @@ class Recorder:
         self.render_wall += time.time() - t0
 
 
+def _no_images(x):
+    """A conversation turn's input for the event log: text kept, images as their index."""
+    if isinstance(x, dict):
+        return {k: _no_images(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_no_images(v) for v in x]
+    return x if not isinstance(x, str) else x[:4000]
+
+
 class World:
     def __init__(self, spec, out):
         from .scene import ClutterPickScene
@@ -70,7 +79,7 @@ class World:
         sc = spec.get("scene", {})
         self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
                                       colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"),
-                                      task=spec.get("family", "clutter-pick"))
+                                      task=spec.get("family", "clutter-pick"), mounts=sc.get("mounts", "twin"))
         if spec.get("layout") is not None:                          # (a scene the agent wrote: sim/custom.py, practice)
             self.task = self.scene.reset_layout(spec["layout"], spec["seed"])
         else:
@@ -127,7 +136,8 @@ class World:
     def handle(self, h, arrays):
         cmd = h.get("cmd")
         if cmd == "hello":
-            r = self.arm.hello(); return dict(r, ok=True, robot_time_limit_s=self.limit, t0=self.scene.t0), []
+            r = self.arm.hello()
+            return dict(r, ok=True, robot_time_limit_s=self.limit, t0=self.scene.t0, camera_mounts=self.scene.mounts), []
         if cmd == "task":
             return dict(ok=True, task=self.task), []
         if cmd == "now":
@@ -197,6 +207,20 @@ class World:
             self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what="vlm request", data=dict(prompt=str(h.get("prompt"))[:4000], n_images=len(ims)))) + "\n")
             r = self.vlm.ask(h.get("prompt", ""), ims, detail=h.get("detail", "high"))
             self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what="vlm reply", data={k: v for k, v in r.items()})) + "\n")
+            return dict(r), []
+        if cmd == "vlm_converse":                                   # (the VLM baselines: several calls per episode)
+            if self.vlm is None or not self.vlm.cfg.get("converse"):
+                return dict(ok=False, why="no multi-turn model calls in this run"), []
+            drawn_ok = bool(self.vlm.cfg.get("allow_drawn_images"))   # (the baselines' marked-up frames, as originally)
+            if not drawn_ok and any(self.scene.labels_for(a_) is None for a_ in arrays):
+                return dict(ok=False, why="images must be frames this episode's cameras delivered"), []
+            if len(arrays) > 8:
+                return dict(ok=False, why="at most 8 images per call"), []
+            self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what="vlm turn", data=dict(
+                input=_no_images(h.get("input")), previous=h.get("previous"), n_images=len(arrays)))) + "\n")
+            r = self.vlm.respond(h.get("input") or [], list(arrays), instructions=h.get("instructions"), tools=h.get("tools"),
+                                 previous=h.get("previous"), effort=h.get("effort"), max_output_tokens=h.get("max_output_tokens"))
+            self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what="vlm turn reply", data=r)) + "\n")
             return dict(r), []
         if cmd == "event":
             self.f_events.write(protocol.jdump(dict(t=round(self.t_rel(), 3), what=h.get("what"), data=h.get("data"))) + "\n")

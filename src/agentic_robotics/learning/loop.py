@@ -34,6 +34,7 @@ from ..evaluation.runner import run_suite, snapshot
 from . import agent
 
 CODE_DIRS = ("skills", "helpers", "tests")
+PHRASES_REAL = {"tape_red": "red tape roll", "tape_yellow": "yellow tape roll"}
 
 
 def strip_vlm(txt):
@@ -48,6 +49,47 @@ def strip_vlm(txt):
         if not skip:
             out.append(l)
     return "".join(out)
+
+
+def scratch_doc(name, txt):
+    """A doc for runs without the skill library: the library's helpers named by their ctx.tools equivalents; the robot
+    doc gets the motion phase names (they set the timing: real_sim FREE_PHASES / SETTLE_PHASES)."""
+    for a, b in (("`T.FINGERTIP`", "`ctx.tools.FINGERTIP`"), ("`B.down(yaw)`", "`ctx.tools.down(yaw)`"),
+                 ("(`B.OPEN_W`)", "(`ctx.tools.OPEN_W`)"), ("`F.world(obs)` (`ctx.library.F`)", "`ctx.tools.world(obs)`")):
+        txt = txt.replace(a, b)
+    if name == "robot.md":
+        from ..sim import twin  # noqa: F401  (puts the vendored code on the path)
+        import real_sim as RS
+        free = sorted(str(x) for x in RS.FREE_PHASES if x)
+        txt += ("\n## Phase names (`phase=` of `move` / `move_joint`)\n\nThe phase decides how a move is timed:\n"
+                f"- **free moves** (the faster timing): {', '.join(repr(x) for x in free)}, and any phase starting with "
+                f"{', '.join(repr(x) for x in RS.FREE_PREFIXES)};\n"
+                f"- **settled at the end** (the arm waits until it is still): {', '.join(repr(x) for x in sorted(RS.SETTLE_PHASES))};\n"
+                "- any other name: an approach / contact move, run at its requested duration `T`.\n"
+                "Name a descent towards an object `\"descend\"` (settled), a grasp closing `\"close the gripper\"`, a lift "
+                "`\"lift\"`.\n")
+    return txt
+
+
+SUBSTITUTE_SCENE = """**What the program is told:** "Pick up the {red|yellow} can and lift it." (this run's practice objects)
+
+**The scene:**
+- the target can;
+- the other-coloured can;
+- 1–3 more objects from: a white can, a black box, a black hoop, a red and grey bar, a red and white bottle, a purple
+  disc.
+
+"""
+
+
+def substitute_doc(name, txt, ph):
+    """Condition C's docs: its own objects' names (the evaluation's objects are not named to it)."""
+    if name == "task_clutter_pick.md":
+        a, b = txt.index("**What the program is told:**"), txt.index("The objects are settled")
+        txt = txt[:a] + SUBSTITUTE_SCENE + txt[b:]
+    for k in ("tape_red", "tape_yellow"):
+        txt = txt.replace(PHRASES_REAL[k], ph[k])
+    return txt.replace("the other roll", "the other can")
 
 
 def run_dir(run_id):
@@ -111,29 +153,41 @@ def init(run_id, exp_path, add_eval_set=False, tasks=None, initial=None):
     for d in CODE_DIRS:
         if (src / d).exists():
             shutil.copytree(src / d, ws / d, ignore=shutil.ignore_patterns("__pycache__"))
+        else:
+            (ws / d).mkdir()                                   # (the brief names all three)
     (ws / "practice").mkdir()
     if L.get("allow_custom_scenes"):
         (ws / "practice" / "scenes").mkdir()
     (ws / "notes.md").write_text("# Notes\n\n(What you tried, what you saw in practice, what you changed and why.)\n")
     (ws / "docs").mkdir()
+    lib = L.get("library", True)                               # (False: skills from scratch, no skill library)
+    from ..config import task_config
+    from ..sim.scene import OBJECT_SETS
+    t_ = task_config(X["task"])
     for f in ("skill_api.md", "robot.md", "perception.md", "task_clutter_pick.md") + (("scenes.md",) if L.get("allow_custom_scenes") else ()) \
             + (("tasks.md",) if X.get("tasks") else ()):
-        if (paths.ROOT / "docs" / f).exists():
-            txt = (paths.ROOT / "docs" / f).read_text()
+        src_f = "skill_api_scratch.md" if (f == "skill_api.md" and not lib) else f
+        if (paths.ROOT / "docs" / src_f).exists():
+            txt = (paths.ROOT / "docs" / src_f).read_text()
             if not (X.get("vlm") or {}).get("enabled"):
                 txt = strip_vlm(txt)                          # (runs without model calls: no word of ctx.vlm)
+            if not lib:
+                txt = scratch_doc(f, txt)
+            if t_["object_set"] == "substitute":
+                txt = substitute_doc(f, txt, OBJECT_SETS["substitute"]["phrases"])
             (ws / "docs" / f).write_text(txt)
-    ref = ws / "reference"
-    shutil.copytree(paths.VENDOR, ref, ignore=shutil.ignore_patterns("__pycache__", "*.obj", "*.stl", "*.json", "__init__.py"))
-    (ref / "README.md").write_text(REFERENCE_README)
-    for p in ref.rglob("*"):
-        p.chmod(0o555 if p.is_dir() else 0o444)
+    if lib:                                                    # (from scratch: the robot code is not shown either)
+        ref = ws / "reference"
+        shutil.copytree(paths.VENDOR, ref, ignore=shutil.ignore_patterns("__pycache__", "*.obj", "*.stl", "*.json", "__init__.py"))
+        (ref / "README.md").write_text(REFERENCE_README)
+        for p in ref.rglob("*"):
+            p.chmod(0o555 if p.is_dir() else 0o444)
     P = X["practice"]
     fam_ranges = None
     if X.get("tasks"):
         fam_ranges = {f: dict(P["families"][f]) for f in X["tasks"]}
     budget = dict(task=X["task"], entry=X.get("entry", "skills/pick.py"), practice_workers=L.get("practice_workers", 8),
-                  tasks=X.get("tasks"),
+                  tasks=X.get("tasks"), library=bool(lib),
                   practice=dict(split=P["split"], levels=P.get("levels", [0]), idx_range=P.get("idx_range", [0, 300]),
                                 seed_range=P["seed_range"], families=fam_ranges,
                                 episodes_per_session=L["practice_episodes_per_session"],
@@ -169,9 +223,13 @@ def dev_eval(run_id, name, skill_dir, X):
     out = run_dir(run_id) / "dev" / name
     t0 = time.time()
     V = X.get("vlm") or {}
-    V = dict(V, tag=f"{run_id}:dev", cache_dir=str(run_dir(run_id) / "vlm_cache")) if V.get("enabled") else None
+    if V.get("enabled"):                                       # (dev_usd: development's own model budget, apart from
+        V = dict(V, tag=f"{run_id}-dev:dev" if "dev_usd" in V else f"{run_id}:dev",   # practice's run_usd)
+                 run_usd=V.get("dev_usd", V.get("run_usd")), cache_dir=str(run_dir(run_id) / "vlm_cache"))
+    else:
+        V = None
     S = run_suite(skill_dir, spec, task_config(X["task"]), out, workers=L.get("dev_workers", 16), sandbox=True,
-                  entry=X.get("entry", "skills/pick.py"), log=None, vlm=V)
+                  entry=X.get("entry", "skills/pick.py"), log=None, vlm=V, library=L.get("library", True))
     ledger(run_id, kind="dev", name=name, episodes=S["n"], successes=S["successes"], robot_s=S["robot_time_total_s"],
            wall_s=round(time.time() - t0, 1), model_cost_usd=S["model_cost_usd"])
     return dict(successes=S["successes"], n=S["n"], t_success_mean=S["t_success_mean"], by_level=S["by_level"],
@@ -220,8 +278,15 @@ def iterate(run_id):
     (rd / "candidates" / f"{sid}.diff").write_text(full)
     changed = bool(full.strip())
     print("  changes:\n" + (diff or "  (none)"))
+    viol = []
+    if changed and B.get("library", True) is False:
+        from ..execution.guard import violations
+        viol = violations(cand)
     if not changed:
         decision = dict(keep=False, why="no code change")
+        S = None
+    elif viol:
+        decision = dict(keep=False, why="uses the robot's own code (skills from scratch): " + "; ".join(viol[:5]))
         S = None
     else:
         S = dev_eval(run_id, sid, cand, X)
@@ -307,7 +372,8 @@ def evaluate(run_id, suite="heldout", workers=16, baseline=None):
         V = X.get("vlm") or {}
         V = dict(V, tag=f"{run_id}-heldout:{suite}", run_usd=V.get("heldout_usd", 0.0)) if V.get("enabled") else None
         out[name] = run_suite(rd / "checkpoints" / name, spec, task_config(X["task"]), d, workers=workers, sandbox=True,
-                              entry=X.get("entry", "skills/pick.py"), log=print, vlm=V)
+                              entry=X.get("entry", "skills/pick.py"), log=print, vlm=V,
+                              library=(X.get("learning") or {}).get("library", True))
     if st["incumbent"] != "000_initial":
         from ..evaluation.compare import compare_md
         c = compare(rd / "heldout" / f"{suite}_000_initial", rd / "heldout" / f"{suite}_{st['incumbent']}")
@@ -361,10 +427,9 @@ VLM_TEXT = """**One model call per episode (Astra, `ctx.vlm`).** Your program ma
 question per episode, typically at the start with the scene camera's (and/or the wrist camera's) first frame: to point
 at the target or at the objects in its way (ask for pixel coordinates as JSON and turn them into 3D points with the
 frame's depth), or to suggest a plan. `r = ctx.vlm.ask(prompt, [frame, ...])` -> `r["ok"]`, `r["text"]` (docs/
-skill_api.md). A second call in the same episode is refused. A short pointing answer costs about $0.006 (more if the
-model writes more); this run's model budget is ${usd} for practice and development together (`status` shows what is
-spent); when it is used up, calls are refused, so the program must still work without an answer. The model sees only
-what you send; it can be wrong.
+skill_api.md). A second call in the same episode is refused. A short pointing answer costs about $0.006-0.011 (more if
+the model writes more); this run's model budget is {budget} (`status` shows what is spent); when it is used up, calls
+are refused, so the program must still work without an answer. The model sees only what you send; it can be wrong.
 
 """
 
@@ -422,35 +487,62 @@ def brief(B, X):
     scenes_text = SCENES_TEXT.format(practice=practice, n=B["scenes"]["checks_per_session"],
                                      names="; ".join(f"{k} = \"{v}\"" for k, v in ph.items())) if B.get("scenes") else ""
     V = B.get("vlm") or {}
-    vlm_text = VLM_TEXT.format(usd=V.get("run_usd")) if V.get("enabled") else ""
+    if V.get("dev_usd") is not None:
+        vb = (f"${V.get('run_usd')} for your practice; the development evaluations have their own ${V['dev_usd']}, and "
+              "in the final evaluation every episode can make its call")
+    else:
+        vb = f"${V.get('run_usd')} for practice and development together"
+    vlm_text = VLM_TEXT.format(budget=vb) if V.get("enabled") else ""
     tasks_text = tasks_section(B, practice) if B.get("tasks") else ""
     E = B.get("eval_access")
     eval_text = EVAL_TEXT.format(practice=practice, runs=E["runs_per_session"], n=len(_suite_eps(E["spec"]))) if E else ""
     timeout_note = ((f"A practice call takes about 30 s per {B.get('practice_workers', 8)} episodes (longer while the "
                      "machine is busy): give these shell commands a timeout of 600000 ms (10 min).\n\n")
                     if (X.get("learning") or {}).get("practice_timeout_note") else "")
+    lib = B.get("library", True)
+    robot_text = ("a Franka Panda arm with a two-finger\ngripper over a table, seen by two RealSense D415 cameras (one "
+                  "fixed across the table, one on the hand), simulated in a\nMuJoCo twin of the real setup")
+    if lib:
+        intro = (f"You improve a robot skill program by practising it in simulation. The robot is {robot_text}. The "
+                 "program you improve is `skills/pick.py` (entry point `run(ctx)`), with helpers in\n`helpers/`.")
+        can_do = ("Change the\nprogram's strategy, structure, feedback checks and recovery. The documented interfaces are in "
+                  "`docs/`; the robot code\nbehind `ctx.library` and `ctx.robot` is in `reference/` (read-only; to change a "
+                  "behaviour, subclass or wrap it in your\nown code).")
+        rule_lib, goal3 = "", "(3) fewer model calls (none are used now)"
+    else:
+        vlm_bit = (" and, once per episode, the vision-language model Astra, for example to point at the object "
+                   "(`ctx.vlm`)") if V.get("enabled") else ""
+        intro = (f"You write a robot skill program and improve it by practising it in simulation. The robot is {robot_text}. "
+                 "The program is `skills/pick.py` (entry point `run(ctx)`), with helpers in `helpers/`.\n\n"
+                 "**It is empty: no skill is written yet.** Write the skill as code, using what the robot gives you: its "
+                 "motion interface and cameras (`ctx.robot`, docs/robot.md), the depth and the camera geometry "
+                 f"(`ctx.tools`), the segmentation model (`ctx.segmenter`, docs/perception.md){vlm_bit}. There is no skill "
+                 "library: the robot's own skill code is neither available to your program nor shown to you "
+                 "(docs/skill_api.md).")
+        can_do = ("Write the\nprogram's strategy, structure, perception, grasp choice, feedback checks and recovery. The "
+                  "documented interfaces are in `docs/`.")
+        rule_lib = (" Write the skill yourself: a version that imports the robot's own code, or reaches\nfor it another "
+                    "way (`sys.modules`, `importlib`, `__globals__`, ...), is rejected.")
+        goal3 = "(3) fewer model calls"
+    tn = (X.get("learning") or {}).get("test_note")
+    test_text = f"**How your version is evaluated.** {tn}\n\n" if tn else ""
     return f"""# Your task in this workspace
 
-You improve a robot skill program by practising it in simulation. The robot is a Franka Panda arm with a two-finger
-gripper over a table, seen by two RealSense D415 cameras (one fixed across the table, one on the hand), simulated in a
-MuJoCo twin of the real setup. The program you improve is `skills/pick.py` (entry point `run(ctx)`), with helpers in
-`helpers/`.
+{intro}
 
 **The task (clutter pick).** A target object (in this run's practice: {objects}) lies on the table among 2-4 other
 objects, which may touch it. The program is told the object's name (ctx.task["object"]) and must pick it up and lift it. It
 succeeds when the target is at least 5 cm above where it rested, held by both fingers, with nothing else lifted, for
 1 second. An episode ends when the program returns; the robot refuses to move after 60 s of robot time.
 
-**Goal, in order:** (1) more successes under that time limit, on layouts you have not seen; (2) less robot time per
-success; (3) fewer model calls (none are used now). Robot speed, limits and the success check are fixed.
+{test_text}**Goal, in order:** (1) more successes under that time limit, on layouts you have not seen; (2) less robot time per
+success; {goal3}. Robot speed, limits and the success check are fixed.
 
 **Perception in this run: {perception}.** {perception_note} Depth is the realistic noisy D415 model and the
 cameras have a per-episode calibration error (docs/perception.md). Colour: {colour}.
 
-**What you can do.** Read and edit anything in this workspace: `skills/`, `helpers/`, `tests/`, `notes.md`. Change the
-program's strategy, structure, feedback checks and recovery. The documented interfaces are in `docs/`; the robot code
-behind `ctx.library` and `ctx.robot` is in `reference/` (read-only; to change a behaviour, subclass or wrap it in your
-own code). Practise in simulation with exactly these commands (the only shell commands you can run):
+**What you can do.** Read and edit anything in this workspace: `skills/`, `helpers/`, `tests/`, `notes.md`. {can_do}
+Practise in simulation with exactly these commands (the only shell commands you can run):
 
     {practice} status
     {practice} run --levels 2,3 --n 6            # 1-{P['max_per_call']} episodes per call; --idx 5,17 picks layouts; --seed S
@@ -468,7 +560,7 @@ believe is better.
 
 **Rules.** Programs see the scene only through `ctx` (cameras, the robot's own state, the segmenter): never try to
 read the simulator's true state or files outside this workspace. Do not try to change the success check, the time
-limit or the robot's limits. Keep `run(ctx)` working: a crash is a failure.
+limit or the robot's limits. Keep `run(ctx)` working: a crash is a failure.{rule_lib}
 
 **Before you finish:** leave your best version in `skills/` and `helpers/`, and write in `notes.md` what you changed,
 why, and what practice showed (with the practice run numbers). After the session, your version is evaluated on
@@ -489,6 +581,11 @@ def session_prompt(it, st, B, L):
         lv = "tasks " + ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in d["by_family"].items())
     else:
         lv = "levels " + ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in (d.get("by_level") or {}).items())
+    if B.get("library", True) is False and st.get("incumbent") == "000_initial" and not d.get("successes"):
+        return (f"Session {it}. Read AGENTS.md, then docs/skill_api.md and docs/robot.md, then write skills/pick.py: "
+                f"it is empty, no skill is written yet (it solves 0/{d.get('n')} development episodes).{prev} Write the "
+                f"skill as code and improve it by practising it. You have {B['practice']['episodes_per_session']} "
+                f"practice episodes. End with your best version in place and notes.md updated.")
     return (f"Session {it}. Read AGENTS.md, then docs/skill_api.md, then improve skills/pick.py by practising it. "
             f"The current version solves {d.get('successes')}/{d.get('n')} development episodes "
             f"({lv}; "

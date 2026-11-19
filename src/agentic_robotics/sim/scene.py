@@ -74,7 +74,7 @@ def load_bank(split, level, object_set="real", banks=None):
 
 class ClutterPickScene:
     def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0), colour="mujoco", object_set=None,
-                 task="clutter-pick"):
+                 task="clutter-pick", mounts="twin"):
         from .. import tasks as TK
         self.task_name, self.tdef = task, TK.get(task)
         if self.tdef["object_set"] != "real":                    # (press, insert: the multi-task model, always)
@@ -92,7 +92,10 @@ class ClutterPickScene:
             raise ValueError("the splat composite has the 6522 scan's objects only (none for the substitutes, the kettle, "
                              "the stand or the cylinder)")
         self.P = P = PickTwin(render=True, world_cls=world_class(object_set))
-        P.use_cameras("twin")
+        if mounts not in ("twin", "calibrated"):
+            raise ValueError(f"camera mounts {mounts!r}")
+        P.use_cameras(mounts)                                  # (twin: the model's; calibrated: the real rig's calib.json)
+        self.mounts = mounts
         self.preset, self.colour_noise, self.latency_s = preset, colour_noise, tuple(latency_s)
         self.colour = colour                                   # mujoco (condition B) | splat (condition A)
         self.compositor = None

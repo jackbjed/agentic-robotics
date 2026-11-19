@@ -1,0 +1,46 @@
+# Fidelity study, second design (2026-11-19, user: "fair fidelity run. but start with the skills empty: nothing yet; the
+# agent has to write them from scratch. just some indication like 'write skills as code, using the perception tools you
+# have, being able to call astra for pointing at the object'"; "switch the twin's cameras to the calibrated real poses";
+# "tell the condition C agent that its test objects differ"). The SAME agent (Opus 5.5, medium effort), budgets, brief
+# and EMPTY start (no skill library: execution/guard.py) in every condition; only the training condition differs.
+# Training condition A: splat-composite colour, the real objects; SAM3; the fitted D415 depth; the real rig's calibrated camera poses.
+# Held-out = ONE common target for every condition: the real objects, splat colour, SAM3, calibrated cameras,
+# test L0-3 x 50 (docs/fidelity.md). Simulation generalization, not sim-to-real transfer.
+name: fidelity2_A
+task: configs/tasks/clutter_pick_A_rig.yaml
+skill: initial_skills/empty
+entry: skills/pick.py
+suites:
+  heldout_target: {split: test, levels: [0, 1, 2, 3], n: 50, seed: 5, protected: true, task: configs/tasks/clutter_pick_A_rig.yaml}
+  heldout_B:      {split: test, levels: [0, 1, 2, 3], n: 50, seed: 5, protected: true, task: configs/tasks/clutter_pick_B_rig.yaml}
+  dev:            {split: val, levels: [1, 2, 3], n: 30, seed: 11}
+  smoke:          {split: val, levels: [0, 1, 2], idx: [90, 92], seed: 13}
+practice:
+  split: train
+  levels: [0, 1, 2, 3]
+  idx_range: [0, 2000]
+  seed_range: [100, 999]
+vlm:                             # perception/vlm.py; one Astra call per episode; budgets per condition (ledger tags)
+  enabled: true
+  model: astra
+  max_calls_per_episode: 1
+  max_usd_per_episode: 0.03
+  run_usd: 1.0                   # practice (tag fidelity2_A_r1:practice)
+  dev_usd: 1.5                   # the development evaluations (tag ..-dev:dev; repeated identical requests cached)
+  heldout_usd: 3.0               # the final held-out evaluation: enough for every episode's call (~$0.011 each)
+learning:
+  library: false                 # skills from scratch: no ctx.library / ctx.perception / reference/, ctx.tools instead
+  test_note: "Your version is evaluated on new layouts of the same kind: the same objects, colour and cameras as in your practice."
+  dev_suite: dev
+  dev_workers: 16
+  practice_workers: 12
+  practice_episodes_per_session: 200
+  practice_episodes_total: 400
+  practice_max_per_call: 16
+  practice_timeout_note: true
+  model: claude-opus-5-5
+  effort: medium
+  agent_usd_per_session: 25.0    # the CLI's API-equivalent estimate (the sessions run on the subscription login)
+  agent_usd_total: 50.0
+  agent_wall_s_per_session: 14400
+  selection: {min_gain: 2, min_dt_s: 0.5}

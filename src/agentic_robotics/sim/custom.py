@@ -173,13 +173,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scene", required=True); ap.add_argument("--object-set", default="real")
     ap.add_argument("--colour", default="mujoco"); ap.add_argument("--out", required=True)
-    ap.add_argument("--task", default="clutter-pick")
+    ap.add_argument("--task", default="clutter-pick"); ap.add_argument("--mounts", default="twin")
     a = ap.parse_args()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     from .scene import ClutterPickScene
     try:
         spec = yaml.safe_load(Path(a.scene).read_text())
-        sc = ClutterPickScene(colour=a.colour, object_set=a.object_set, task=a.task)
+        sc = ClutterPickScene(colour=a.colour, object_set=a.object_set, task=a.task, mounts=a.mounts)
         L, rep = build(sc.P, spec, a.task)
         sc.reset_layout(L, 0)
         preview(sc, out / "preview.png")

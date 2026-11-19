@@ -3,7 +3,9 @@ network, read-only code, one writable directory, only the world's socket). It bu
 over the socket), the perception tools and the context, imports the program's entry module from its workspace copy,
 calls run(ctx), and sends the program's last word (its result and usage) to the world server, which judges.
 
-    python -I -m agentic_robotics.execution.host --skills <dir> --entry skills/pick.py --sock <world.sock> --out <dir>"""
+    python -I -m agentic_robotics.execution.host --skills <dir> --entry skills/pick.py --sock <world.sock> --out <dir>
+        [--no-library]   skills written from scratch: no ctx.library / ctx.perception, ctx.tools instead, and the
+                         program's own imports of the robot code refused (execution/guard.py)"""
 from __future__ import annotations
 
 import argparse
@@ -22,13 +24,14 @@ def main():
     ap.add_argument("--entry", default="skills/pick.py")
     ap.add_argument("--sock", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--no-library", action="store_true")
     a = ap.parse_args()
     os.environ.setdefault("MUJOCO_GL", "osmesa")             # (the program only draws its own robot model: no GPU)
     os.environ.setdefault("PYOPENGL_PLATFORM", os.environ["MUJOCO_GL"])
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     w0 = time.time()
     from ..sim import twin
-    library = twin.skill_library()
+    library = None if a.no_library else twin.skill_library()
     from ..robot.client import make_robot
     from ..perception.client import Segmenter, VLMClient, library_perception
     from .context import SkillContext
@@ -36,9 +39,16 @@ def main():
     hello = link.call("hello")[0]
     task = link.call("task")[0]["task"]
     seg = Segmenter(link)
-    per = library_perception(robot, seg, out, library)
+    per = None if library is None else library_perception(robot, seg, out, library)
+    tools = None
+    if library is None:
+        from .tools import Tools
+        tools = Tools(twin)
     ctx = SkillContext(task=task, robot=robot, segmenter=seg, library=library, perception=per, out=out, link=link,
-                       t0=float(hello["t0"]), limit_s=float(hello["robot_time_limit_s"]), vlm=VLMClient(link))
+                       t0=float(hello["t0"]), limit_s=float(hello["robot_time_limit_s"]), vlm=VLMClient(link), tools=tools)
+    if library is None:
+        from .guard import install
+        install(a.skills)
     sys.path.insert(0, str(Path(a.skills).resolve()))       # (the program's own helpers: `import helpers.x`)
     result, error = None, None
     w_setup = time.time() - w0

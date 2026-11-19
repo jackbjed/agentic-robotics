@@ -1,0 +1,7 @@
+# Condition A at the REAL rig's calibrated camera poses (d415_rig.yaml): colour from our splat compositor, rendered
+# from each camera's true pose. Otherwise as d415_splat.yaml.
+preset: d415
+mounts: calibrated
+colour: splat
+colour_noise: false
+latency_s: [0.0, 0.0]

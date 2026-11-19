@@ -139,7 +139,8 @@ def build_scene(ws, run_dir, budget, scene_path, out_dir, family="clutter-pick")
     from ..execution.episode import wait_for_gpu
     wait_for_gpu()                                 # (19-11: checks rendered on a full GPU failed: EGL_NOT_INITIALIZED)
     r = subprocess.run([str(paths.ROOT / ".venv/bin/python"), "-I", "-m", "agentic_robotics.sim.custom", "--scene", str(sp),
-                        "--object-set", t["object_set"], "--colour", t["colour"], "--out", str(out_dir), "--task", family],
+                        "--object-set", t["object_set"], "--colour", t["colour"], "--out", str(out_dir), "--task", family,
+                        "--mounts", t.get("mounts", "twin")],
                        env=base_env(), cwd=str(paths.ROOT), capture_output=True, text=True, timeout=300)
     rep = json.loads((out_dir / "report.json").read_text()) if (out_dir / "report.json").exists() else \
         dict(ok=False, platform_error=True, why="the scene builder crashed (a platform problem, not your scene; not "
@@ -245,7 +246,8 @@ def cmd_run(a):
     def one(k_ep):
         k, (lv, i) = k_ep
         V = dict(budget["vlm"], tag=f"{meta['run_id']}:practice") if (budget.get("vlm") or {}).get("enabled") else None
-        ep = dict(episode_base(t, record=dict(video=True, observations=obs, keyframes=True), vlm=V),
+        ep = dict(episode_base(t, record=dict(video=True, observations=obs, keyframes=True), vlm=V,
+                               library=budget.get("library", True)),
                   split=P["split"] if layout is None else "custom", level=lv, idx=i, seed=episode_seed(seed, max(lv, 0), i))
         if layout is not None:
             ep["layout"] = layout
@@ -282,6 +284,11 @@ def cmd_run(a):
     calls = sum(int((r.get("program") or {}).get("model_calls") or 0) for *_, r in rows)
     L += ["", f"{ok}/{len(rows)} successes. Model calls {calls} (${usd:.3f}). Per episode: result.json, keyframes.png, "
           f"events.jsonl (incl. any model request/reply), program/, video.mp4"]
+    if budget.get("library", True) is False:                  # (skills from scratch: what would get a version rejected)
+        from ..execution.guard import violations
+        v = violations(snap)
+        if v:
+            L += ["", "WARNING: this code reaches for the robot's own code; a version like this is rejected:"] + [f"- {x}" for x in v[:10]]
     (out / "summary.md").write_text("\n".join(L) + "\n")
     print("\n".join(L))
     u = usage(run_dir, s)
@@ -313,7 +320,7 @@ def cmd_eval(a):
     t0 = time.time()
     S = run_suite(ws, E["spec"], task_config(budget["task"]), out, workers=E.get("workers", 16), sandbox=True,
                   record=dict(video=True, observations="none", keyframes=True), entry=budget.get("entry", "skills/pick.py"),
-                  log=None, vlm=V)
+                  log=None, vlm=V, library=budget.get("library", True))
     with ledger_lock(run_dir):
         with open(run_dir / "ledger.jsonl", "a") as f:
             f.write(json.dumps(dict(kind="eval_exposed", session=s, t=time.time(), suite=E["suite"], status="done", call=n,

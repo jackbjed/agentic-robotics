@@ -1,0 +1,12 @@
+# The D415s at the REAL rig's calibrated poses (2026-11-19, user: "switch the twin's cameras to the calibrated real
+# poses"): vendored panda_twin real/calib.json (10-29): scene_cam T_world_cam (5.1 cm further back, 3.3 cm sideways,
+# 0.9 cm higher and ~2.4 deg turned vs the twin's mount), wrist_cam T_hand_cam ((51.0, 2.8, 47.7) mm on the hand vs the
+# twin's (71.5, 0, 66): its view now shows the fingertips, as the real one does). The program believes these poses
+# (RealSim's nominal_camera from the same calib.json, as on the robot); the true pose differs by the per-episode
+# calibration error (scene 5 mm / 1 deg, wrist 3 mm / 1 deg). Intrinsics stay the twin's (f 617.2 px, centred; the
+# real ones: ~615 px, principal point ~13 px off centre). Otherwise as d415.yaml: the fitted D415 depth, plain colour.
+preset: d415
+mounts: calibrated
+colour: mujoco
+colour_noise: false
+latency_s: [0.0, 0.0]

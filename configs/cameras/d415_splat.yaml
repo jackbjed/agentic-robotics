@@ -3,6 +3,7 @@
 # their simulated poses + MuJoCo's arm. Not full photorealism (docs/fidelity.md). Depth stays MuJoCo's through the
 # D415 model.
 preset: d415
+mounts: twin                 # the twin's nominal mounts (d415_rig*.yaml: the real rig's calibrated poses)
 colour: splat
 colour_noise: false
 latency_s: [0.0, 0.0]
