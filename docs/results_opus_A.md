@@ -99,3 +99,25 @@ Most were caused by platform changes made while the runs were going (the multi-t
 The fixes are in commits 87c73a8 and 3bed6df, and the tests in `tests/test_practice_budget.py`. The held-out
 numbers above are unaffected: they were run afterwards, on the fixed platform, for both versions. The sessions
 themselves had somewhat less usable practice and feedback than their budgets said.
+
+## At the real rig's camera poses (2026-11-19, before real-robot runs)
+
+The same fresh 200 test episodes (test idx 100–149 per level), with both D415s at the calibrated real poses
+(`configs/experiments/realcam_check.yaml`, condition A: splat colour, SAM3). The skills never saw these poses. Paired
+with their twin-camera results:
+
+| skill | twin cameras | real camera poses | L3 (/50) | s per success | paired |
+|---|---|---|---|---|---|
+| initial (the robot's pick tool) | 159 | 157 | 10 | 15.8 | 7 lost, 5 gained (p = 0.77) |
+| `opusA_r1` s01 | 196 | 190 | 40 | 12.1 | 8 lost, 2 gained (p = 0.11) |
+| `opusA_evalset_r1` s01 | 200 | **200** | 50 | 11.9 | none lost |
+
+- **The evaluation-set skill does not depend on the camera mounts.** 199 of its 200 successes grip the tape roll
+  from inside its hole (`helpers/ring.py`); one uses the outside grasp.
+- **`opusA_r1` loses a little, all at level 3:** 7 touched-not-lifted, 2 not touched, 1 dropped.
+- **Real-robot caveat for the inside grasp.** The twin's roll holes are 37–38 mm across (its collision walls).
+  astra_skills_real's 11-13 note gives the real roll's hole as 32 mm, which leaves about 3 mm a side for the 26 mm
+  fingers instead of about 5.5 mm, against a 3–4 mm hand-eye error. Its own wall pinch landed on the rim twice there.
+  Measure the real hole before a live run.
+
+Records: `runs/suites/realcam_check/{initial,opusA_r1_s01,opusA_evalset_s01}`.
