@@ -28,7 +28,15 @@ bin/ar run --split test --level 0 --idx 10            # the initial clutter-pick
 bin/ar run --split test --level 0 --idx 10 --parity   # with the 11-18 baseline's starting hint (parity checks only)
 bin/ar run --skills workspaces/<run>/ --split val --level 3 --idx 4   # any skill directory
 bin/ar run --task configs/tasks/clutter_pick_A.yaml --split val --level 1 --idx 3   # a fidelity condition (A/B/C + SAM3)
+bin/ar run --family press --task configs/tasks/clutter_pick_B.yaml --split val --idx 0 \
+           --vlm configs/experiments/multitask_B.yaml       # another task (docs/tasks.md), its ported skill, one Astra call
 ```
+
+`--family` is the task: clutter-pick (the default), pick, place, close-box, press or insert. Without `--skills`, the
+other tasks run `initial_skills/tasks/` (the robot's existing skills, ported). `--vlm EXPERIMENT` allows the one model
+call per episode under that experiment's limits; all manual runs share the ledger tag `manual` and its `--vlm-usd`
+cap ($0.50 by default). Layout banks for the other tasks: `bin/ar layouts --task press --split val` (already built:
+`data/layouts_{pick,place,close,press,insert}/`, 300 / 60 / 100 layouts for train / val / test).
 
 Each writes `runs/manual/<time>_<episode>/`:
 

@@ -31,6 +31,20 @@ condition; the brief lists them.
 | glue | glue bottle, red base | 55 × 41 × 133 | red-and-white cylinder bottle |
 | sticky_pad | sticky-note pad | 76 × 76 × 20 | purple disc Ø80 × 20 |
 
+**Other tasks** (multi-task runs; `--task <name>` on `scene check` and `run --scene`): the scene must contain the
+task's fixed objects, with the target among the task's targets.
+
+| task | target | must also contain | other ids |
+|---|---|---|---|
+| pick | tape_red, tape_yellow, tape_white, hole_block, glue, screwdriver, cable | | the table above |
+| place | tape_red, tape_yellow, tape_white, hole_block, glue | box_white (191 × 193 × 58, lid open by default 110°) | the table above |
+| close-box | box_white | | the table above |
+| press | kettle (Ø14 cm, 18 cm tall; its lid-release button on top of the handle) | | the table above |
+| insert | wood_cyl (40 × 40 mm, 22 mm hole) | peg_stand (three 18 mm sticks, ~17 cm tall) | the table above |
+
+`joints: {box_lid_deg: 95}` sets the white box's lid opening (0 closed … 120). For press and insert scenes the colour
+is the plain MuJoCo render (no scans of the kettle, stand or cylinder).
+
 **Checks** (`ar-practice scene check practice/scenes/NAME.yaml`). These are the same rules as the training layouts'
 generator:
 - every outline inside the work area, and no two overlapping (gaps of 0.5 mm or more);

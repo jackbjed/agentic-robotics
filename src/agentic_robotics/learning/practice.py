@@ -70,6 +70,22 @@ def usage(run_dir, session=None):
     return used
 
 
+def family_ranges(budget, fam):
+    """(levels, idx_range) a task family may practise on (budget practice.families; else the run's single range)."""
+    P = budget["practice"]
+    F = (P.get("families") or {}).get(fam)
+    if F is None:
+        if P.get("families"):
+            fail(f"task {fam!r} is not part of this run (tasks: {', '.join(P['families'])})")
+        return list(P["levels"]), list(P["idx_range"])
+    return list(F["levels"]), list(F["idx_range"])
+
+
+def default_family(budget):
+    fams = list((budget["practice"].get("families") or {}))
+    return fams[0] if fams else "clutter-pick"
+
+
 def cmd_status(a):
     ws, meta, run_dir, budget = context()
     s = meta.get("session")
@@ -79,6 +95,8 @@ def cmd_status(a):
                run_total=U, run_limit_episodes=P["episodes_total"],
                permitted=dict(split=P["split"], levels=P["levels"], idx_range=P["idx_range"],
                               seed_range=P["seed_range"], max_per_call=P["max_per_call"]))
+    if P.get("families"):
+        out["permitted"]["tasks"] = {f: dict(levels=v["levels"], idx_range=v["idx_range"]) for f, v in P["families"].items()}
     if budget.get("scenes", {}).get("allowed"):
         out["scene_checks"] = f"{checks_used(run_dir, s)}/{budget['scenes']['checks_per_session']} this session"
     V = budget.get("vlm") or {}
@@ -94,7 +112,7 @@ def checks_used(run_dir, session):
     return sum(1 for r in map(json.loads, open(f)) if r.get("kind") == "scene_check" and r.get("session") == session) if f.exists() else 0
 
 
-def build_scene(ws, run_dir, budget, scene_path, out_dir):
+def build_scene(ws, run_dir, budget, scene_path, out_dir, family="clutter-pick"):
     """Build a scene the agent wrote, in a privileged process (sim/custom.py) -> (report, layout or None)."""
     from ..config import task_config
     from ..execution.episode import base_env
@@ -106,7 +124,7 @@ def build_scene(ws, run_dir, budget, scene_path, out_dir):
         fail(f"{scene_path}: no such file")
     out_dir.mkdir(parents=True, exist_ok=True)
     r = subprocess.run([str(paths.ROOT / ".venv/bin/python"), "-I", "-m", "agentic_robotics.sim.custom", "--scene", str(sp),
-                        "--object-set", t["object_set"], "--colour", t["colour"], "--out", str(out_dir)],
+                        "--object-set", t["object_set"], "--colour", t["colour"], "--out", str(out_dir), "--task", family],
                        env=base_env(), cwd=str(paths.ROOT), capture_output=True, text=True, timeout=300)
     rep = json.loads((out_dir / "report.json").read_text()) if (out_dir / "report.json").exists() else dict(ok=False, why=r.stderr[-500:])
     lay = json.loads((out_dir / "layout.json").read_text()) if rep.get("ok") and (out_dir / "layout.json").exists() else None
@@ -129,7 +147,8 @@ def cmd_scene(a):
     out = (ws / a.path).with_suffix(".check")
     if out.exists():
         shutil.rmtree(out)
-    rep, _ = build_scene(ws, run_dir, budget, a.path, out)
+    fam = a.task or default_family(budget); family_ranges(budget, fam)
+    rep, _ = build_scene(ws, run_dir, budget, a.path, out, fam)
     print(json.dumps(rep, indent=1))
     if rep.get("ok"):
         print(f"preview: {out.relative_to(ws)}/preview.png (scene camera | top view: x away from the robot points down, y right)")
@@ -144,9 +163,13 @@ def cmd_run(a):
             fail("writing your own scenes is not part of this run")
         if a.idx or a.levels:
             fail("--scene runs that scene only (no --idx / --levels)")
-    levels = [int(x) for x in a.levels.split(",")] if a.levels else list(P["levels"])
-    if any(lv not in P["levels"] for lv in levels):
-        fail(f"levels must be within {P['levels']}")
+    fam = a.task or default_family(budget)
+    lv_ok, idx_range = family_ranges(budget, fam)
+    from .. import tasks as TK
+    entry = TK.get(fam)["entry"] if P.get("families") else budget.get("entry", "skills/pick.py")
+    levels = [int(x) for x in a.levels.split(",")] if a.levels else lv_ok
+    if any(lv not in lv_ok for lv in levels):
+        fail(f"levels must be within {lv_ok} for {fam}")
     seed = a.seed if a.seed is not None else int(np.random.default_rng().integers(*P["seed_range"]))
     if not P["seed_range"][0] <= seed < P["seed_range"][1]:
         fail(f"seed must be in {P['seed_range']}")
@@ -157,9 +180,9 @@ def cmd_run(a):
         idx = [int(x) for x in a.idx.split(",")]
         eps = [(levels[k % len(levels)], i) for k, i in enumerate(idx)]
     else:
-        eps = [(levels[k % len(levels)], int(rng.integers(*P["idx_range"]))) for k in range(a.n)]
-    if not a.scene and any(not P["idx_range"][0] <= i < P["idx_range"][1] for _, i in eps):
-        fail(f"layout indices must be in {P['idx_range']}")
+        eps = [(levels[k % len(levels)], int(rng.integers(*idx_range))) for k in range(a.n)]
+    if not a.scene and any(not idx_range[0] <= i < idx_range[1] for _, i in eps):
+        fail(f"layout indices must be in {idx_range} for {fam}")
     if not 1 <= len(eps) <= P["max_per_call"]:
         fail(f"1 to {P['max_per_call']} episodes per call")
     if a.observations not in ("none", "wrist", "all"):
@@ -183,7 +206,7 @@ def cmd_run(a):
     n = len([d for d in pr.iterdir() if d.is_dir()]) + 1
     out = pr / f"{n:03d}"; out.mkdir()
     if a.scene:
-        rep, layout = build_scene(ws, run_dir, budget, a.scene, out / "scene")
+        rep, layout = build_scene(ws, run_dir, budget, a.scene, out / "scene", fam)
         if layout is None:
             print(json.dumps(rep, indent=1))
             fail("the scene is not valid (nothing was run; the reserved episodes still count)")
@@ -199,8 +222,10 @@ def cmd_run(a):
                   split=P["split"] if layout is None else "custom", level=lv, idx=i, seed=episode_seed(seed, max(lv, 0), i))
         if layout is not None:
             ep["layout"] = layout
+        if fam != "clutter-pick":
+            ep["family"] = fam
         d = out / (f"{k:02d}_L{lv}_{i:04d}" if layout is None else f"{k:02d}_scene_{Path(a.scene).stem}")
-        r = run_episode(snap, ep, d, entry=budget.get("entry", "skills/pick.py"), sandbox=True, wall_limit_s=t["wall_limit_s"])
+        r = run_episode(snap, ep, d, entry=entry, sandbox=True, wall_limit_s=t["wall_limit_s"])
         if a.observations == "wrist" and (d / "observations").exists():
             for f in (d / "observations").glob("*d415*"):
                 f.unlink()
@@ -216,7 +241,7 @@ def cmd_run(a):
                                     wall_s=round(wall, 1), status="done", call=n, seed=seed,
                                     eps=[[lv, i] for _, lv, i, _ in rows],
                                     successes=sum(bool(r.get("success")) for *_, r in rows))) + "\n")
-    where = f"your scene {a.scene}" if a.scene else "train split"
+    where = (f"your scene {a.scene}" if a.scene else "train split") + f", task {fam}"
     L = [f"practice run {n:03d}: seed {seed}, {len(rows)} episodes ({where}), {wall:.0f} s wall", "",
          "| # | level | layout | result | robot s to success | program result | error |", "|---|---|---|---|---|---|---|"]
     for k, lv, i, r in rows:
@@ -287,11 +312,11 @@ def main(argv=None):
     sub.add_parser("status").set_defaults(fn=cmd_status)
     s = sub.add_parser("run"); s.set_defaults(fn=cmd_run)
     s.add_argument("--levels"); s.add_argument("--n", type=int, default=4); s.add_argument("--idx"); s.add_argument("--seed", type=int)
-    s.add_argument("--observations", default="none"); s.add_argument("--scene")
+    s.add_argument("--observations", default="none"); s.add_argument("--scene"); s.add_argument("--task")
     sub.add_parser("test").set_defaults(fn=cmd_test)
     sub.add_parser("eval").set_defaults(fn=cmd_eval)
     s = sub.add_parser("scene"); s.set_defaults(fn=cmd_scene)
-    s.add_argument("action", choices=("check",)); s.add_argument("path")
+    s.add_argument("action", choices=("check",)); s.add_argument("path"); s.add_argument("--task")
     a = ap.parse_args(argv)
     a.fn(a)
 

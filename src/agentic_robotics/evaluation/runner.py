@@ -31,7 +31,7 @@ def snapshot(skill_root, dst):
 
 def compact(ep, r):
     pr = r.get("program") or {}
-    return dict(key=suites.key(ep), split=ep["split"], level=ep["level"], idx=ep["idx"], seed=ep["seed"],
+    return dict(key=suites.key(ep), family=ep.get("family", "clutter-pick"), split=ep["split"], level=ep["level"], idx=ep["idx"], seed=ep["seed"],
                 success=bool(r.get("success")), category=r.get("category"), t_success=r.get("t_success"),
                 robot_time_s=r.get("robot_time_s"), time_limit_hit=r.get("time_limit_hit"),
                 program_result=(r.get("program_result") or {}).get("result") if isinstance(r.get("program_result"), dict) else r.get("program_result"),
@@ -68,8 +68,11 @@ def run_suite(skill_root, spec, task_cfg, out_dir, workers=8, sandbox=True, reco
             r = json.load(open(rf))
             if r.get("category") != "platform_error":
                 return ep, r
+        fam = ep.get("family", "clutter-pick")
+        from .. import tasks as TK
+        e_ = entry if fam == "clutter-pick" else TK.get(fam)["entry"]
         try:
-            return ep, run_episode(snap, dict(base, **ep), d, entry=entry, sandbox=sandbox,
+            return ep, run_episode(snap, dict(base, **ep), d, entry=e_, sandbox=sandbox,
                                    wall_limit_s=task_cfg.get("wall_limit_s", 900))
         except Exception as e:                                  # (the platform failed, not the program: void)
             return ep, dict(success=False, category="platform_error", error=f"{type(e).__name__}: {e}"[:500])
@@ -106,11 +109,15 @@ def summarize(recs):
              model_calls=sum(r.get("model_calls") or 0 for r in recs),
              model_cost_usd=round(sum(r.get("model_cost_usd") or 0 for r in recs), 4),
              compute_wall_s_mean=round(float(np.mean([r["compute_wall_s"] or 0 for r in recs])), 3) if recs else None,
-             categories={}, by_level={}, program_results={})
+             categories={}, by_level={}, program_results={}, by_family={})
     for r in recs:
         S["categories"][r["category"]] = S["categories"].get(r["category"], 0) + 1
         pr = str(r.get("program_result"))
         S["program_results"][pr] = S["program_results"].get(pr, 0) + 1
+    for fam in sorted({r.get("family", "clutter-pick") for r in recs}):
+        R = [r for r in recs if r.get("family", "clutter-pick") == fam]; O = [r for r in R if r["success"]]
+        S["by_family"][fam] = dict(n=len(R), successes=len(O),
+                                   t_success_mean=round(float(np.mean([r["t_success"] for r in O])), 3) if O else None)
     for lv in sorted({r["level"] for r in recs}):
         R = [r for r in recs if r["level"] == lv]; O = [r for r in R if r["success"]]
         S["by_level"][str(lv)] = dict(n=len(R), successes=len(O),
@@ -124,5 +131,9 @@ def summary_md(S, spec):
          "| level | n | successes | s / success |", "|---|---|---|---|"]
     for lv, d in S["by_level"].items():
         L.append(f"| {lv} | {d['n']} | {d['successes']} | {d['t_success_mean']} |")
+    if len(S.get("by_family") or {}) > 1:
+        L += ["", "| task | n | successes | s / success |", "|---|---|---|---|"]
+        for fam, d in S["by_family"].items():
+            L.append(f"| {fam} | {d['n']} | {d['successes']} | {d['t_success_mean']} |")
     L += ["", f"categories: {S['categories']}", f"program results: {S['program_results']}"]
     return "\n".join(L) + "\n"

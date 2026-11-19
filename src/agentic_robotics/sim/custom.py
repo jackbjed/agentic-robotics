@@ -27,6 +27,8 @@ import yaml
 
 TARGETS = ("tape_red", "tape_yellow")
 POOL = ("tape_red", "tape_yellow", "tape_white", "hole_block", "cable", "screwdriver", "glue", "sticky_pad")
+POOL_TASKS = POOL + ("box_white", "kettle", "peg_stand", "wood_cyl")
+JOINTS = {"box_lid_deg": "obj_box_white_lid_hinge"}               # friendly name -> joint (degrees in the file)
 BOUNDS_X, BOUNDS_Y = (-0.49, -0.12), (-0.18, 0.21)
 
 
@@ -34,35 +36,52 @@ class SceneError(ValueError):
     pass
 
 
-def parse(spec):
+def parse(spec, task="clutter-pick"):
+    from .. import tasks as TK
+    td = TK.get(task)
+    targets = tuple(td.get("targets", TARGETS))
+    pool = POOL_TASKS if td["object_set"] == "tasks" else POOL + ("box_white",)
     if not isinstance(spec, dict):
-        raise SceneError("a scene is a mapping with target, objects, [arm_start]")
+        raise SceneError("a scene is a mapping with target, objects, [arm_start], [joints]")
     t = spec.get("target")
-    if t not in TARGETS:
-        raise SceneError(f"target must be one of {TARGETS}")
+    if t not in targets:
+        raise SceneError(f"task {task}: target must be one of {targets}")
     objs = spec.get("objects") or {}
-    if not isinstance(objs, dict) or not 2 <= len(objs) <= 6:
-        raise SceneError("objects: 2 to 6 entries id: [x, y, yaw_deg]")
+    lo = 1 if task in ("pick", "close-box", "press") else 2
+    if not isinstance(objs, dict) or not lo <= len(objs) <= 6:
+        raise SceneError(f"objects: {lo} to 6 entries id: [x, y, yaw_deg]")
     if t not in objs:
         raise SceneError("the target must be among the objects")
+    for f in td.get("fixed", []):
+        if f not in objs:
+            raise SceneError(f"task {task}: the scene needs the {f}")
     pose = {}
     for k, v in objs.items():
-        if k not in POOL:
-            raise SceneError(f"unknown object {k!r} (ids: {', '.join(POOL)})")
+        if k not in pool:
+            raise SceneError(f"unknown object {k!r} (ids: {', '.join(pool)})")
         if not (isinstance(v, (list, tuple)) and len(v) == 3 and all(isinstance(x, (int, float)) for x in v)):
             raise SceneError(f"{k}: [x, y, yaw_deg] numbers")
         pose[k] = (float(v[0]), float(v[1]), math.radians(float(v[2])))
     st = spec.get("arm_start")
     if st is not None and not (isinstance(st, (list, tuple)) and len(st) == 4 and all(isinstance(x, (int, float)) for x in st)):
         raise SceneError("arm_start: [x, y, z, yaw_deg]")
-    return t, pose, st
+    joints = {}
+    for jn, v in (spec.get("joints") or {}).items():
+        if jn not in JOINTS or not isinstance(v, (int, float)):
+            raise SceneError(f"joints: {', '.join(JOINTS)} (degrees)")
+        if jn == "box_lid_deg" and not ("box_white" in pose and 0 <= v <= 120):
+            raise SceneError("box_lid_deg: 0 (closed) to 120, with the box_white in the scene")
+        joints[JOINTS[jn]] = math.radians(float(v))
+    if "box_white" in pose and "obj_box_white_lid_hinge" not in joints:
+        joints["obj_box_white_lid_hinge"] = math.radians(110.0 if task != "close-box" else 100.0)   # (open by default)
+    return t, pose, st, joints
 
 
-def build(P, spec):
-    """-> (layout dict, report). P = a PickTwin with the condition's object set. Raises SceneError."""
+def build(P, spec, task="clutter-pick"):
+    """-> (layout dict, report). P = a PickTwin with the task's object set. Raises SceneError."""
     from .picktwin import poly_gap
     w, m, d = P.world, P.m, P.d
-    target, pose, st = parse(spec)
+    target, pose, st, joints = parse(spec, task)
     polys = {k: P.outline(k, *p) for k, p in pose.items()}
     for k, pl in polys.items():
         if not (BOUNDS_X[0] <= pl[:, 0].min() and pl[:, 0].max() <= BOUNDS_X[1] and BOUNDS_Y[0] <= pl[:, 1].min() and pl[:, 1].max() <= BOUNDS_Y[1]):
@@ -76,8 +95,14 @@ def build(P, spec):
     P.reset_world(active=pose)
     for k, (x, y, yaw) in pose.items():
         P.put(k, x, y, yaw)
+    if hasattr(w, "latch"):                                       # (the kettle: latched)
+        w.set_latch(True)
+    for jn, v in joints.items():
+        d.qpos[m.joint(jn).qposadr[0]] = v
+    P.mj.mj_forward(m, d)
     if st is None:
-        st_tip, st_yaw = np.r_[pose[target][:2], 0.22], 0.0
+        top = max(float(P.footprint(k)[1]) for k in pose if np.linalg.norm(np.array(pose[k][:2]) - pose[target][:2]) < 0.12)
+        st_tip, st_yaw = np.r_[pose[target][:2], min(0.30, max(0.22, top + 0.08))], 0.0
     else:
         st_tip, st_yaw = np.array(st[:3], float), math.radians(float(st[3]))
     if not (0.12 <= st_tip[2] <= 0.30 and BOUNDS_X[0] - 0.05 <= st_tip[0] <= BOUNDS_X[1] + 0.05 and BOUNDS_Y[0] - 0.05 <= st_tip[1] <= BOUNDS_Y[1] + 0.05):
@@ -107,8 +132,11 @@ def build(P, spec):
     from .layouts import _visible
     vis, full = _visible(P, target, "d415"); wvis, wfull = _visible(P, target, "L_wrist")
     P.target = target; P.L = {"objs": list(pose)}
-    free, _ = P.kin_grasps(target, yaws=18, widths=(0.080,), dz=(0.0,), margin=0.004)
-    n_free = len({round(f[0], 4) for f in free})
+    if target in ("box_white", "kettle"):                         # (not grasped: no grasp count)
+        n_free = None
+    else:
+        free, _ = P.kin_grasps(target, yaws=18, widths=(0.080,), dz=(0.0,), margin=0.004)
+        n_free = len({round(f[0], 4) for f in free})
     others = [k for k in pose if k != target]
     L = dict(split="custom", seed=None, level=-1, idx=-1, sub=0, target=target, distractors=others,
              objs={k: d.qpos[w.oq[k]:w.oq[k] + 7].round(6).tolist() for k in pose},
@@ -116,10 +144,11 @@ def build(P, spec):
              start=dict(tip=np.round(st_tip, 5).tolist(), yaw=round(st_yaw, 5), q=np.asarray(q).round(6).tolist()),
              arm_q=d.qpos[w.qadr].round(6).tolist(), center=np.round(np.array(pose[target][:2]), 4).tolist(),
              gaps_mm=gaps, vis_scene=[vis, full], vis_wrist=[wvis, wfull], free_yaws=n_free, oracle_grasp=None,
-             custom=spec)
+             joints={jn: round(float(d.qpos[m.joint(jn).qposadr[0]]), 5) for jn in joints}, task=task, custom=spec)
     report = dict(ok=True, target=target, gaps_to_target_mm=gaps, moved_settling_mm=moved, warnings=warn,
                   target_visible_scene_px=[vis, full], target_visible_wrist_px=[wvis, wfull],
-                  free_straight_down_grasp_directions=f"{n_free} of 18" + (" (boxed in)" if n_free == 0 else ""))
+                  free_straight_down_grasp_directions=None if n_free is None else f"{n_free} of 18" + (" (boxed in)" if n_free == 0 else ""),
+                  joints_deg={jn: round(math.degrees(v), 1) for jn, v in L["joints"].items()})
     return L, report
 
 
@@ -144,13 +173,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scene", required=True); ap.add_argument("--object-set", default="real")
     ap.add_argument("--colour", default="mujoco"); ap.add_argument("--out", required=True)
+    ap.add_argument("--task", default="clutter-pick")
     a = ap.parse_args()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     from .scene import ClutterPickScene
     try:
         spec = yaml.safe_load(Path(a.scene).read_text())
-        sc = ClutterPickScene(colour=a.colour, object_set=a.object_set)
-        L, rep = build(sc.P, spec)
+        sc = ClutterPickScene(colour=a.colour, object_set=a.object_set, task=a.task)
+        L, rep = build(sc.P, spec, a.task)
         sc.reset_layout(L, 0)
         preview(sc, out / "preview.png")
         json.dump(L, open(out / "layout.json", "w"))

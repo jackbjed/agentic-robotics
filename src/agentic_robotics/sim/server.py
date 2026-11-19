@@ -69,7 +69,8 @@ class World:
         self.out.mkdir(parents=True, exist_ok=True)
         sc = spec.get("scene", {})
         self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
-                                      colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"))
+                                      colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"),
+                                      task=spec.get("family", "clutter-pick"))
         if spec.get("layout") is not None:                          # (a scene the agent wrote: sim/custom.py, practice)
             self.task = self.scene.reset_layout(spec["layout"], spec["seed"])
         else:
@@ -228,6 +229,10 @@ class World:
             self.arm.idle(0.1)
         sc.jd = sc.judge()
         S = sc.summary()
+        nbad = int(self.scene.P.d.warning[1].number)                  # (mjWARN_BADQACC: MuJoCo reset the world mid-episode)
+        if nbad:
+            self.platform_errors.append(f"physics instability: MuJoCo reset the simulation {nbad}x (dof "
+                                        f"{int(self.scene.P.d.warning[1].lastinfo)})")
         self.f_actions.close(); self.f_events.close()
         if self.rec.video and self.rec.frames:
             write_video(self.rec.frames, self.out / "video.mp4", self.rec.fps_v, S)
@@ -243,7 +248,7 @@ class World:
                              server_total=round(time.time() - self.t_wall0, 3)),
                    program=dict(h.get("usage") or {}, **(self.vlm.usage() if self.vlm is not None else {})),
                    counts=self.counts, judge_calls=self.rec.n_judge,
-                   task=self.task, episode={k: self.spec.get(k) for k in ("split", "level", "idx", "seed")},
+                   task=self.task, episode={k: self.spec.get(k) for k in ("family", "split", "level", "idx", "seed")},
                    custom_scene=(self.spec.get("layout") or {}).get("custom") if self.spec.get("layout") else None)
         json.dump(res, open(self.out / "result.json", "w"), indent=1, default=protocol._default)
         self.finished = res

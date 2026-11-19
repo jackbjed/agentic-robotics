@@ -13,3 +13,4 @@ configs/local.yaml
 secrets/
 *.key
 .gpu_start.lock
+MUJOCO_LOG.TXT

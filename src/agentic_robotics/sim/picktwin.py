@@ -36,9 +36,9 @@ class _NoCams:
 
 
 class PickTwin:
-    def __init__(self, render=True):
+    def __init__(self, render=True, world_cls=None):
         self.rig = load_rig()
-        self.world = w = TB.BoxSim()
+        self.world = w = (world_cls or TB.BoxSim)()
         self.arm = CE._FastArm(w, self.rig, None)
         self.S = RealSim(self.arm, _NoCams(), self.rig, {}, speed=1.0, v_max=None, log_dir=None)
         self.S.task_timing = True                       # (as clutter_env: settle only where the phase says so)
@@ -76,11 +76,17 @@ class PickTwin:
             self._odofs = {k: np.array([j for j in range(m.nv) if w.root_of(int(m.dof_bodyid[j])) == w.ob[k]], int)
                            for k in self.obj_keys}
             self._ogeoms = {k: np.nonzero(self.root == w.ob[k])[0] for k in self.obj_keys}
+            self._damp0 = m.dof_damping.copy()
+            jroot = lambda j: w.root_of(int(m.jnt_bodyid[j]))
+            self._sprung = [k for k in self.obj_keys if any(m.jnt_stiffness[j] > 0 and jroot(j) == w.ob[k] for j in range(m.njnt))]
         m.geom_contype[:] = self._ctype0; m.geom_conaffinity[:] = self._caff0
+        m.dof_damping[:] = self._damp0
         d.qfrc_applied[:] = 0
         self.parked = [k for k in self.obj_keys if k not in set(active)]
         for k in self.parked:
             m.geom_contype[self._ogeoms[k]] = 0; m.geom_conaffinity[self._ogeoms[k]] = 0
+            if k in self._sprung:       # (19-11: a constant force can't hold a spring-loaded object (the kettle's lid
+                m.dof_damping[self._odofs[k]] = 1e4     # against its latch): it crept, drifted off, MuJoCo reset the world)
         for j, k in enumerate(self.obj_keys):
             a = w.oq[k]
             d.qpos[a:a + 3] = [3.0 + 0.35 * (j % 6), 2.0 + 0.35 * (j // 6), PARK_Z + self.rest_z0[k] - 0.0005]
@@ -272,7 +278,7 @@ class PickTwin:
             rr.scene.flags[mj.mjtRndFlag.mjRND_REFLECTION] = refl
             dep = np.where(np.isfinite(dep) & (dep < 10), dep, np.inf).astype(np.float32)
         if seg:
-            rr.enable_segmentation_rendering(); rr.update_scene(d, camera=cid, scene_option=opt); s = rr.render().copy()
+            rr.enable_segmentation_rendering(); rr.update_scene(d, camera=cid, scene_option=opt); s = safe_segmentation(rr)
             rr.disable_segmentation_rendering()
             gid = np.where((s[..., 1] == int(mj.mjtObj.mjOBJ_GEOM)) & (s[..., 0] >= 0), s[..., 0], -1).astype(np.int32)
         return rgb, dep, gid
@@ -351,3 +357,28 @@ def poly_gap(A, B_):
             for i in range(len(Q)):
                 best = min(best, _seg_dist(p, Q[i], Q[(i + 1) % len(Q)]))
     return best
+
+
+def safe_segmentation(rr):
+    """mujoco.Renderer.render() in segmentation mode (2.3.7's code), but a pixel whose colour decodes to no scene geom
+    (multisampling blends the id colours at a few edge pixels: 6 px on the kettle's rim, 2026-11-18) is background
+    instead of an IndexError. -> (H, W, 2) int32 (object id, object type), -1 = none."""
+    import mujoco
+    from mujoco import _render
+    sc = rr._scene; fl = sc.flags.copy()
+    sc.flags[mujoco.mjtRndFlag.mjRND_SEGMENT] = 1; sc.flags[mujoco.mjtRndFlag.mjRND_IDCOLOR] = 1
+    try:
+        _render.mjr_render(rr._rect, sc, rr._mjr_context)
+        out = np.empty((rr._height, rr._width, 3), np.uint8)
+        _render.mjr_readPixels(out, None, rr._rect, rr._mjr_context)
+    finally:
+        np.copyto(sc.flags, fl)
+    im = out.astype(np.uint32)
+    segimage = im[..., 0] + im[..., 1] * 256 + im[..., 2] * 65536
+    n = sc.ngeom
+    lut = np.full((n + 2, 2), -1, np.int32)
+    for g in sc.geoms[:n]:
+        if g.segid != -1:
+            lut[g.segid + 1] = (g.objid, g.objtype)
+    segimage = np.where(segimage <= n, segimage, n + 1)          # (no geom: -1, -1)
+    return np.flipud(lut[segimage]).copy()

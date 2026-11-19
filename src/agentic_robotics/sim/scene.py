@@ -29,8 +29,17 @@ PHRASES = {"tape_red": "red tape roll", "tape_yellow": "yellow tape roll", "tape
 PHRASES_SUBSTITUTE = {"tape_red": "red can", "tape_yellow": "yellow can", "tape_white": "white can",
                       "hole_block": "black box", "cable": "black hoop", "screwdriver": "red and grey bar",
                       "glue": "red and white bottle", "sticky_pad": "purple disc"}
+PHRASES_TASKS = dict(PHRASES, box_white="white box", kettle="kettle", peg_stand="wooden stand with three vertical sticks",
+                     wood_cyl="wooden cylinder")
+# the objects the multi-task model adds (scripts/build_tasks_model.py), as task_bench / precision_bench describe them
+OBJ_TASKS = {"kettle": dict(kind="kettle", r=0.070, h=0.177, z0=0.0, desc="the steel kettle"),
+             "peg_stand": dict(kind="peg_stand", h=0.173, z0=0.0, desc="the wooden stand with three vertical wooden sticks"),
+             "wood_cyl": dict(kind="kcup", r=0.020, h=0.040, z0=0.0, hole=0.022,
+                              desc="the wooden cylinder (a hole goes along its axis)")}
 OBJECT_SETS = {
-    "real": dict(model=None, phrases=PHRASES, banks="layouts"),          # the twin's objects (scanned, measured)
+    "real": dict(model=None, phrases=dict(PHRASES, box_white="white box"), banks="layouts"),   # the twin's objects
+    "tasks": dict(model="sim/models/twin_6522_wedge_tasks.xml", phrases=PHRASES_TASKS, banks="layouts_tasks",
+                  world="tasks"),                                        # + kettle, stand with sticks, wooden cylinder
     "substitute": dict(model="sim/models/twin_6522_wedge_substitute.xml", phrases=PHRASES_SUBSTITUTE,
                        banks="layouts_substitute"),
 }
@@ -38,15 +47,25 @@ OBJECT_SETS = {
 
 def use_object_set(name):
     """Point the vendored code's model at the object set's (before any PickTwin / BoxSim is built). -> the set."""
-    from .twin import B
+    from .twin import B, TB
     S = OBJECT_SETS[name]
     if S["model"] is not None:
         B.MODEL = paths.SRC / "agentic_robotics" / S["model"]
+    if S.get("world") == "tasks":
+        for k, v in OBJ_TASKS.items():
+            TB.OBJ.setdefault(k, dict(v))
     return S
 
 
-def load_bank(split, level, object_set="real"):
-    f = paths.DATA / OBJECT_SETS[object_set]["banks"] / f"{split}_L{level}.jsonl"
+def world_class(name):
+    if OBJECT_SETS[name].get("world") == "tasks":
+        from .worlds import TasksBoxSim
+        return TasksBoxSim
+    return None
+
+
+def load_bank(split, level, object_set="real", banks=None):
+    f = paths.DATA / (banks or OBJECT_SETS[object_set]["banks"]) / f"{split}_L{level}.jsonl"
     if not f.exists():
         raise FileNotFoundError(f"{f}: real: scripts/link_assets.py (manifest clutter_layouts); "
                                 f"substitute: bin/ar layouts --object-set substitute ...")
@@ -54,12 +73,25 @@ def load_bank(split, level, object_set="real"):
 
 
 class ClutterPickScene:
-    def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0), colour="mujoco", object_set="real"):
+    def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0), colour="mujoco", object_set=None,
+                 task="clutter-pick"):
+        from .. import tasks as TK
+        self.task_name, self.tdef = task, TK.get(task)
+        if self.tdef["object_set"] != "real":                    # (press, insert: the multi-task model, always)
+            if object_set not in (None, "real", self.tdef["object_set"]):
+                raise ValueError(f"task {task}: no {object_set!r} version (its objects: {self.tdef['object_set']!r} only)")
+            object_set = self.tdef["object_set"]
+        object_set = object_set or "real"
+        if object_set == "substitute" and task != "clutter-pick":
+            raise ValueError("condition C's substitute objects have clutter-pick layouts only")
+        if self.tdef.get("colour_only") and colour != self.tdef["colour_only"]:
+            raise ValueError(f"task {task}: colour {self.tdef['colour_only']} only (no scans of its objects)")
         self.object_set = object_set
         self.phrases = use_object_set(object_set)["phrases"]
         if colour == "splat" and object_set != "real":
-            raise ValueError("the splat composite has scans of the real objects only (no splat for the substitutes)")
-        self.P = P = PickTwin(render=True)
+            raise ValueError("the splat composite has the 6522 scan's objects only (none for the substitutes, the kettle, "
+                             "the stand or the cylinder)")
+        self.P = P = PickTwin(render=True, world_cls=world_class(object_set))
         P.use_cameras("twin")
         self.preset, self.colour_noise, self.latency_s = preset, colour_noise, tuple(latency_s)
         self.colour = colour                                   # mujoco (condition B) | splat (condition A)
@@ -81,7 +113,7 @@ class ClutterPickScene:
     def reset(self, split, level, idx, seed):
         key = (split, int(level))
         if key not in self.banks:
-            self.banks[key] = load_bank(split, level, self.object_set)
+            self.banks[key] = load_bank(split, level, self.object_set, None if self.object_set == "substitute" else self.tdef["banks"])
         return self.reset_layout(self.banks[key][int(idx)], seed, split, level, idx)
 
     def reset_layout(self, L, seed, split="custom", level=-1, idx=-1):
@@ -95,6 +127,13 @@ class ClutterPickScene:
         for k, q7 in L["objs"].items():
             P.put(k, 0, 0, 0, qpos7=np.asarray(q7))
         P.teleport_arm(L["start"]["tip"], L["start"]["yaw"], q=L["arm_q"])
+        w = P.world
+        if hasattr(w, "latch"):                                      # (the kettle: latched, lid and button home)
+            w.set_latch(True)
+        for jn, v in (L.get("joints") or {}).items():                # (the box's lid opening, ...)
+            P.d.qpos[P.m.joint(jn).qposadr[0]] = float(v)
+        if L.get("joints"):
+            P.mj.mj_forward(P.m, P.d)
         self.target = L["target"]; P.target = self.target; P.L = {"objs": list(L["objs"])}
         self.distractors = list(L["distractors"])
         rng = np.random.default_rng(int(np_random.integers(1 << 62)))
@@ -125,12 +164,26 @@ class ClutterPickScene:
     def task(self):
         """What the skill is told: the instruction and the object's name. Nothing else about the scene."""
         ph = self.phrases[self.target]
-        return dict(kind="clutter_pick", instruction=f"Pick up the {ph} and lift it.", object=ph)
+        t = self.tdef
+        if self.task_name == "clutter-pick":                         # (milestone 1's exact task dict: parity)
+            return dict(kind="clutter_pick", instruction=f"Pick up the {ph} and lift it.", object=ph)
+        out = dict(kind=self.task_name.replace("-", "_"), object=ph,
+                   instruction=t["instruction"].format(object=ph, destination=t.get("destination", "")))
+        for k in ("destination", "part"):
+            if t.get(k):
+                out[k] = t[k]
+        return out
 
     def truth_hint(self):
         """PARITY ONLY (never in learning or evaluation): the seed point the 11-18 skill baseline gave the skill, the
         target's true top centre (Astra's point stand-in)."""
         P, k = self.P, self.target
+        if self.task_name == "press":                                # (diagnostics: the button cap's top)
+            g = P.m.geom("obj_kettle_btn").id
+            return dict(p=[*map(float, P.d.geom_xpos[g][:2]), float(P.d.geom_xpos[g][2] + P.m.geom_size[g][1])])
+        if self.task_name == "insert":                               # (diagnostics: the middle stick's tip)
+            g = P.m.geom("obj_peg_stand_peg1").id
+            return dict(p=[*map(float, P.d.geom_xpos[g][:2]), float(P.d.geom_xpos[g][2] + P.m.geom_size[g][1])])
         top = float(P.world.pose(k)[0][2] + self.top_t)
         return dict(p=[*map(float, P.d.xipos[P.world.ob[k]][:2]), min(top, 0.06)])
 
@@ -150,7 +203,12 @@ class ClutterPickScene:
                 wrong = k
             disturb[k] = float(np.linalg.norm(P.world.pose(k)[0][:2] - self.xy0[k]))
         off = [k for k in self.L["objs"] if P.com_z(k) < -0.05]
-        cond = lift >= TASK["lift_ok"] and held and wrong is None
+        extra = {}
+        kind = self.tdef["judge"]
+        if kind == "lift":
+            cond = lift >= TASK["lift_ok"] and held and wrong is None
+        else:
+            cond, extra = self._judge_task(kind, touch_t, wrong, off)
         now = float(P.d.time)
         if cond:
             self.hold_t0 = now if self.hold_t0 is None else self.hold_t0
@@ -159,11 +217,50 @@ class ClutterPickScene:
         success = cond and (now - self.hold_t0) >= TASK["hold_s"]
         if success and self.t_success is None and hasattr(self, "t0"):
             self.t_success = now - self.t0
-        return dict(lift=lift, held=held, touch=touch_t, wrong=wrong, off_table=off, disturb=disturb, success=bool(success))
+        return dict(lift=lift, held=held, touch=touch_t, wrong=wrong, off_table=off, disturb=disturb, success=bool(success), **extra)
+
+    def _judge_task(self, kind, touch_t, wrong, off):
+        """The non-lift tasks' conditions (tasks.py), on the true state."""
+        import math
+        from .twin import TB
+        P = self.P; w = P.world
+        tilt = lambda k: math.degrees(math.acos(min(1.0, w.pose(k)[1][2, 2])))
+        if kind == "in_box":
+            inside = TB.inside_box(w, self.target)
+            others = [k for k in self.distractors if k != "box_white" and TB.inside_box(w, k)]
+            bt = tilt("box_white")
+            cond = inside and not touch_t and bt < 10 and not others and not off and wrong is None
+            return cond, dict(inside_box=bool(inside), others_in_box=others, box_tilt_deg=round(bt, 1))
+        if kind == "lid_closed":
+            lid = math.degrees(P.d.qpos[w.lid_q]); bt = tilt("box_white")
+            moved = float(np.linalg.norm(w.pose("box_white")[0][:2] - self.xy0["box_white"]))
+            cond = lid < 8 and bt < 10 and moved < 0.10 and not off
+            return cond, dict(lid_deg=round(lid, 1), box_tilt_deg=round(bt, 1), box_moved_mm=round(moved * 1000, 1))
+        if kind == "kettle_open":
+            lid = math.degrees(P.d.qpos[w.kettle_lid_q]); kt = tilt("kettle")
+            btn = float(-P.d.qpos[w.btn_q])
+            cond = lid > 30 and kt < 15 and not off
+            return cond, dict(kettle_lid_deg=round(lid, 1), button_mm=round(btn * 1000, 2), latched=bool(w.latched),
+                              kettle_tilt_deg=round(kt, 1))
+        if kind == "on_stick":
+            p, R = w.pose("wood_cyl"); best, stick = 1e9, None
+            for i in range(3):
+                g = P.m.geom(f"obj_peg_stand_peg{i}").id
+                gp = P.d.geom_xpos[g]; tip = gp[2] + P.m.geom_size[g][1]
+                dxy = float(np.linalg.norm(p[:2] - gp[:2]))
+                if p[2] < tip - 0.01 and dxy < best:
+                    best, stick = dxy, i
+            hole = 0.022; stick_r = 0.009
+            on = best < hole / 2 - stick_r + 0.003
+            cond = on and not touch_t and not off
+            return cond, dict(on_stick=bool(on), cyl_to_stick_mm=round(best * 1000, 1) if best < 1e8 else None, stick=stick)
+        raise ValueError(kind)
 
     def summary(self):
         jd = self.jd
-        if self.t_success is not None:
+        if self.t_success is None and self.tdef["judge"] != "lift":   # (the other tasks: what was missing)
+            cat = ("wrong_object" if jd["wrong"] else "off_table" if jd["off_table"] else "not_done")
+        elif self.t_success is not None:
             cat = "success"
         elif jd["wrong"]:
             cat = "wrong_object"
@@ -176,7 +273,10 @@ class ClutterPickScene:
         else:
             cat = "not_touched"
         dist = max(jd["disturb"].values()) if jd["disturb"] else 0.0
-        return dict(category=cat, success=self.t_success is not None,
+        task_state = {k: jd[k] for k in ("inside_box", "others_in_box", "box_tilt_deg", "lid_deg", "box_moved_mm",
+                                          "kettle_lid_deg", "button_mm", "latched", "kettle_tilt_deg", "on_stick",
+                                          "cyl_to_stick_mm", "stick") if k in jd}
+        return dict(task=self.task_name, task_state=task_state, category=cat, success=self.t_success is not None,
                     t_success=None if self.t_success is None else round(self.t_success, 3),
                     max_lift_mm=round(self.max_lift * 1000, 1), max_disturb_mm=round(dist * 1000, 1),
                     disturbed=bool(dist * 1000 > TASK["disturb_mm"]), touched_target=bool(self.ever_touched),

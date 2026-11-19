@@ -1,0 +1,68 @@
+# Several task families in one run (2026-11-19, user: "--tasks pick,place,clutter-pick,press,close-box,insert"):
+# condition B (plain MuJoCo colour: press and insert have no splat scans), SAM3 perception, the realistic D415 depth.
+# `ar learn init --run-id ID --experiment configs/experiments/multitask_B.yaml [--tasks a,b,...] [--initial scratch|ported]`
+name: multitask_B
+task: configs/tasks/clutter_pick_B.yaml
+skill: initial_skills/tasks_scratch           # the default start: the new tasks from scratch (the user: "it should learn")
+initial: {scratch: initial_skills/tasks_scratch, ported: initial_skills/tasks}   # ported = the robot's existing skills
+entry: skills/pick.py
+tasks: [clutter-pick, pick, place, close-box, press, insert]
+suites:
+  dev:
+    families:
+      clutter-pick: {split: val, levels: [1, 2, 3], n: 8, seed: 11}
+      pick:         {split: val, n: 20, seed: 11}
+      place:        {split: val, n: 20, seed: 11}
+      close-box:    {split: val, n: 20, seed: 11}
+      press:        {split: val, n: 20, seed: 11}
+      insert:       {split: val, n: 20, seed: 11}
+  heldout:
+    protected: true
+    families:
+      clutter-pick: {split: test, levels: [0, 1, 2, 3], n: 25, seed: 5}
+      pick:         {split: test, n: 50, seed: 5}
+      place:        {split: test, n: 50, seed: 5}
+      close-box:    {split: test, n: 50, seed: 5}
+      press:        {split: test, n: 50, seed: 5}
+      insert:       {split: test, n: 50, seed: 5}
+  smoke:
+    families:
+      clutter-pick: {split: val, levels: [1], idx: [90, 91], seed: 13}
+      pick:         {split: val, idx: [50, 51], seed: 13}
+      place:        {split: val, idx: [50, 51], seed: 13}
+      close-box:    {split: val, idx: [50, 51], seed: 13}
+      press:        {split: val, idx: [50, 51], seed: 13}
+      insert:       {split: val, idx: [50, 51], seed: 13}
+practice:
+  split: train
+  seed_range: [100, 999]
+  families:                                   # (index ranges = the training banks' sizes)
+    clutter-pick: {levels: [0, 1, 2, 3], idx_range: [0, 2000]}
+    pick:         {levels: [0], idx_range: [0, 300]}
+    place:        {levels: [0], idx_range: [0, 298]}
+    close-box:    {levels: [0], idx_range: [0, 300]}
+    press:        {levels: [0], idx_range: [0, 300]}
+    insert:       {levels: [0], idx_range: [0, 300]}
+vlm:
+  enabled: true
+  model: astra
+  max_calls_per_episode: 1
+  max_usd_per_episode: 0.10
+  run_usd: 3.0
+  heldout_usd: 2.0
+learning:
+  dev_suite: dev
+  dev_workers: 16
+  practice_workers: 12
+  practice_episodes_per_session: 300
+  practice_episodes_total: 300
+  practice_max_per_call: 12
+  allow_custom_scenes: true
+  scene_checks_per_session: 60
+  practice_timeout_note: true
+  model: claude-opus-5-5
+  effort: medium
+  agent_usd_per_session: 40.0
+  agent_usd_total: 40.0
+  agent_wall_s_per_session: 14400
+  selection: {min_gain: 2, min_dt_s: 0.5, max_task_loss: 1}

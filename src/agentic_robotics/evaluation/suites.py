@@ -10,13 +10,26 @@ def episode_seed(seed, level, idx):
 
 
 def episodes(spec):
+    """spec: {family (tasks.py; default clutter-pick), split, levels, n | idx, seed} or {families: {name: spec, ...}}
+    (a multi-task suite: the union, in that order)."""
+    if "families" in spec:
+        out = []
+        for fam, sub in spec["families"].items():
+            out += episodes(dict(sub, family=fam, seed=sub.get("seed", spec.get("seed", 0))))
+        return out
     lo, hi = spec["idx"] if "idx" in spec else (spec.get("start", 0), spec.get("start", 0) + spec["n"])
+    fam = spec.get("family", "clutter-pick")
     out = []
-    for lv in spec["levels"]:
+    for lv in spec.get("levels", [0]):
         for i in range(int(lo), int(hi)):
-            out.append(dict(split=spec["split"], level=int(lv), idx=i, seed=episode_seed(spec["seed"], lv, i)))
+            ep = dict(split=spec["split"], level=int(lv), idx=i, seed=episode_seed(spec["seed"], lv, i))
+            if fam != "clutter-pick":
+                ep["family"] = fam
+            out.append(ep)
     return out
 
 
 def key(ep):
-    return f"{ep['split']}_L{ep['level']}_{ep['idx']:04d}"
+    fam = ep.get("family", "clutter-pick")
+    base = f"{ep['split']}_L{ep['level']}_{ep['idx']:04d}"
+    return base if fam == "clutter-pick" else f"{fam}_{base}"

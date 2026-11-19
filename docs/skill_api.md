@@ -15,7 +15,7 @@ never sees. Robot time is limited per episode (60 s); after that, motion is refu
 
 | field | |
 |---|---|
-| `ctx.task` | `dict(kind="clutter_pick", instruction="Pick up the red tape roll and lift it.", object="red tape roll")` |
+| `ctx.task` | `dict(kind="clutter_pick", instruction="Pick up the red tape roll and lift it.", object="red tape roll")`; other tasks (docs/tasks.md): `kind` pick / place / close_box / press / insert, and `destination` (place, insert) or `part` (press) |
 | `ctx.robot` | the robot (docs/robot.md): motion, cameras, joint / gripper / force state |
 | `ctx.segmenter` | segmentation (docs/perception.md): `segment(rgb, phrase)`, `segment_points(rgb, pts, labels)` |
 | `ctx.library` | the robot skill library, the vendored `astra_skills_real` module (below) |

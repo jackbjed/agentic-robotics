@@ -17,6 +17,16 @@ here.
 - **Timing** is the twin's: RealSim at speed 1.0, where rig.json's real-robot speed is 0.5. Robot time in this repo is
   therefore shorter than the same program would take on the real arm, especially in approaches and descents.
 - **Arm identity:** Panda vs FR3 is unconfirmed. The joint limits are the intersection of both.
+- **The other tasks' objects** (press, insert): the kettle, the stand and the cylinder come from panda_twin's 6508
+  scan models (twin_precision_b22.xml), merged into the clutter model (scripts/build_tasks_model.py). They have no
+  splat scans in the 6522 compositor, so these tasks run in plain MuJoCo colour only (condition B). The kettle's
+  latch is a joint equality the world releases when the button is 2.5 mm in; the button is a stiff slide (1000 N/m).
+- **Parked objects** (those not in a layout) sit far behind the camera with collisions off and their weight
+  cancelled. A spring-loaded one (the kettle) also gets heavy joint damping, because a constant force cannot hold it:
+  until 2026-11-19 the parked kettle crept, drifted off and made MuJoCo reset the world about 31 s into insert
+  episodes. Any such reset now voids the episode as a platform error.
+- **Robot-time limit:** 60 s for every task. The ported insert skill's sideways search needs 45–50 s when it works
+  and runs out of time in about half the layouts.
 
 ## Sensors
 

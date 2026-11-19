@@ -40,9 +40,18 @@ def cmd_run(a):
     t = task_config(a.task)
     skills = Path(a.skills or paths.INITIAL_SKILLS / "clutter_pick")
     out = Path(a.out or paths.RUNS / "manual" / f"{time.strftime('%Y%m%d_%H%M%S')}_{a.split}_L{a.level}_{a.idx}{'_parity' if a.parity else ''}")
+    V = None
+    if a.vlm:                                                       # (an experiment's model block; tag manual: its own cap)
+        V = dict(paths.load_yaml(a.vlm)["vlm"], tag="manual", run_usd=a.vlm_usd)
     ep = dict(episode_base(t, record=dict(video=True, observations=a.observations, video_view=a.video_view,
-                                          video_colour=a.video_colour), parity=a.parity),
+                                          video_colour=a.video_colour), parity=a.parity, vlm=V),
               split=a.split, level=a.level, idx=a.idx, seed=episode_seed(a.seed, a.level, a.idx))
+    if a.family != "clutter-pick":
+        from . import tasks as TK
+        ep["family"] = a.family
+        a.entry = TK.get(a.family)["entry"] if a.entry == "skills/pick.py" else a.entry
+        if not a.skills:
+            skills = paths.INITIAL_SKILLS / "tasks"
     r = run_episode(skills, ep, out, entry=a.entry, sandbox=not a.no_sandbox, wall_limit_s=t["wall_limit_s"])
     keys = ("category", "success", "t_success", "robot_time_s", "program_result", "program_error")
     print(json.dumps({k: r.get(k) for k in keys}, default=str))
@@ -79,8 +88,12 @@ def cmd_services(a):
 
 
 def cmd_layouts(a):
-    from .sim.layouts import generate
-    r = generate(a.object_set, a.split, a.level, a.n, workers=a.workers)
+    if a.task and a.task != "clutter-pick":
+        from .sim.task_layouts import generate as gen_task
+        r = gen_task(a.task, a.split, a.n, workers=a.workers)
+    else:
+        from .sim.layouts import generate
+        r = generate(a.object_set, a.split, a.level, a.n, workers=a.workers)
     print(json.dumps(r))
 
 
@@ -96,6 +109,9 @@ def main(argv=None):
     s = sub.add_parser("check"); s.set_defaults(fn=cmd_check)
     s = sub.add_parser("run"); s.set_defaults(fn=cmd_run)
     s.add_argument("--skills"); s.add_argument("--entry", default="skills/pick.py")
+    s.add_argument("--vlm", metavar="EXPERIMENT", help="allow the one model call, with this experiment's vlm block")
+    s.add_argument("--vlm-usd", type=float, default=0.5, help="the cap for --vlm's manual runs (all of them, ledger tag 'manual')")
+    s.add_argument("--family", default="clutter-pick", help="the task: clutter-pick | pick | place | close-box | press | insert")
     s.add_argument("--task", default="configs/tasks/clutter_pick.yaml")
     s.add_argument("--split", default="test"); s.add_argument("--level", type=int, default=0); s.add_argument("--idx", type=int, default=10)
     s.add_argument("--seed", type=int, default=5, help="suite seed (5 = the test seed of panda_pick_rgbd's results)")
@@ -114,7 +130,8 @@ def main(argv=None):
     s.add_argument("action", choices=("start", "stop", "status")); s.add_argument("names", nargs="*")
     s = sub.add_parser("layouts"); s.set_defaults(fn=cmd_layouts)
     s.add_argument("--object-set", default="substitute"); s.add_argument("--split", required=True)
-    s.add_argument("--level", type=int, required=True); s.add_argument("--n", type=int, required=True)
+    s.add_argument("--level", type=int, default=0); s.add_argument("--n", type=int)
+    s.add_argument("--task", default=None, help="pick | place | close-box | press | insert (sim/task_layouts.py)")
     s.add_argument("--workers", type=int, default=32)
     s = sub.add_parser("compare"); s.set_defaults(fn=cmd_compare)
     s.add_argument("a"); s.add_argument("b"); s.add_argument("--names", nargs=2, default=("A", "B"))

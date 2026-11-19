@@ -7,6 +7,22 @@ ar learn status --run-id ID
 ar learn evaluate --run-id ID [--suite heldout]      # the operator, after learning
 ```
 
+**Several tasks in one run** (`configs/experiments/multitask_B.yaml`; docs/tasks.md):
+
+```
+ar learn init --run-id ID --experiment configs/experiments/multitask_B.yaml \
+              --tasks pick,place,clutter-pick,press,close-box,insert [--initial scratch|ported]
+```
+
+- `--tasks` picks any subset of the experiment's `tasks:`; the development and held-out suites keep only those
+  tasks' parts, and the brief describes each task, its entry file and its success check.
+- `--initial scratch` (the default): pick and clutter-pick start from the robot's pick tool; place, close-box, press
+  and insert start from a stub that only finds the task's object and stops, so the agent has to write those skills.
+  `--initial ported`: every task starts from the robot's existing skill (the box program's set-down and lid closing,
+  the press skill with one Astra pointing call, the stick threading), for comparison.
+- The program has one entry file per task (`skills/<task>.py`); every episode carries `family`, and suites, practice
+  (`ar-practice run --task <name>`), custom scenes (`scene check ... --task <name>`) and the reports are per task.
+
 ## What `init` makes
 
 - `workspaces/ID/`: the agent's workspace (gitignored).
@@ -40,6 +56,8 @@ ar learn evaluate --run-id ID [--suite heldout]      # the operator, after learn
      60 s robot-time limit.
    - **keep:** a gain of 0 ≤ g < `min_gain`, with the candidate faster by ≥ `min_dt_s` (0.5 s) on average on the
      episodes both solve, and with no more model calls.
+   - **multi-task runs:** also rejected if any one task loses more than `max_task_loss` (1) dev successes, whatever
+     the total.
    - **otherwise rejected:** the workspace's code goes back to the incumbent. Notes and practice records stay, and
      the next session is told why.
 5. **Checkpoint.** A kept candidate becomes `checkpoints/sNN/` and the new incumbent.

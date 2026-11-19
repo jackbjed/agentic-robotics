@@ -79,7 +79,13 @@ def experiment(path):
 
 
 # ---------------------------------------------------------------------------------------------------- init
-def init(run_id, exp_path, add_eval_set=False):
+def filter_suite(spec, fams):
+    if "families" not in spec or not fams:
+        return spec
+    return dict(spec, families={f: v for f, v in spec["families"].items() if f in fams})
+
+
+def init(run_id, exp_path, add_eval_set=False, tasks=None, initial=None):
     """add_eval_set (ablation, `--add-evaluation-set`): the agent may run the evaluation set itself (learning.
     exposed_eval_suite) during its sessions and see its per-episode results."""
     X = experiment(exp_path)
@@ -87,6 +93,18 @@ def init(run_id, exp_path, add_eval_set=False):
     ws, rd = paths.WORKSPACES / run_id, run_dir(run_id)
     if ws.exists() or rd.exists():
         raise SystemExit(f"{run_id}: exists already")
+    if X.get("tasks"):                                         # (a multi-task experiment: --tasks picks a subset)
+        from .. import tasks as TK
+        fams = TK.parse(tasks) if tasks else list(X["tasks"])
+        bad = [f for f in fams if f not in X["tasks"]]
+        if bad:
+            raise SystemExit(f"tasks {bad} are not in the experiment ({X['tasks']})")
+        X["tasks"] = fams
+        X["suites"] = {k: filter_suite(v, fams) for k, v in X["suites"].items()}
+    elif tasks:
+        raise SystemExit("--tasks needs a multi-task experiment (configs/experiments/multitask_*.yaml)")
+    if initial:
+        X["skill"] = X["initial"][initial]; X["initial_choice"] = initial
     src = paths.ROOT / X["skill"]
     rd.mkdir(parents=True)
     ws.mkdir(parents=True)
@@ -98,7 +116,8 @@ def init(run_id, exp_path, add_eval_set=False):
         (ws / "practice" / "scenes").mkdir()
     (ws / "notes.md").write_text("# Notes\n\n(What you tried, what you saw in practice, what you changed and why.)\n")
     (ws / "docs").mkdir()
-    for f in ("skill_api.md", "robot.md", "perception.md", "task_clutter_pick.md") + (("scenes.md",) if L.get("allow_custom_scenes") else ()):
+    for f in ("skill_api.md", "robot.md", "perception.md", "task_clutter_pick.md") + (("scenes.md",) if L.get("allow_custom_scenes") else ()) \
+            + (("tasks.md",) if X.get("tasks") else ()):
         if (paths.ROOT / "docs" / f).exists():
             txt = (paths.ROOT / "docs" / f).read_text()
             if not (X.get("vlm") or {}).get("enabled"):
@@ -110,8 +129,13 @@ def init(run_id, exp_path, add_eval_set=False):
     for p in ref.rglob("*"):
         p.chmod(0o555 if p.is_dir() else 0o444)
     P = X["practice"]
+    fam_ranges = None
+    if X.get("tasks"):
+        fam_ranges = {f: dict(P["families"][f]) for f in X["tasks"]}
     budget = dict(task=X["task"], entry=X.get("entry", "skills/pick.py"), practice_workers=L.get("practice_workers", 8),
-                  practice=dict(split=P["split"], levels=P["levels"], idx_range=P["idx_range"], seed_range=P["seed_range"],
+                  tasks=X.get("tasks"),
+                  practice=dict(split=P["split"], levels=P.get("levels", [0]), idx_range=P.get("idx_range", [0, 300]),
+                                seed_range=P["seed_range"], families=fam_ranges,
                                 episodes_per_session=L["practice_episodes_per_session"],
                                 episodes_total=L["practice_episodes_total"], max_per_call=L.get("practice_max_per_call", 12)),
                   agent=dict(model=L.get("model"), effort=L.get("effort"), usd_per_session=L["agent_usd_per_session"],
@@ -151,6 +175,7 @@ def dev_eval(run_id, name, skill_dir, X):
     ledger(run_id, kind="dev", name=name, episodes=S["n"], successes=S["successes"], robot_s=S["robot_time_total_s"],
            wall_s=round(time.time() - t0, 1), model_cost_usd=S["model_cost_usd"])
     return dict(successes=S["successes"], n=S["n"], t_success_mean=S["t_success_mean"], by_level=S["by_level"],
+                by_family=S.get("by_family"),
                 categories=S["categories"], platform_errors=S["platform_errors"], model_calls=S["model_calls"])
 
 
@@ -228,11 +253,31 @@ def select(inc_dev_dir, cand_dev_dir, S, rule):
     gain = c["b_successes"] - c["a_successes"]
     info = dict(gain=gain, only_incumbent=c["only_a"], only_candidate=c["only_b"], mcnemar_p=c["mcnemar_p"],
                 dt_mean=c["dt_mean"], dt_ci95=c["dt_ci95"])
+    fam = per_family(inc_dev_dir, cand_dev_dir)
+    if len(fam) > 1:
+        info["by_task"] = fam
+        worst = min(fam.values(), key=lambda d: d["gain"])
+        if worst["gain"] < -rule.get("max_task_loss", 1):
+            bad = [f for f, d in fam.items() if d["gain"] < -rule.get("max_task_loss", 1)]
+            return dict(info, keep=False, why=f"{', '.join(bad)} lost {-worst['gain']} dev successes (> {rule.get('max_task_loss', 1)} per task)")
     if gain >= rule["min_gain"]:
         return dict(info, keep=True, why=f"+{gain} dev successes (>= {rule['min_gain']})")
     if 0 <= gain and c["dt_mean"] is not None and c["dt_mean"] <= -rule["min_dt_s"]:
         return dict(info, keep=True, why=f"successes {gain:+d}, {c['dt_mean']:+.2f} s on the {c['both']} both solve")
     return dict(info, keep=False, why=f"successes {gain:+d} (< {rule['min_gain']}), time {c['dt_mean']} s (needs <= -{rule['min_dt_s']})")
+
+
+def per_family(a_dir, b_dir):
+    from ..evaluation.compare import load
+    A, B_ = load(a_dir), load(b_dir)
+    out = {}
+    for k in set(A) & set(B_):
+        f = A[k].get("family", "clutter-pick")
+        d = out.setdefault(f, dict(incumbent=0, candidate=0, n=0))
+        d["incumbent"] += int(A[k]["success"]); d["candidate"] += int(B_[k]["success"]); d["n"] += 1
+    for d in out.values():
+        d["gain"] = d["candidate"] - d["incumbent"]
+    return out
 
 
 # ---------------------------------------------------------------------------------------------------- held-out evaluation
@@ -333,6 +378,33 @@ episodes do not count against the practice budget; its model calls count against
 """
 
 
+TASK_SUCCESS = {
+    "clutter-pick": "the target >= 5 cm above where it rested, held by both fingers, nothing else lifted, for 1 s",
+    "pick": "the same lift check as clutter-pick (one named object, others >= 6 cm away)",
+    "place": "the object inside the white box's walls, released (no finger touching it), the box upright, nothing else in "
+             "the box, nothing off the table, for 1 s",
+    "close-box": "the white box's lid (open 70-120 deg) closed to < 8 deg, the box upright and not shoved > 10 cm, for 1 s",
+    "press": "the kettle's lid open > 30 deg: the lid-release button on top of its handle (a 16 mm cap) pressed 2.5 mm "
+             "releases the latch and the lid's spring opens it; the kettle upright, for 1 s",
+    "insert": "the wooden cylinder (40 x 40 mm, a 22 mm hole along its axis) on one of the stand's three 18 mm wooden "
+              "sticks (~17 cm tall): the stick through the hole, the cylinder below the stick's tip, released, for 1 s",
+}
+
+
+def tasks_section(B, practice):
+    from .. import tasks as TK
+    rows = []
+    for f in B["tasks"]:
+        td = TK.get(f)
+        ex = td["instruction"].format(object="<object>", destination=td.get("destination", ""))
+        rows.append(f"- **{f}** (`{td['entry']}`): told e.g. \"{ex}\" Success: {TASK_SUCCESS[f]}.")
+    return ("**Tasks in this run.** The program is one skill per task, each with its own entry file (`run(ctx)`); "
+            "`ctx.task[\"kind\"]` says which task an episode is. Each is evaluated on its own layouts.\n" + "\n".join(rows) +
+            f"\nPractise a task with `{practice} run --task <name> --n 6` (and `scene check ... --task <name>`). Changes to "
+            "one task's skill must not break the others: a version is kept only if it gains overall and loses no more "
+            "than one success on any task.\n\n")
+
+
 def _suite_eps(spec):
     from ..evaluation.suites import episodes
     return episodes(spec)
@@ -351,6 +423,7 @@ def brief(B, X):
                                      names="; ".join(f"{k} = \"{v}\"" for k, v in ph.items())) if B.get("scenes") else ""
     V = B.get("vlm") or {}
     vlm_text = VLM_TEXT.format(usd=V.get("run_usd")) if V.get("enabled") else ""
+    tasks_text = tasks_section(B, practice) if B.get("tasks") else ""
     E = B.get("eval_access")
     eval_text = EVAL_TEXT.format(practice=practice, runs=E["runs_per_session"], n=len(_suite_eps(E["spec"]))) if E else ""
     timeout_note = ((f"A practice call takes about 30 s per {B.get('practice_workers', 8)} episodes (longer while the "
@@ -389,7 +462,7 @@ grasp). Each run writes `practice/runs/NNN/`: `summary.md`, and per episode `res
 `events.jsonl` (what your program logged), `keyframes.png` (8 frames: overview | wrist camera; read it to see what
 happened), `video.mp4`, `program/` (program.json, errors). Look at failures before changing code.
 
-{scenes_text}{vlm_text}{eval_text}**Budget.** {P['episodes_per_session']} practice episodes in this session (`status` shows what is left), and your own
+{tasks_text}{scenes_text}{vlm_text}{eval_text}**Budget.** {P['episodes_per_session']} practice episodes in this session (`status` shows what is left), and your own
 session's spending cap. Failed and crashed episodes count too. Stop when the budget is used or you have a version you
 believe is better.
 
@@ -412,10 +485,13 @@ def session_prompt(it, st, B, L):
         prev = (f"\nLast session ({last['session']}): your version was {'KEPT' if dec['keep'] else 'NOT kept'} ({dec['why']}). "
                 + ("The workspace's code was reset to the current version; your notes.md and practice records are still here. "
                    if not dec["keep"] else ""))
-    lv = ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in (d.get("by_level") or {}).items())
+    if len(d.get("by_family") or {}) > 1:
+        lv = "tasks " + ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in d["by_family"].items())
+    else:
+        lv = "levels " + ", ".join(f"{k}: {v['successes']}/{v['n']}" for k, v in (d.get("by_level") or {}).items())
     return (f"Session {it}. Read AGENTS.md, then docs/skill_api.md, then improve skills/pick.py by practising it. "
             f"The current version solves {d.get('successes')}/{d.get('n')} development episodes "
-            f"(levels {lv}; "
+            f"({lv}; "
             f"{d.get('t_success_mean')} s robot time per success).{prev} "
             f"You have {B['practice']['episodes_per_session']} practice episodes. End with your best version in place "
             f"and notes.md updated.")
@@ -429,11 +505,13 @@ def cli(a):
     ap.add_argument("--iterations", type=int, default=1)
     ap.add_argument("--suite", default="heldout"); ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--baseline", help="reuse this suite run of the same initial skill (evaluate)")
+    ap.add_argument("--tasks", help="init, multi-task experiments: e.g. pick,place,clutter-pick,press,close-box,insert")
+    ap.add_argument("--initial", help="init: scratch | ported (the experiment's initial: mapping)")
     ap.add_argument("--add-evaluation-set", "--add_evaluation_set", dest="add_eval_set", action="store_true",
                     help="init, ablation: the agent may run the evaluation set (learning.exposed_eval_suite) itself")
     o = ap.parse_args(a.rest)
     if a.action == "init":
-        init(o.run_id, o.experiment, o.add_eval_set)
+        init(o.run_id, o.experiment, o.add_eval_set, o.tasks, o.initial)
     elif a.action == "run":
         for _ in range(o.iterations):
             iterate(o.run_id)
