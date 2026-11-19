@@ -18,21 +18,34 @@ def config():
     return paths.load_yaml("configs/services.yaml")
 
 
-def url(name, path=""):
-    return f"http://127.0.0.1:{config()[name]['port']}{path}"
+def ports(name):
+    c = config()[name]
+    return [c["port"] + 10 * i for i in range(int(c.get("instances", 1)))]
 
 
-def alive(name, timeout=2.0):
+def url(name, path="", instance=None):
+    """The service's URL; with several identical instances, this process's (pid modulo the count: a world server
+    keeps one instance for its episode; every instance renders the same)."""
+    P = ports(name)
+    i = (os.getpid() % len(P)) if instance is None else instance
+    return f"http://127.0.0.1:{P[i]}{path}"
+
+
+def alive(name, timeout=2.0, instance=0):
     try:
-        with urllib.request.urlopen(url(name, config()[name].get("ping", "/ping")), timeout=timeout) as r:
+        with urllib.request.urlopen(url(name, config()[name].get("ping", "/ping"), instance), timeout=timeout) as r:
             return r.status == 200
     except Exception:
         return False
 
 
 def start(name, wait_s=600):
-    if alive(name):
-        return "running"
+    return "; ".join(_start(name, i, wait_s) for i in range(len(ports(name))))
+
+
+def _start(name, i, wait_s):
+    if alive(name, instance=i):
+        return f"#{i} running"
     c = config()[name]; L = paths.local().get("services") or {}
     py = (L.get("python") or {}).get(c["python"])
     if not py or not Path(py).exists():
@@ -40,36 +53,45 @@ def start(name, wait_s=600):
     DIR.mkdir(parents=True, exist_ok=True)
     env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "VIRTUAL_ENV_PROMPT", "PYTHONPATH", "CONDA_PREFIX")}
     env.update(PYTHONNOUSERSITE="1", HF_HUB_OFFLINE="1", CUDA_VISIBLE_DEVICES=str(L.get("cuda_device", 0)))
-    cmd = [py, str(paths.ROOT / c["script"]), "--port", str(c["port"])] + [
+    port = ports(name)[i]; tag = name if i == 0 else f"{name}{i}"
+    cmd = [py, str(paths.ROOT / c["script"]), "--port", str(port)] + [
         str(paths.ROOT / a) if isinstance(a, str) and a.startswith("data/") else str(a) for a in c.get("args", [])]
-    log = open(DIR / f"{name}.log", "w")
+    log = open(DIR / f"{tag}.log", "w")
     p = subprocess.Popen(cmd, env=env, cwd=str(paths.ROOT), stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-    (DIR / f"{name}.pid").write_text(str(p.pid))
+    (DIR / f"{tag}.pid").write_text(str(p.pid))
     t0 = time.time()
-    while not alive(name):
+    while not alive(name, instance=i):
         if p.poll() is not None:
-            raise RuntimeError(f"{name} exited: {(DIR / f'{name}.log').read_text()[-1500:]}")
+            raise RuntimeError(f"{tag} exited: {(DIR / f'{tag}.log').read_text()[-1500:]}")
         if time.time() - t0 > wait_s:
-            raise RuntimeError(f"{name} not up after {wait_s} s")
+            raise RuntimeError(f"{tag} not up after {wait_s} s")
         time.sleep(2)
-    return f"started (pid {p.pid}, {time.time() - t0:.0f} s)"
+    return f"#{i} started (pid {p.pid}, port {port}, {time.time() - t0:.0f} s)"
 
 
 def stop(name):
-    f = DIR / f"{name}.pid"
+    return "; ".join(_stop(name if i == 0 else f"{name}{i}", name) for i in range(len(ports(name))))
+
+
+def _stop(tag, name):
+    f = DIR / f"{tag}.pid"
     if not f.exists():
-        return "no pid file"
+        return f"{tag}: no pid file"
     pid = int(f.read_text())
     try:
         cmd = Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="ignore")
     except FileNotFoundError:
         f.unlink(); return "not running"
     if config()[name]["script"].split("/")[-1] not in cmd:
-        return f"pid {pid} is not ours ({cmd[:80]}): left alone"
+        return f"{tag}: pid {pid} is not ours ({cmd[:80]}): left alone"
     os.kill(pid, 15); f.unlink()
-    return f"stopped pid {pid}"
+    return f"{tag}: stopped pid {pid}"
 
 
 def status():
-    return {n: dict(port=c["port"], alive=alive(n), pid=(DIR / f"{n}.pid").read_text() if (DIR / f"{n}.pid").exists() else None)
-            for n, c in config().items()}
+    out = {}
+    for n in config():
+        for i, port in enumerate(ports(n)):
+            tag = n if i == 0 else f"{n}{i}"
+            out[tag] = dict(port=port, alive=alive(n, instance=i), pid=(DIR / f"{tag}.pid").read_text() if (DIR / f"{tag}.pid").exists() else None)
+    return out

@@ -15,6 +15,7 @@ sam3_points:                     # click-prompted SAM3 (Sam3TrackerModel): a cli
 compositor:                      # condition A colour: the empty-table splat + the objects' Gaussians + MuJoCo's arm
   script: src/agentic_robotics/vendor/services/composite_server.py
   port: 8152
+  instances: 3                   # identical servers on 8152, 8162, 8172 (one GPU lock each); a world server uses one
   args: [--splat, data/splats/splat_v6507, --frame, data/splats/frame.json, --cut, data/splats/robot_surface.npy,
          --objects, data/splats/objsplat_6522.pt, --fill-front]     # = the clutter benches' compositor (:8133)
   python: splat

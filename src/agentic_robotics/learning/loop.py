@@ -206,15 +206,27 @@ def select(inc_dev_dir, cand_dev_dir, S, rule):
 
 
 # ---------------------------------------------------------------------------------------------------- held-out evaluation
-def evaluate(run_id, suite="heldout", workers=16):
-    """(the suite's own task config, if it names one, decides the condition: run_suite)"""
+def evaluate(run_id, suite="heldout", workers=16, baseline=None):
+    """(the suite's own task config, if it names one, decides the condition: run_suite). baseline: an existing run of
+    the SAME initial skill on the SAME suite (checked by the skill hash), reused instead of re-running it."""
     from ..config import task_config
+    from ..execution.versions import tree_hash
     rd = run_dir(run_id)
     X = json.loads((rd / "experiment.json").read_text())
     st = state(run_id)
     spec = X["suites"][suite]
     out = {}
-    for name in ("000_initial", st["incumbent"]):
+    names = ["000_initial", st["incumbent"]]
+    if baseline:
+        b = json.loads((Path(baseline) / "suite.json").read_text())
+        if b["skills"] != tree_hash(rd / "checkpoints" / "000_initial") or b["spec"] != spec:
+            raise SystemExit(f"{baseline}: not the same initial skill / suite")
+        d = rd / "heldout" / f"{suite}_000_initial"
+        d.parent.mkdir(parents=True, exist_ok=True)
+        if not d.exists():
+            d.symlink_to(Path(baseline).resolve())
+        names = names[1:]
+    for name in names:
         d = rd / "heldout" / f"{suite}_{name}"
         print(f"[{run_id}] {suite}: {name}")
         out[name] = run_suite(rd / "checkpoints" / name, spec, task_config(X["task"]), d, workers=workers, sandbox=True,
@@ -330,6 +342,7 @@ def cli(a):
     ap.add_argument("--experiment", default="configs/experiments/m1_clutter_pick.yaml")
     ap.add_argument("--iterations", type=int, default=1)
     ap.add_argument("--suite", default="heldout"); ap.add_argument("--workers", type=int, default=16)
+    ap.add_argument("--baseline", help="reuse this suite run of the same initial skill (evaluate)")
     o = ap.parse_args(a.rest)
     if a.action == "init":
         init(o.run_id, o.experiment)
@@ -344,4 +357,4 @@ def cli(a):
         print(json.dumps(dict(state=st, agent_usd=round(cost, 3), practice_episodes=prac, dev_episodes=dev,
                               decisions=[r for r in L if r.get("kind") == "decision"]), indent=1, default=str))
     elif a.action == "evaluate":
-        evaluate(o.run_id, o.suite, o.workers)
+        evaluate(o.run_id, o.suite, o.workers, o.baseline)

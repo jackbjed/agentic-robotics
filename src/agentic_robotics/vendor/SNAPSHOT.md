@@ -31,3 +31,10 @@ objects (assets/twin_6522/) are copied; the Panda and finger meshes come from th
 | panda_twin/model/twin_6522_wedge.xml | dfb9b76856c9fc10 | panda_pick_rgbd: vendor/panda_twin/model/twin_6522_wedge.xml | yes |
 | panda_twin_tracking/astra_skills_real.py | 5900f528cd5e35d7 | panda_twin_tracking: astra_skills_real.py | yes |
 | panda_twin_tracking/track_run.py | 51abc7c872a9aa6b | panda_twin_tracking: track_run.py | yes |
+| services/sam3_server.py | d4dac8ecbc57d2ee | dexteleop: dexteleop-vla/twin/sam3_server.py | yes |
+| services/sam3_points_server.py | 84f59a47f3e33c23 | panda_twin: code/sam3_points_server.py | yes |
+| services/composite_server.py | 6149daf70634ae95 | panda_twin: code/composite_server.py | yes |
+| services/splat_util.py | 3fe1ede0b184a91d | panda_twin: code/splat_util.py | yes |
+
+The services/ files run as our OWN server processes (bin/ar services; configs/services.yaml) with existing
+environments used read-only (SAM3: the sam3 env, transformers + facebook/sam3; compositor: the twin env, gsplat).

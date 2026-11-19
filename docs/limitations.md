@@ -24,8 +24,14 @@ here.
   were never checked against reality, and its 1–2 % scale error at 1–1.5 m is not modelled.
 - **Colour** is a plain MuJoCo render (condition B). It is not photoreal; see docs/fidelity.md for what the splat
   composite (A) adds.
-- **Segmentation is an oracle in milestone 1:** exact visible-pixel masks. Real SAM3 confuses objects (the orange
-  octagon for red, overexposed yellow) and returns partial masks. Results are upper bounds on perception.
+- **Segmentation.** Milestone 1 used an oracle (exact visible-pixel masks): its results are upper bounds on
+  perception. Since milestone 2 the default is real SAM3 (our server, the robot's settings). It confuses objects
+  (the orange octagon for red, overexposed yellow), returns partial masks, and depends on the words.
+  - On a condition C wrist frame: "red can" → nothing; "red circle" → 0.95.
+  - On a scene frame: "red can" → 0.17; "red object" → 0.93.
+  - The initial skill prompts SAM3 with the task's name only, so it solves 0/90 condition C development episodes.
+- **SAM3 time is not robot time.** In the twin, robot time pauses while SAM3 runs (0.3–0.5 s wall per call; recorded
+  as perception wall time). On the robot the arm would wait.
 
 ## Platform
 

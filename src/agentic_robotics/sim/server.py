@@ -100,6 +100,7 @@ class World:
             (self.out / "observations").mkdir(exist_ok=True)
         self.t_wall0 = time.time()
         self.finished = None
+        self.platform_errors = []                                   # (a server-side failure voids the episode)
 
     # ------------------------------------------------------------------ the robot's calls
     def t_rel(self):
@@ -204,6 +205,9 @@ class World:
             write_video(self.rec.frames, self.out / "video.mp4", self.rec.fps_v, S)
             if self.spec.get("record", {}).get("keyframes", True):
                 write_keyframes(self.rec.frames, self.out / "keyframes.png", S)
+        if self.platform_errors:                                    # (not the program's failure: void, re-run)
+            S = dict(S, judge_category=S["category"], category="platform_error", success=False,
+                     platform_errors=self.platform_errors[:5])
         res = dict(S, program_result=h.get("result"), program_error=h.get("error"),
                    robot_time_s=round(t_prog_end, 3), robot_time_total_s=round(self.t_rel(), 3),
                    robot_time_limit_s=self.limit, time_limit_hit=t_prog_end >= self.limit,
@@ -291,6 +295,7 @@ def main():
             r, out = world.handle(h, arrays)
         except Exception as e:
             r, out = dict(ok=False, why=f"server error: {type(e).__name__}: {e}"[:400]), []
+            world.platform_errors.append(f"{h.get('cmd')}: {type(e).__name__}: {e}"[:300])
             (Path(a.out) / "server_error.txt").write_text(traceback.format_exc())
         protocol.send(sock, r, out)
     sock.close(linger=0); ctx.term()

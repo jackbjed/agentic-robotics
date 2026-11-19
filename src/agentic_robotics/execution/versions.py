@@ -14,8 +14,8 @@ def tree_hash(root, globs=("**/*.py", "**/*.yaml", "**/*.json", "**/*.md")):
     """sha256 over the relative paths and contents of the code files under root (caches, outputs excluded)."""
     root = Path(root)
     h = hashlib.sha256()
-    files = sorted({p for g in globs for p in root.glob(g) if p.is_file() and "__pycache__" not in p.parts
-                    and not any(x in p.parts for x in ("runs", "practice_runs", ".git"))})
+    files = sorted({p for g in globs for p in root.glob(g) if p.is_file()
+                    and not any(x in p.relative_to(root).parts for x in ("__pycache__", "runs", "practice", ".git"))})
     for p in files:
         h.update(str(p.relative_to(root)).encode()); h.update(b"\0"); h.update(p.read_bytes()); h.update(b"\0")
     return h.hexdigest()[:16]
