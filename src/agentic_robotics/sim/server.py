@@ -29,8 +29,9 @@ class Recorder:
     """TwinArm's recorder slot (called every physics frame): the judge at JUDGE_HZ of robot time, video frames at fps."""
     JUDGE_HZ = 30.0
 
-    def __init__(self, scene, fps=10.0, video=True, W=480, H=360):
+    def __init__(self, scene, fps=10.0, video=True, W=480, H=360, condition_colour=False):
         self.scene, self.video, self.fps_v, self.W, self.H = scene, video, float(fps), W, H
+        self.condition_colour = condition_colour                  # (re-render each frame in the condition's colour)
         self.fps, self.depth_fps = self.JUDGE_HZ, 0
         self.next_j = self.next_v = scene.P.d.time
         self.frames = []           # (t, overview, wrist)
@@ -50,6 +51,8 @@ class Recorder:
     def offer(self, name, t, rgb, dep):
         import cv2
         t0 = time.time()
+        if self.condition_colour:
+            rgb = self.scene.colour_frame("L_wrist" if name == "wrist" else "d415")
         if name == "wrist":
             self._wrist = cv2.resize(rgb, (self.W, self.H), interpolation=cv2.INTER_AREA)
             self.frames.append((t - self.scene.t0, self._over, self._wrist, self.phase))
@@ -85,14 +88,17 @@ class World:
         P = self.scene.P
         self.arm = P.arm
         rc = spec.get("record", {})
-        self.rec = Recorder(self.scene, fps=rc.get("video_fps", 10.0), video=rc.get("video", True))
+        cams = rc.get("video_view", "overview") == "cameras"     # cameras: the scene D415 | the wrist D415
+        self.rec = Recorder(self.scene, fps=rc.get("video_fps", 10.0), video=rc.get("video", True),
+                            condition_colour=cams and rc.get("video_colour", "mujoco") == "condition")
         self.arm.renderer = None
         if self.rec.video:
             self.arm.attach_recorder(self.rec)                     # (creates the arm's 640x480 renderer)
-            c = P.mj.MjvCamera(); c.type = P.mj.mjtCamera.mjCAMERA_FREE
-            tp = self.scene.xy0[self.scene.target]
-            c.lookat[:] = np.r_[tp, 0.10]; c.distance = 0.95; c.azimuth = 205.0; c.elevation = -32.0
-            self.arm.rec_cam = c
+            if not cams:                                           # (overview: a free camera beside the target)
+                c = P.mj.MjvCamera(); c.type = P.mj.mjtCamera.mjCAMERA_FREE
+                tp = self.scene.xy0[self.scene.target]
+                c.lookat[:] = np.r_[tp, 0.10]; c.distance = 0.95; c.azimuth = 205.0; c.elevation = -32.0
+                self.arm.rec_cam = c
         else:
             self.arm.rec, self.arm.state_log = self.rec, None
         self.rec.next_j = self.rec.next_v = float(P.d.time)

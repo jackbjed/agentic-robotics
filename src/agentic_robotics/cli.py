@@ -40,7 +40,8 @@ def cmd_run(a):
     t = task_config(a.task)
     skills = Path(a.skills or paths.INITIAL_SKILLS / "clutter_pick")
     out = Path(a.out or paths.RUNS / "manual" / f"{time.strftime('%Y%m%d_%H%M%S')}_{a.split}_L{a.level}_{a.idx}{'_parity' if a.parity else ''}")
-    ep = dict(episode_base(t, record=dict(video=True, observations=a.observations), parity=a.parity),
+    ep = dict(episode_base(t, record=dict(video=True, observations=a.observations, video_view=a.video_view,
+                                          video_colour=a.video_colour), parity=a.parity),
               split=a.split, level=a.level, idx=a.idx, seed=episode_seed(a.seed, a.level, a.idx))
     r = run_episode(skills, ep, out, entry=a.entry, sandbox=not a.no_sandbox, wall_limit_s=t["wall_limit_s"])
     keys = ("category", "success", "t_success", "robot_time_s", "program_result", "program_error")
@@ -101,6 +102,10 @@ def main(argv=None):
     s.add_argument("--parity", action="store_true", help="give the program the 11-18 baseline's truth hint (parity checks only)")
     s.add_argument("--observations", default="all", choices=("all", "none"))
     s.add_argument("--no-sandbox", action="store_true"); s.add_argument("--out")
+    s.add_argument("--video-view", default="overview", choices=("overview", "cameras"),
+                   help="cameras: the video shows the scene D415 | the wrist D415 (default: an overview | the wrist)")
+    s.add_argument("--video-colour", default="mujoco", choices=("mujoco", "condition"),
+                   help="condition: video frames in the condition's colour (A: the splat composite, slow)")
     s = sub.add_parser("suite"); s.set_defaults(fn=cmd_suite)
     s.add_argument("--suite", required=True); s.add_argument("--experiment", default="configs/experiments/m1_clutter_pick.yaml")
     s.add_argument("--skills"); s.add_argument("--workers", type=int, default=8); s.add_argument("--out")

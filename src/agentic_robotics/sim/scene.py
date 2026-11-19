@@ -207,6 +207,16 @@ class ClutterPickScene:
             self.seg_cache.pop(self.seg_order.pop(0), None)
         return rgb, depth.astype(np.float32), K
 
+    def colour_frame(self, cam):
+        """Camera cam's colour now, as the condition renders it (for videos): no depth model, no noise draws."""
+        P = self.P
+        if self.compositor is None:
+            return P.render(cam, depth=False, seg=False)[0]
+        rgb, z, gid = P.render(cam, depth=True, seg=True)
+        m = P.m; cid = m.camera(cam).id; Wc, Hc = B.SIZE[cam]
+        f = Hc / 2 / math.tan(math.radians(m.cam_fovy[cid]) / 2)
+        return self.compositor.photo(cam, rgb, z, gid, (Wc, Hc, f, f, Wc / 2, Hc / 2))
+
     def labels_for(self, rgb):
         return self.seg_cache.get(frame_key(rgb))
 
