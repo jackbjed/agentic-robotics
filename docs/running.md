@@ -10,12 +10,24 @@ cp configs/local.example.yaml configs/local.yaml    # fill in: asset roots (deox
 bin/ar check                               # assets, the program sandbox, the Claude CLI
 ```
 
+## Services (our own GPU servers, for real perception and condition A)
+
+```bash
+bin/ar services start          # SAM3 text :8151, SAM3 clicks :8154, splat compositor :8152 (configs/services.yaml)
+bin/ar services status
+bin/ar services stop           # by PID from runs/services/*.pid
+```
+
+They use existing environments read-only (configs/local.yaml `services.python`) on `services.cuda_device`.
+The user's own servers (:8131-:8137) are never touched.
+
 ## One episode
 
 ```bash
 bin/ar run --split test --level 0 --idx 10            # the initial clutter-pick skill, sandboxed
 bin/ar run --split test --level 0 --idx 10 --parity   # with the 11-18 baseline's starting hint (parity checks only)
 bin/ar run --skills workspaces/<run>/ --split val --level 3 --idx 4   # any skill directory
+bin/ar run --task configs/tasks/clutter_pick_A.yaml --split val --level 1 --idx 3   # a fidelity condition (A/B/C + SAM3)
 ```
 
 Each writes `runs/manual/<time>_<episode>/`:

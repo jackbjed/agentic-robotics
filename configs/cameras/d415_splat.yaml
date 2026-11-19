@@ -1,0 +1,8 @@
+# Condition A: the same D415s (the same fitted depth model and calibration error), colour from OUR splat compositor
+# (configs/services.yaml compositor; sim/composite.py): the empty-table scene splat + the objects' own Gaussians at
+# their simulated poses + MuJoCo's arm. Not full photorealism (docs/fidelity.md). Depth stays MuJoCo's through the
+# D415 model.
+preset: d415
+colour: splat
+colour_noise: false
+latency_s: [0.0, 0.0]

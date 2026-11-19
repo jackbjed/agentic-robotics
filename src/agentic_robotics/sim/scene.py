@@ -25,20 +25,50 @@ TASK = dict(lift_ok=0.05, hold_s=1.0, wrong_lift=0.03, disturb_mm=30.0)     # pi
 PHRASES = {"tape_red": "red tape roll", "tape_yellow": "yellow tape roll", "tape_white": "white tape roll",
            "hole_block": "black block with holes", "cable": "coiled black cable", "screwdriver": "screwdriver",
            "glue": "glue bottle", "sticky_pad": "sticky note pad"}
+# condition C (docs/fidelity.md, scripts/build_condition_c.py): other shapes, the same body names, masses, frictions
+PHRASES_SUBSTITUTE = {"tape_red": "red can", "tape_yellow": "yellow can", "tape_white": "white can",
+                      "hole_block": "black box", "cable": "black hoop", "screwdriver": "red and grey bar",
+                      "glue": "red and white bottle", "sticky_pad": "purple disc"}
+OBJECT_SETS = {
+    "real": dict(model=None, phrases=PHRASES, banks="layouts"),          # the twin's objects (scanned, measured)
+    "substitute": dict(model="sim/models/twin_6522_wedge_substitute.xml", phrases=PHRASES_SUBSTITUTE,
+                       banks="layouts_substitute"),
+}
 
 
-def load_bank(split, level):
-    f = paths.DATA / "layouts" / f"{split}_L{level}.jsonl"
+def use_object_set(name):
+    """Point the vendored code's model at the object set's (before any PickTwin / BoxSim is built). -> the set."""
+    from .twin import B
+    S = OBJECT_SETS[name]
+    if S["model"] is not None:
+        B.MODEL = paths.SRC / "agentic_robotics" / S["model"]
+    return S
+
+
+def load_bank(split, level, object_set="real"):
+    f = paths.DATA / OBJECT_SETS[object_set]["banks"] / f"{split}_L{level}.jsonl"
     if not f.exists():
-        raise FileNotFoundError(f"{f}: run scripts/link_assets.py (assets/manifest.yaml: clutter_layouts)")
+        raise FileNotFoundError(f"{f}: real: scripts/link_assets.py (manifest clutter_layouts); "
+                                f"substitute: bin/ar layouts --object-set substitute ...")
     return [json.loads(s) for s in open(f) if s.strip()]
 
 
 class ClutterPickScene:
-    def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0)):
+    def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0), colour="mujoco", object_set="real"):
+        self.object_set = object_set
+        self.phrases = use_object_set(object_set)["phrases"]
+        if colour == "splat" and object_set != "real":
+            raise ValueError("the splat composite has scans of the real objects only (no splat for the substitutes)")
         self.P = P = PickTwin(render=True)
         P.use_cameras("twin")
         self.preset, self.colour_noise, self.latency_s = preset, colour_noise, tuple(latency_s)
+        self.colour = colour                                   # mujoco (condition B) | splat (condition A)
+        self.compositor = None
+        if colour == "splat":
+            from .composite import Compositor
+            self.compositor = Compositor(P)
+        elif colour != "mujoco":
+            raise ValueError(f"colour mode {colour!r}")
         self.corr = Corruptor(preset, P.world, MIN_Z)
         self.banks = {}
         self.seg_cache, self.seg_order = {}, []
@@ -53,7 +83,7 @@ class ClutterPickScene:
         np_random, _ = seeding.np_random(int(seed))
         key = (split, int(level))
         if key not in self.banks:
-            self.banks[key] = load_bank(split, level)
+            self.banks[key] = load_bank(split, level, self.object_set)
         self.L = L = self.banks[key][int(idx)]
         self.split, self.level, self.layout_idx = split, int(level), int(idx)
         P = self.P
@@ -90,7 +120,7 @@ class ClutterPickScene:
 
     def task(self):
         """What the skill is told: the instruction and the object's name. Nothing else about the scene."""
-        ph = PHRASES[self.target]
+        ph = self.phrases[self.target]
         return dict(kind="clutter_pick", instruction=f"Pick up the {ph} and lift it.", object=ph)
 
     def truth_hint(self):
@@ -158,12 +188,14 @@ class ClutterPickScene:
         P = self.P
         rgb, z, gid = P.render(cam, depth=True, seg=True)
         depth = self.corr.depth(z, gid, cam)
-        if self.colour_noise:
-            rgb = self.corr.rgb(rgb, cam)
         m = P.m; cid = m.camera(cam).id
         Wc, Hc = B.SIZE[cam]
         f = Hc / 2 / math.tan(math.radians(m.cam_fovy[cid]) / 2)
         K = (Wc, Hc, f, f, Wc / 2, Hc / 2)
+        if self.compositor is not None:
+            rgb = self.compositor.photo(cam, rgb, z, gid, K)
+        if self.colour_noise:
+            rgb = self.corr.rgb(rgb, cam)
         lab = np.where(gid >= 0, self.geom_obj[np.clip(gid, 0, None)], -1).astype(np.int16)
         k = frame_key(rgb)
         self.seg_cache[k] = lab; self.seg_order.append(k)

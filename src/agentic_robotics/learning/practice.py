@@ -110,7 +110,7 @@ def cmd_run(a):
     from ..evaluation.suites import episode_seed
     from ..evaluation.runner import snapshot
     from ..execution.episode import run_episode
-    from ..cli import task_config
+    from ..config import episode_base, task_config
     t = task_config(budget["task"])
     pr = ws / "practice" / "runs"; pr.mkdir(parents=True, exist_ok=True)
     n = len([d for d in pr.iterdir() if d.is_dir()]) + 1
@@ -122,9 +122,8 @@ def cmd_run(a):
     from concurrent.futures import ThreadPoolExecutor
     def one(k_ep):
         k, (lv, i) = k_ep
-        ep = dict(split=P["split"], level=lv, idx=i, seed=episode_seed(seed, lv, i),
-                  scene=dict(preset=t["preset"], colour_noise=t["colour_noise"]), perception=t["perception"],
-                  robot_time_limit_s=t["robot_time_limit_s"], record=dict(video=True, observations=obs, keyframes=True), parity=False)
+        ep = dict(episode_base(t, record=dict(video=True, observations=obs, keyframes=True)),
+                  split=P["split"], level=lv, idx=i, seed=episode_seed(seed, lv, i))
         d = out / f"{k:02d}_L{lv}_{i:04d}"
         r = run_episode(snap, ep, d, entry=budget.get("entry", "skills/pick.py"), sandbox=True, wall_limit_s=t["wall_limit_s"])
         if a.observations == "wrist" and (d / "observations").exists():

@@ -111,7 +111,7 @@ def init(run_id, exp_path):
 
 
 def dev_eval(run_id, name, skill_dir, X):
-    from ..cli import task_config
+    from ..config import task_config
     L = X["learning"]
     spec = X["suites"][L["dev_suite"]]
     out = run_dir(run_id) / "dev" / name
@@ -207,7 +207,8 @@ def select(inc_dev_dir, cand_dev_dir, S, rule):
 
 # ---------------------------------------------------------------------------------------------------- held-out evaluation
 def evaluate(run_id, suite="heldout", workers=16):
-    from ..cli import task_config
+    """(the suite's own task config, if it names one, decides the condition: run_suite)"""
+    from ..config import task_config
     rd = run_dir(run_id)
     X = json.loads((rd / "experiment.json").read_text())
     st = state(run_id)
@@ -239,9 +240,24 @@ copy): to change a behaviour, subclass or wrap it in `helpers/` or `skills/`. On
 """
 
 
+PERCEPTION_NOTE = {
+    "sam3": ("ctx.segmenter is SAM3, a real segmentation model (the real robot's): free-text prompts, scored masks; it "
+             "can miss the object, return part of it or another object; phrases matter, and one view may need other "
+             "words than another (docs/perception.md, 'Using it well')."),
+    "oracle": "ctx.segmenter is an oracle stand-in (exact masks for the objects' exact names; docs/perception.md).",
+}
+COLOUR_NOTE = {"mujoco": "plain MuJoCo rendering", "splat": "the splat composite (scanned table and objects, MuJoCo's arm)"}
+
+
 def brief(B, X):
     P = B["practice"]
     practice = str(paths.ROOT / "bin" / "ar-practice")
+    from ..config import task_config
+    from ..sim.scene import OBJECT_SETS
+    t = task_config(B["task"])
+    ph = OBJECT_SETS[t["object_set"]]["phrases"]
+    objects = f'"{ph["tape_red"]}" or "{ph["tape_yellow"]}"'
+    perception, perception_note, colour = t["perception"], PERCEPTION_NOTE[t["perception"]], COLOUR_NOTE[t["colour"]]
     return f"""# Your task in this workspace
 
 You improve a robot skill program by practising it in simulation. The robot is a Franka Panda arm with a two-finger
@@ -249,13 +265,16 @@ gripper over a table, seen by two RealSense D415 cameras (one fixed across the t
 MuJoCo twin of the real setup. The program you improve is `skills/pick.py` (entry point `run(ctx)`), with helpers in
 `helpers/`.
 
-**The task (clutter pick).** A red or a yellow tape roll lies on the table among 2-4 other objects, which may touch
-it. The program is told the object's name ("red tape roll" / "yellow tape roll") and must pick it up and lift it. It
+**The task (clutter pick).** A target object (in this run's practice: {objects}) lies on the table among 2-4 other
+objects, which may touch it. The program is told the object's name (ctx.task["object"]) and must pick it up and lift it. It
 succeeds when the target is at least 5 cm above where it rested, held by both fingers, with nothing else lifted, for
 1 second. An episode ends when the program returns; the robot refuses to move after 60 s of robot time.
 
 **Goal, in order:** (1) more successes under that time limit, on layouts you have not seen; (2) less robot time per
 success; (3) fewer model calls (none are used now). Robot speed, limits and the success check are fixed.
+
+**Perception in this run: {perception}.** {perception_note} Depth is the realistic noisy D415 model and the
+cameras have a per-episode calibration error (docs/perception.md). Colour: {colour}.
 
 **What you can do.** Read and edit anything in this workspace: `skills/`, `helpers/`, `tests/`, `notes.md`. Change the
 program's strategy, structure, feedback checks and recovery. The documented interfaces are in `docs/`; the robot code

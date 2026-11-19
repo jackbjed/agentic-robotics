@@ -10,18 +10,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..sim.scene import PHRASES
-
 MIN_PX = 20
 
 
-def segment(lab, keys, target, phrase):
-    if phrase == PHRASES.get(target):
+def segment(lab, keys, target, phrase, phrases):
+    if phrase == phrases.get(target):
         ids, sc = [keys.index(target)], 0.92
     elif phrase == "small object":
         ids, sc = [i for i in range(len(keys)) if (lab == i).any()], 0.6
     else:
-        ids, sc = [i for i, k in enumerate(keys) if PHRASES.get(k) == phrase], 0.92
+        ids, sc = [i for i, k in enumerate(keys) if phrases.get(k) == phrase], 0.92
     out = [((lab == i), sc) for i in ids if (lab == i).sum() >= MIN_PX]
     return sorted(out, key=lambda x: -x[0].sum())[:6]
 

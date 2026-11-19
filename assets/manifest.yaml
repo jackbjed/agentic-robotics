@@ -121,10 +121,10 @@ assets:
     root: panda_twin
     src_dir: data/scene
     dst_dir: data/splats
-    note: fidelity condition A (splat compositor); sha256 not recorded yet (large); not used by milestone 1
+    note: "fidelity condition A, the splat compositor: empty-table scene splat v6507, frame, robot cut-out, object Gaussians 6522"
     optional: true
     files:
-      splat_v6507/splat.pt: null
-      objsplat_6522.pt: null
-      robot_surface.npy: null
-      frame.json: null
+      splat_v6507/splat.pt: 2d9df75e97e8389c9830e6d0863a93f7c160e481ee27ca2b4e4fefedd7f68f30
+      objsplat_6522.pt: 09258494a45fcca319195b79b71f4bcfb935b0555eed335247d9c91e31af4692
+      robot_surface.npy: 78f8e5823d5a5c6d9455f5321d9e655c849355889362b4becd49eb5d41e0b721
+      frame.json: ebc7b73c5fb8dcd7dbe0fa7e6564fa85ca648a9e310f11f7f3cde23aa0a6daa3

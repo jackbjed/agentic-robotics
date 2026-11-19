@@ -65,14 +65,15 @@ class World:
         self.spec, self.out = spec, Path(out)
         self.out.mkdir(parents=True, exist_ok=True)
         sc = spec.get("scene", {})
-        self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False))
+        self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
+                                      colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"))
         self.task = self.scene.reset(spec["split"], spec["level"], spec["idx"], spec["seed"])
         if spec.get("parity"):
             self.task = dict(self.task, hint=self.scene.truth_hint())
         if spec.get("test_name_other_roll"):                       # (judge validation only: the program is told the
             other = "tape_yellow" if self.scene.target == "tape_red" else "tape_red"   # OTHER roll's name; the judge
-            from .scene import PHRASES                              # still judges the true target: wrong_object)
-            self.task = dict(self.task, object=PHRASES[other], instruction=f"Pick up the {PHRASES[other]} and lift it.")
+            ph = self.scene.phrases[other]                          # still judges the true target: wrong_object)
+            self.task = dict(self.task, object=ph, instruction=f"Pick up the {ph} and lift it.")
         P = self.scene.P
         self.arm = P.arm
         rc = spec.get("record", {})
@@ -154,15 +155,17 @@ class World:
         if cmd in ("segment", "segment_points"):
             t0w = time.time(); self.counts["segment"] += 1
             rgb = arrays[0] if arrays else None
-            if self.perc != "oracle":
-                return dict(ok=False, why=f"perception backend {self.perc!r} not available in this build"), []
             lab = self.scene.labels_for(rgb) if rgb is not None else None
-            if lab is None:
+            if lab is None:                                     # (only frames this world's cameras delivered)
                 return dict(ok=True, scores=[], why="not a frame this world delivered"), []
-            if cmd == "segment":
-                res = oracle.segment(lab, self.scene.P.obj_keys, self.scene.target, h["phrase"])
+            if self.perc == "oracle":
+                res = (oracle.segment(lab, self.scene.P.obj_keys, self.scene.target, h["phrase"], self.scene.phrases) if cmd == "segment"
+                       else oracle.segment_points(lab, h["pts"], h["labels"]))
+            elif self.perc == "sam3":
+                from ..perception import sam3
+                res = sam3.segment(rgb, h["phrase"]) if cmd == "segment" else sam3.segment_points(rgb, h["pts"], h["labels"])
             else:
-                res = oracle.segment_points(lab, h["pts"], h["labels"])
+                return dict(ok=False, why=f"perception backend {self.perc!r} unknown"), []
             self.wall["perception"] += time.time() - t0w
             return dict(ok=True, scores=[s for _, s in res]), [m.astype(np.uint8) for m, _ in res]
         if cmd == "event":

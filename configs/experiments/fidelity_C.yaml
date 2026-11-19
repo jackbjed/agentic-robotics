@@ -1,0 +1,30 @@
+# Fidelity study, training condition C: practice and development in SUBSTITUTE objects (other shapes and names; the same masses, frictions, colours), plain MuJoCo colour; SAM3 perception; the realistic
+# D415 depth in all conditions. Held-out = ONE common target distribution for every condition: the real objects,
+# splat colour, SAM3, test layouts (docs/fidelity.md). Simulation generalization, not sim-to-real transfer.
+name: fidelity_C
+task: configs/tasks/clutter_pick_C.yaml
+skill: initial_skills/clutter_pick
+entry: skills/pick.py
+suites:
+  heldout_target: {split: test, levels: [0, 1, 2, 3], n: 100, seed: 5, protected: true, task: configs/tasks/clutter_pick_A.yaml}
+  heldout_B:      {split: test, levels: [0, 1, 2, 3], n: 100, seed: 5, protected: true, task: configs/tasks/clutter_pick_B.yaml}
+  dev:            {split: val, levels: [1, 2, 3], n: 30, seed: 11}
+  smoke:          {split: val, levels: [0, 1, 2], idx: [90, 92], seed: 13}
+practice:
+  split: train
+  levels: [0, 1, 2, 3]
+  idx_range: [0, 500]
+  seed_range: [100, 999]
+learning:
+  dev_suite: dev
+  dev_workers: 16
+  practice_workers: 8
+  practice_episodes_per_session: 40
+  practice_episodes_total: 120
+  practice_max_per_call: 12
+  model: sonnet
+  effort: null
+  agent_usd_per_session: 5.0
+  agent_usd_total: 12.0
+  agent_wall_s_per_session: 3600
+  selection: {min_gain: 2, min_dt_s: 0.5}

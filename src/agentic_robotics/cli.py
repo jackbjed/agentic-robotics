@@ -6,6 +6,8 @@
   ar suite --suite NAME [--experiment configs/experiments/m1_clutter_pick.yaml] [--skills DIR] [--workers N] [--out DIR]
                                              a frozen skill version on a suite of the experiment
   ar compare DIR_A DIR_B                     paired comparison of two suite runs (same episodes)
+  ar layouts --object-set substitute --split train --level L --n N   layout banks (condition C)
+  ar services start|stop|status [NAME ...]   our own SAM3 and splat-compositor servers (configs/services.yaml)
   ar learn init|run|status ...               the skill-improvement loop (learning/loop.py)"""
 from __future__ import annotations
 
@@ -18,10 +20,7 @@ from pathlib import Path
 from . import paths
 
 
-def task_config(path="configs/tasks/clutter_pick.yaml"):
-    t = paths.load_yaml(path)
-    cams = paths.load_yaml(t["cameras"])
-    return dict(t, preset=cams.get("preset", "d415"), colour_noise=cams.get("colour_noise", False))
+from .config import episode_base, task_config  # noqa: E402
 
 
 def cmd_check(a):
@@ -41,10 +40,8 @@ def cmd_run(a):
     t = task_config(a.task)
     skills = Path(a.skills or paths.INITIAL_SKILLS / "clutter_pick")
     out = Path(a.out or paths.RUNS / "manual" / f"{time.strftime('%Y%m%d_%H%M%S')}_{a.split}_L{a.level}_{a.idx}{'_parity' if a.parity else ''}")
-    ep = dict(split=a.split, level=a.level, idx=a.idx, seed=episode_seed(a.seed, a.level, a.idx),
-              scene=dict(preset=t["preset"], colour_noise=t["colour_noise"]), perception=t["perception"],
-              robot_time_limit_s=t["robot_time_limit_s"], record=dict(video=True, observations=a.observations),
-              parity=a.parity)
+    ep = dict(episode_base(t, record=dict(video=True, observations=a.observations), parity=a.parity),
+              split=a.split, level=a.level, idx=a.idx, seed=episode_seed(a.seed, a.level, a.idx))
     r = run_episode(skills, ep, out, entry=a.entry, sandbox=not a.no_sandbox, wall_limit_s=t["wall_limit_s"])
     keys = ("category", "success", "t_success", "robot_time_s", "program_result", "program_error")
     print(json.dumps({k: r.get(k) for k in keys}, default=str))
@@ -66,6 +63,24 @@ def cmd_suite(a):
     print(f"{a.suite}: {spec} -> {out}")
     S = run_suite(skills, spec, t, out, workers=a.workers, sandbox=not a.no_sandbox, entry=X.get("entry", "skills/pick.py"))
     print((out / "summary.md").read_text())
+
+
+def cmd_services(a):
+    from . import services
+    names = a.names or list(services.config())
+    for n in names:
+        if a.action == "start":
+            print(n, services.start(n))
+        elif a.action == "stop":
+            print(n, services.stop(n))
+    if a.action == "status":
+        print(json.dumps(services.status(), indent=1))
+
+
+def cmd_layouts(a):
+    from .sim.layouts import generate
+    r = generate(a.object_set, a.split, a.level, a.n, workers=a.workers)
+    print(json.dumps(r))
 
 
 def cmd_compare(a):
@@ -90,6 +105,12 @@ def main(argv=None):
     s.add_argument("--suite", required=True); s.add_argument("--experiment", default="configs/experiments/m1_clutter_pick.yaml")
     s.add_argument("--skills"); s.add_argument("--workers", type=int, default=8); s.add_argument("--out")
     s.add_argument("--no-sandbox", action="store_true"); s.add_argument("--allow-protected", action="store_true")
+    s = sub.add_parser("services"); s.set_defaults(fn=cmd_services)
+    s.add_argument("action", choices=("start", "stop", "status")); s.add_argument("names", nargs="*")
+    s = sub.add_parser("layouts"); s.set_defaults(fn=cmd_layouts)
+    s.add_argument("--object-set", default="substitute"); s.add_argument("--split", required=True)
+    s.add_argument("--level", type=int, required=True); s.add_argument("--n", type=int, required=True)
+    s.add_argument("--workers", type=int, default=32)
     s = sub.add_parser("compare"); s.set_defaults(fn=cmd_compare)
     s.add_argument("a"); s.add_argument("b"); s.add_argument("--names", nargs=2, default=("A", "B"))
     s = sub.add_parser("learn"); s.set_defaults(fn=lambda a: __import__("agentic_robotics.learning.loop", fromlist=["cli"]).cli(a))

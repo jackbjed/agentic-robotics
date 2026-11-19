@@ -1,0 +1,15 @@
+# condition B: plain MuJoCo colour, the real objects, SAM3 (docs/fidelity.md)
+# Pick the named tape roll out of the clutter and lift it. Judged on the true state by the world server
+# (sim/scene.py, ported from panda_pick_rgbd PickEnv._judge), every 1/30 s of robot time:
+#   success      the target's centre of mass >= 5 cm over its rest height, held by both fingers, no other object
+#                lifted >= 3 cm while touching a finger, all of it for 1 s
+#   failures     wrong_object, off_table, dropped (lifted >= 2 cm then lost), touched_not_lifted, not_touched
+# The program is told only: kind, instruction, object (its name).
+kind: clutter_pick
+scene: configs/scenes/clutter_pick.yaml
+robot: configs/robot/panda_twin.yaml
+cameras: configs/cameras/d415.yaml
+perception: sam3
+object_set: real
+robot_time_limit_s: 60               # the server refuses motion after this much robot time
+wall_limit_s: 900                    # a program process is killed after this much wall time

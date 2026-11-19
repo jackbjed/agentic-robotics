@@ -1,0 +1,21 @@
+# Local GPU services this platform starts itself (bin/ar services start|stop|status). Our own instances, on our own
+# ports: the user's servers (SAM3 :8131/:8134, compositors :8132-:8137) are never used or touched. The Python
+# environments are existing ones, used read-only (configs/local.yaml services.python); the CUDA device too.
+sam3_text:                       # text-prompted SAM3 (transformers Sam3Model, facebook/sam3 from the local HF cache)
+  script: src/agentic_robotics/vendor/services/sam3_server.py
+  port: 8151
+  args: [--conf, "0.1"]          # the robot runs' setting (the user's :8131 runs with --conf 0.1)
+  python: sam3
+  ping: /ping
+sam3_points:                     # click-prompted SAM3 (Sam3TrackerModel): a click on a thing -> its 3 candidate masks
+  script: src/agentic_robotics/vendor/services/sam3_points_server.py
+  port: 8154
+  python: sam3
+  ping: /ping
+compositor:                      # condition A colour: the empty-table splat + the objects' Gaussians + MuJoCo's arm
+  script: src/agentic_robotics/vendor/services/composite_server.py
+  port: 8152
+  args: [--splat, data/splats/splat_v6507, --frame, data/splats/frame.json, --cut, data/splats/robot_surface.npy,
+         --objects, data/splats/objsplat_6522.pt, --fill-front]     # = the clutter benches' compositor (:8133)
+  python: splat
+  ping: /ping

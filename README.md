@@ -10,7 +10,9 @@ Questions it is built for:
 3. What are the success, execution time and model-call costs of direct VLM control vs VLM planning with executable
    skills (docs/baselines.md)?
 
-**Status (2026-11-18): milestone 1.** One reproducible skill-improvement loop on the clutter pick.
+**Status (2026-11-18): milestone 1 done (docs/results_m1.md); milestone 2 in progress: SAM3 perception, fidelity conditions A/B/C.**
+
+**Milestone 1.** One reproducible skill-improvement loop on the clutter pick.
 - **Reproduction:** the robot's own pick skill runs here unchanged. On 300 test episodes it reproduces the original
   results: identical verdicts on 300/300, 0.950 at 15.5 s per success.
 - **The loop:**
@@ -31,13 +33,13 @@ bin/ar learn evaluate --run-id r1                       # held-out: initial vs f
 |---|---|
 | docs/running.md | setup, one episode, suites, tests |
 | docs/robot.md | the robot API: frames, gripper, calls, operating limits (and where each comes from) |
-| docs/perception.md | cameras, the D415 depth model, segmentation (an oracle stand-in in milestone 1) |
+| docs/perception.md | cameras, the realistic D415 depth, segmentation: SAM3 (our server) or the milestone-1 oracle |
 | docs/skill_api.md | skill programs: `run(ctx)`, the context, the robot skill library |
 | docs/task_clutter_pick.md | the task, levels, success check, splits |
 | docs/learning.md | workspaces, sessions, practice, budgets, checkpoints, the selection rule |
 | docs/isolation.md | what is enforced, how, and its limits |
 | docs/evaluation.md | suites, held-out protection, records, parity |
-| docs/fidelity.md | conditions A / B / C: what exists, what changes |
+| docs/fidelity.md | conditions A / B / C (all implemented): what changes, the common held-out target |
 | docs/baselines.md | no-practice, VLM+skills, direct VLM; the $50 total budget |
 | docs/limitations.md | the simulator and sensors |
 | docs/migration.md | where every part came from; what works and what is incomplete |

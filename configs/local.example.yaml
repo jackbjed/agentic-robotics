@@ -9,3 +9,8 @@ secrets:                     # files, never values
   openai_key_file: null
   gemini_key_file: null
   claude_oauth_token_file: null   # optional long-lived token (claude setup-token); else the CLI's own login
+services:
+  python:                    # environments that run the GPU services (existing ones, used read-only)
+    sam3: /path/to/envs/sam3/bin/python        # torch + transformers with Sam3Model; facebook/sam3 in the HF cache
+    splat: /path/to/envs/twin/bin/python       # torch + gsplat + scipy
+  cuda_device: 1

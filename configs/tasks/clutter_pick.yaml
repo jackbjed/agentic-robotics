@@ -8,6 +8,7 @@ kind: clutter_pick
 scene: configs/scenes/clutter_pick.yaml
 robot: configs/robot/panda_twin.yaml
 cameras: configs/cameras/d415.yaml
-perception: oracle                   # oracle (exact masks, a SAM3 stand-in) | sam3 (not wired yet)
+perception: oracle                   # oracle (exact masks, a SAM3 stand-in) | sam3 (our SAM3 servers)
+object_set: real                     # real (the twin's objects) | substitute (condition C)
 robot_time_limit_s: 60               # the server refuses motion after this much robot time
 wall_limit_s: 900                    # a program process is killed after this much wall time
