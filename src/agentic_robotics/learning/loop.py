@@ -270,6 +270,42 @@ def last_session_id(L):
     return None
 
 
+def session_costs(L):
+    """[(session record, its own agent cost in API-equivalent USD)]. Claude Code's total_cost_usd is cumulative over a
+    resumed conversation (agent.py): records written since 2026-11-20 hold the session's own cost_usd and the CLI's
+    figure as cost_usd_total; older ones hold the CLI's figure in cost_usd, so a resumed one's own cost is that minus
+    the total after the previous invocation of the same saved session."""
+    out, total = [], {}
+    for r in L:
+        if r.get("kind") != "session":
+            continue
+        if "cost_usd_total" in r:
+            own, tot = float(r.get("cost_usd") or 0.0), r.get("cost_usd_total")
+        else:
+            tot = r.get("cost_usd")
+            prev = total.get(r.get("resumed_from")) if r.get("resumed_from") else None
+            own = float(tot or 0.0) - prev if prev is not None and (tot or 0.0) >= prev else float(tot or 0.0)
+        if r.get("session_id") and tot is not None:
+            total[r["session_id"]] = float(tot)
+        out.append((r, round(own, 6)))
+    return out
+
+
+def agent_spent(L):
+    """The run's agent cost so far (API-equivalent USD): the sessions' own costs (session_costs)."""
+    return sum(c for _, c in session_costs(L))
+
+
+def cli_cost_total(L, session_id):
+    """The CLI's cumulative total_cost_usd after the last invocation of this saved session that reported one (0.0)."""
+    for r in reversed(L):
+        if r.get("kind") == "session" and r.get("session_id") == session_id:
+            tot = r["cost_usd_total"] if "cost_usd_total" in r else r.get("cost_usd")
+            if tot is not None:
+                return float(tot)
+    return 0.0
+
+
 def run_output_tokens(L):
     """The run's agent output tokens so far (thinking, text and tool calls; every session)."""
     return sum(int((r.get("progress") or r.get("usage") or {}).get("output_tokens") or 0) for r in L if r.get("kind") == "session")
@@ -309,7 +345,7 @@ def iterate(run_id, resume=None, note=None, progress_every=None):
     B = json.loads((rd / "budget.json").read_text())
     st = state(run_id)
     it = st["iteration"] + 1
-    spent = sum(r.get("cost_usd") or 0 for r in read_ledger(run_id) if r.get("kind") == "session")
+    spent = agent_spent(read_ledger(run_id))
     A = B["agent"]
     left = A["usd_total"] - spent
     if left < 0.5:
@@ -335,8 +371,9 @@ def iterate(run_id, resume=None, note=None, progress_every=None):
                             max_budget_usd=min(A["usd_per_session"], left), wall_limit_s=A["wall_s_per_session"],
                             effort=A.get("effort"),
                             env_extra=dict(AR_WORKSPACE=str(ws.resolve()), AR_RUN=run_id), persist=resume_on, resume=prev_sid,
-                            progress=prog)
-    ledger(run_id, kind="session", session=sid, cost_usd=res.get("cost_usd"), usage=res.get("usage"), turns=res.get("turns"),
+                            progress=prog, cost_before=cli_cost_total(read_ledger(run_id), prev_sid) if prev_sid else 0.0)
+    ledger(run_id, kind="session", session=sid, cost_usd=res.get("cost_usd"), cost_usd_total=res.get("cost_usd_total"),
+           usage=res.get("usage"), turns=res.get("turns"),
            wall_s=res.get("wall_s"), subtype=res.get("subtype"), denials=len(res.get("denials") or []),
            tool_calls=res.get("tool_calls"), model=(res.get("init") or {}).get("model"),
            session_id=(res.get("init") or {}).get("session_id"), persisted=res.get("persisted"), resumed_from=prev_sid,
@@ -349,7 +386,8 @@ def iterate(run_id, resume=None, note=None, progress_every=None):
                              dict(end_of_session=True, **{k: v for k, v in (res.get("progress") or {}).items() if k != "next"}))
         except Exception as ex:
             print(f"  progress snapshot at the session's end failed: {ex}")
-    print(f"  session done: ${res.get('cost_usd')}, {res.get('turns')} turns, {res.get('wall_s')} s, "
+    so_far = f" (the conversation so far ${res['cost_usd_total']})" if res.get("cost_before_usd") else ""
+    print(f"  session done: ${res.get('cost_usd')}{so_far}, {res.get('turns')} turns, {res.get('wall_s')} s, "
           f"{len(res.get('denials') or [])} denied tool calls, exit {res.get('exit')}")
     cand = rd / "candidates" / sid
     snapshot(ws, cand)
@@ -888,10 +926,12 @@ def cli(a):
         extend(o.run_id, o.practice, o.agent_usd)
     elif a.action == "status":
         st = state(o.run_id); L = read_ledger(o.run_id)
-        cost = sum(r.get("cost_usd") or 0 for r in L if r.get("kind") == "session")
+        cost = agent_spent(L)
         prac = sum(r.get("episodes", 0) for r in L if r.get("kind") == "practice")
         dev = sum(r.get("episodes", 0) for r in L if r.get("kind") == "dev")
-        print(json.dumps(dict(state=st, agent_usd=round(cost, 3), practice_episodes=prac, dev_episodes=dev,
+        print(json.dumps(dict(state=st, agent_usd=round(cost, 3),
+                              agent_usd_by_session={r.get("session"): round(c, 3) for r, c in session_costs(L)},
+                              practice_episodes=prac, dev_episodes=dev,
                               decisions=[r for r in L if r.get("kind") == "decision"]), indent=1, default=str))
     elif a.action == "evaluate":
         evaluate(o.run_id, o.suite, o.workers, o.baseline)

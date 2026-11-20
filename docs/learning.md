@@ -65,7 +65,9 @@ ar learn init --run-id ID --experiment configs/experiments/multitask_B.yaml \
 **Costs counted:**
 - every practice episode, including failed and crashed ones (`kind: practice`);
 - every development episode (`kind: dev`);
-- every session: the CLI's `total_cost_usd`, tokens, turns, wall time and denied tool calls (`kind: session`);
+- every session: its own agent cost (`cost_usd`: the CLI's `total_cost_usd`, minus, for a resumed session, the
+  total after the previous invocation, since the CLI's figure is cumulative over the resumed conversation;
+  the CLI's figure is kept as `cost_usd_total`), tokens, turns, wall time and denied tool calls (`kind: session`);
 - every decision.
 
 Rejected revisions count like accepted ones. `ar learn status` sums them.

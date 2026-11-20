@@ -3,8 +3,13 @@ version recorded per session). One session = one process, its working directory 
 context (no conversation, no session persistence). With the experiment's `learning.resume_session` (or `ar learn run
 --resume-session`), the conversation is saved (Claude Code's own session store, ~/.claude/projects/<workspace>) and
 the next iteration resumes it (`--resume <session id>`): the agent keeps its whole context, compacted by Claude Code
-when the window fills; the session id stays the same and `total_cost_usd` counts that invocation only (checked
-2026-11-19). These restrictions apply to every invocation, resumed or not:
+when the window fills; the session id stays the same. Costs: the CLI's `total_cost_usd` (and `modelUsage`) is
+CUMULATIVE over the resumed conversation (checked 2026-11-20: a resumed invocation's modelUsage holds the earlier
+invocations' tokens too), so the runner records the invocation's own cost (`cost_usd` = that total minus the total
+after the previous invocation, `cost_before`) next to the CLI's figure (`cost_usd_total`); each result event's
+`usage` and `num_turns` are the invocation's own. `--max-budget-usd` was not applied to the cumulative total (11-19:
+resumed invocations already past their cap in total ran normally). These restrictions apply to every invocation,
+resumed or not:
 
   --restricted                     file tools confined to the working directory; user/project/local settings ignored
   --tools Read,Edit,Write,Glob,Grep,Bash   the built-in tools it has (no web, no agents/tasks, no notebooks)
@@ -73,8 +78,10 @@ def command(prompt, system_append, model, max_budget_usd, effort=None, persist=F
 
 
 def run_session(workspace, prompt, system_append, log_dir, model=None, max_budget_usd=2.0, wall_limit_s=1800,
-                effort=None, env_extra=None, persist=False, resume=None, progress=None):
+                effort=None, env_extra=None, persist=False, resume=None, progress=None, cost_before=0.0):
     """Run one session to its end (or the wall limit). -> dict(cost, usage, turns, duration, denials, init info, exit).
+    cost_before: with resume, the CLI's cumulative total_cost_usd after the previous invocation (-> cost_usd = this
+    invocation's own cost; cost_usd_total = the CLI's figure).
     progress: dict(every=N, offset=the run's output tokens before this session, snapshot=f(cum_tokens, info)): f is
     called each time the run's output tokens (thinking included) pass a multiple of N (the stream's per-message usage)."""
     log_dir = Path(log_dir); log_dir.mkdir(parents=True, exist_ok=True)
@@ -113,6 +120,11 @@ def run_session(workspace, prompt, system_append, log_dir, model=None, max_budge
         pump.join(timeout=120)
     out.close(); err.close()
     res = parse_stream(log_dir / "claude.jsonl")
+    tot = res.get("cost_usd")
+    res["cost_usd_total"] = tot
+    if tot is not None and resume and cost_before:
+        res["cost_before_usd"] = float(cost_before)
+        res["cost_usd"] = round(tot - float(cost_before), 6) if tot >= float(cost_before) else tot   # (else: not resumed)
     if progress is not None:
         res["progress"] = dict(acct, every=progress["every"], offset=progress.get("offset", 0))
     res.update(exit=p.returncode, killed_at_wall_limit=killed, wall_s=round(time.time() - t0, 1),
@@ -182,7 +194,8 @@ def parse_stream(path):
         elif e.get("type") == "result":
             results.append(e)
     # (19-11: a session can end with more than one result event, e.g. one more turn after a background notice. Each
-    # event's num_turns, duration and usage are its own; total_cost_usd and modelUsage are cumulative.)
+    # event's num_turns, duration and usage are its own; total_cost_usd and modelUsage are cumulative, over the
+    # resumed conversation's earlier invocations too: run_session subtracts those.)
     f = results[-1] if results else {}
     usage = {}
     for r in results:

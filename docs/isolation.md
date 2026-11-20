@@ -51,7 +51,8 @@ version 2.1.328.
 - **Permission-rule matching:** a Bash rule is a prefix match on the command line. `ar-practice` therefore validates
   all its arguments itself, and accepts no paths.
 - **The agent shares the user's Claude login** (subscription). Its usage is the CLI's own accounting
-  (`total_cost_usd`, an API-equivalent estimate), capped per session with `--max-budget-usd`. The subscription's own
+  (`total_cost_usd`, an API-equivalent estimate; cumulative over a resumed conversation, so the platform records
+  each session's own share), capped per session with `--max-budget-usd`. The subscription's own
   limits are not visible to the platform.
 - **Practice records** inside the workspace (result.json: the verdict, robot time, disturbance in mm) are the agent's
   own practice episodes. They contain no object poses.
