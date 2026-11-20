@@ -44,3 +44,28 @@ Two runs of the same experiment, everything equal except one thing:
 
 Both start with no skills, both are kept or rejected by the same dev rule, and both are scored by the operator on
 `evalset` AND `evalhidden` (`ar learn evaluate --suite evalset`, `--suite evalhidden`).
+
+## The sets as built (2026-11-19)
+
+| family | set | candidates (valid) | certified | episodes | per object | references |
+|---|---|---|---|---|---|---|
+| place-box | evalset / evalhidden | 73 / 73 | 62 / 59 | 25 / 25 | 5 each | hand-written (oracle); pack_A agent's skills (SAM3) |
+| clutter-pick-any | evalset / evalhidden | 74 / 73 | 72 / 73 | 25 / 25 | 5 each | the same two |
+| close-box | evalset / evalhidden | 80 / 80 | 58 / 62 | 25 / 25 | - | hand-written (oracle) |
+| press | evalset / evalhidden | 80 / 80 | 74 / 73 | 25 / 25 | - | hand-written (oracle) with the button's true location (`#hint`) |
+
+- The hand-written place skill never solved the cable (0/14 candidates) and rarely the screwdriver: without the
+  second reference and the per-object quota the set had no cable at all.
+- Without Astra, the hand-written press skill seeds on the kettle's highest point, the lid, and failed all 160
+  candidates; with the world's truth hint (the 11-18 parity mode, certification only) it solved 147.
+
+## The runs
+
+| run | experiment | evaluation set | Astra |
+|---|---|---|---|
+| evalset_B_ctrl_r1 | evalset_B | no | no |
+| evalset_B_exp_r1 | evalset_B | yes, 8 runs per session | no |
+| evalset_B_astra_r1 | evalset_B_astra | yes, 8 runs per session | yes: spatial pointing, one call per episode; the agent's own $4.50 (practice $3, evaluation-set runs $1.50, cached), dev $1, final scoring $2.40 (the repo cap's remainder; user: "maximum 10$") |
+
+Three sessions each (resumed), 300 practice episodes per session, $25 of agent usage per session, the same dev rule;
+then `ar learn evaluate --suite evalset` and `--suite evalhidden` (runs/learning/evalset_ablation.sh).

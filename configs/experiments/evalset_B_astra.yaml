@@ -1,0 +1,94 @@
+# evalset_B with Astra (2026-11-19, user: "also launch an agent session with a budget of maximum 10$ for the agent to
+# spend in astra calls (saying in the prompt that it can use astra for spatial pointing at objects in the image), and
+# for the tasks we said before ... and with the evaluation set of tasks that the model can use to see how well it's
+# going"). One run, with the evaluation set:
+#   ar learn init --run-id evalset_B_astra_r1 --experiment configs/experiments/evalset_B_astra.yaml --add-evaluation-set
+# Everything else as evalset_B (docs/evalsets.md): four skills from an EMPTY start, condition B at the real rig's
+# cameras, the arm starting at home, the same sets, dev rule and final scoring (evalset AND evalhidden).
+# Model budget: the repo's cap ($18, $10.07 spent on 11-19) left $7.90: the agent's own spending $4.50 (practice $3,
+# its evaluation-set runs $1.50, identical requests cached), dev $1, the final scoring $2.40.
+# evalset / evalhidden: 25 certified episodes per task (place-box and clutter-pick-any: 5 per object), listed by index
+# (`ar evalset show`; the certificates: data/<banks>/<split>_L0.certified.json).
+name: evalset_B_astra
+task: configs/tasks/tasks_B_rig_home.yaml
+skill: initial_skills/empty_four
+entry: skills/pick.py
+tasks: [place-box, close-box, clutter-pick-any, press]
+suites:
+  evalset:
+    protected: true
+    families:
+      place-box:        {split: evalset, seed: 31, idxs: [0, 1, 2, 3, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 23, 25, 27, 28, 29, 35, 39]}
+      close-box:        {split: evalset, seed: 31, idxs: [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 14, 15, 17, 18, 19, 21, 22, 23, 25, 28, 31, 33, 34, 35]}
+      clutter-pick-any: {split: evalset, seed: 31, idxs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 29]}
+      press:            {split: evalset, seed: 31, idxs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]}
+  evalhidden:
+    protected: true
+    families:
+      place-box:        {split: evalhidden, seed: 41, idxs: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20, 21, 23, 24, 25, 27, 30, 36]}
+      close-box:        {split: evalhidden, seed: 41, idxs: [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 24, 26, 27, 28, 29]}
+      clutter-pick-any: {split: evalhidden, seed: 41, idxs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 22, 31, 36, 40, 44]}
+      press:            {split: evalhidden, seed: 41, idxs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25]}
+  dev:
+    families:
+      place-box:        {split: val, n: 12, seed: 11}
+      close-box:        {split: val, n: 12, seed: 11}
+      clutter-pick-any: {split: val, n: 12, seed: 11}
+      press:            {split: val, n: 12, seed: 11}
+  smoke:
+    families:
+      place-box:        {split: val, idx: [50, 51], seed: 13}
+      close-box:        {split: val, idx: [50, 51], seed: 13}
+      clutter-pick-any: {split: val, idx: [30, 31], seed: 13}
+      press:            {split: val, idx: [50, 51], seed: 13}
+practice:
+  split: train
+  seed_range: [100, 999]
+  families:                       # (index ranges = the training banks' sizes)
+    place-box:        {levels: [0], idx_range: [0, 275]}
+    close-box:        {levels: [0], idx_range: [0, 300]}
+    clutter-pick-any: {levels: [0], idx_range: [0, 197]}
+    press:            {levels: [0], idx_range: [0, 300]}
+vlm:                              # Astra, one call per episode (ledger tags <run>, <run>-dev, <run>-eval, <run>-heldout)
+  enabled: true
+  model: astra
+  max_calls_per_episode: 1
+  max_usd_per_episode: 0.03
+  run_usd: 3.0                    # practice
+  eval_usd: 1.5                   # the agent's own evaluation-set runs (identical requests cached: free)
+  dev_usd: 1.0                    # the development evaluations (cached)
+  heldout_usd: 2.4                # the operator's final scoring: evalset + evalhidden (200 episodes)
+learning:
+  library: false
+  tasks_doc: task_four.md
+  task_text: >-
+    **The tasks.** Four skills, one per task, each with its own entry file (below; docs/tasks.md): put the named
+    object into the open white box (place-box), close the white box's lid (close-box), pick the named object out of
+    clutter and lift it (clutter-pick-any), press the lid-release button on top of the kettle's handle (press). The
+    named objects are the red, yellow and white tape rolls, the coiled black cable and the screwdriver. Every episode
+    starts with the arm at its home pose, as on the real robot. The robot refuses to move after 60 s of robot time
+    (place-box: 90 s). **You may use Astra, a vision-language model, for spatial pointing: give it a camera image and
+    ask where an object (or a part of one, such as the kettle's button) is; it answers with pixel coordinates. At most
+    one call per episode** (`ctx.vlm`, docs/skill_api.md).
+  prompt_note: >-
+    Your goal: four skills written from scratch (place-box, close-box, clutter-pick-any, press). You may use Astra (ctx.vlm, at most one call per episode) for spatial
+    pointing at objects in a camera image.
+  test_note: "Your version is evaluated on fixed sets of layouts of these four tasks, 25 each; every one of them was solved by a reference program in this simulator."
+  exposed_eval_suite: evalset     # (only with --add-evaluation-set)
+  eval_runs_per_session: 8
+  eval_note: "Use it after each version you write: see which episodes fail and why, then improve the skills."
+  resume_session: true
+  progress: {every_output_tokens: 50000}
+  dev_suite: dev
+  dev_workers: 12
+  practice_workers: 10
+  practice_episodes_per_session: 300
+  practice_episodes_total: 900
+  practice_max_per_call: 12
+  practice_timeout_note: true
+  model: claude-opus-5-5
+  effort: medium
+  agent_usd_per_session: 25.0     # the CLI's API-equivalent estimate (the sessions run on the subscription login)
+  agent_usd_total: 75.0
+  agent_wall_s_per_session: 14400
+  selection: {min_gain: 2, min_dt_s: 0.5, max_task_loss: 1}
