@@ -46,11 +46,15 @@ def cert_file(task, split):
 
 
 def _solver(s, default_cfg):
-    """DIR[:scratch][@TASK_CONFIG] -> (skill root, library?, task config): an agent's program asks for objects in its
-    own words, which only SAM3 understands (the oracle knows the objects' names only): give it the SAM3 condition."""
-    s, _, cfg = str(s).partition("@")
+    """DIR[:scratch][@TASK_CONFIG][#hint] -> (skill root, library?, task config, hint?): an agent's program asks for
+    objects in its own words, which only SAM3 understands (the oracle knows the objects' names only): give it the SAM3
+    condition. #hint: the task carries the world's truth hint (sim/scene.py truth_hint: the target's top, the press
+    button's cap; the 11-18 parity mode, never used in learning or evaluation): the press reference without Astra
+    otherwise presses the kettle's highest point, the lid (0/160)."""
+    s, _, flag = str(s).partition("#")
+    s, _, cfg = s.partition("@")
     root, _, mode = s.partition(":")
-    return (Path(root) if Path(root).is_absolute() else paths.ROOT / root), mode != "scratch", cfg or default_cfg
+    return (Path(root) if Path(root).is_absolute() else paths.ROOT / root), mode != "scratch", cfg or default_cfg, flag == "hint"
 
 
 def certify(task, split, candidates, task_cfg, solvers, attempts, workers, seed, vlm=None, log=print, run_suite=None):
@@ -64,12 +68,13 @@ def certify(task, split, candidates, task_cfg, solvers, attempts, workers, seed,
     for n_try, (k, s) in enumerate(plan):
         if not remaining:
             break
-        root, lib, cfg = _solver(s, task_cfg)
+        root, lib, cfg, hint = _solver(s, task_cfg)
         sd = seed + 1000 * k                                    # (attempt 0: the set's own reset seeds)
-        out = out_root / f"{root.name}_{Path(cfg).stem}_s{sd}"   # (stable: a rebuild reuses finished episodes)
+        out = out_root / f"{root.name}_{Path(cfg).stem}{'_hint' if hint else ''}_s{sd}"   # (stable: a rebuild reuses them)
         log(f"[{task} {split}] attempt {n_try}: {root.name} ({'library' if lib else 'scratch'}, {Path(cfg).stem}), seed {sd}, "
             f"{len(remaining)} candidates")
-        S = run_suite(root, dict(family=task, split=split, idxs=remaining, seed=sd), task_config(cfg), out, workers=workers, sandbox=True,
+        spec = dict(family=task, split=split, idxs=remaining, seed=sd, **(dict(parity=True) if hint else {}))
+        S = run_suite(root, spec, task_config(cfg), out, workers=workers, sandbox=True,
                       entry=TK.get(task)["entry"], log=None, vlm=vlm, library=lib)
         want = set(remaining)                                   # (the file may hold earlier runs' episodes too)
         recs = [r for r in (json.loads(l) for l in open(out / "episodes.jsonl")) if r["idx"] in want] \
@@ -157,7 +162,7 @@ def cli(a):
     ap.add_argument("--n", type=int, default=25); ap.add_argument("--candidates", type=int, default=80)
     ap.add_argument("--per-target", type=int, help="the first K certified of each of the family's objects")
     ap.add_argument("--seed", type=int); ap.add_argument("--task-config", default=DEFAULT_CONFIG)
-    ap.add_argument("--solver", action="append", help="a reference program: DIR[:scratch][@TASK_CONFIG]; repeatable")
+    ap.add_argument("--solver", action="append", help="a reference program: DIR[:scratch][@TASK_CONFIG][#hint]; repeatable")
     ap.add_argument("--attempts", type=int, default=2); ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--vlm", help="the vlm block of this experiment for the reference programs (default: none)")
     ap.add_argument("--vlm-usd", type=float, default=0.0)

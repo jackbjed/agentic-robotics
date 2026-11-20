@@ -81,3 +81,10 @@ def test_choose_per_target():
     chosen, short = ES.choose([0, 1, 2, 4, 5, 6], targets, 25, per_target=2, targets=["tape_red", "cable", "screwdriver"])
     assert chosen == [0, 1, 2, 4] and short == {"screwdriver": 2}
     assert ES.choose([0, 1, 2], targets, 2) == ([0, 1], 0)
+
+
+def test_solver_syntax():
+    r, lib, cfg, hint = ES._solver("initial_skills/tasks#hint", "configs/tasks/x.yaml")
+    assert r.name == "tasks" and lib and cfg == "configs/tasks/x.yaml" and hint
+    r, lib, cfg, hint = ES._solver("a/b:scratch@configs/tasks/y.yaml", "configs/tasks/x.yaml")
+    assert r.name == "b" and not lib and cfg == "configs/tasks/y.yaml" and not hint
