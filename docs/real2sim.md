@@ -41,7 +41,10 @@ Tasks: place-box, close-box, clutter-pick-any (press needs the kettle, which the
 
 1. **Reconstruction phase.** The real world is open: `real look` (both cameras at home, the wrist camera from up to 8
    hand poses), `real run explore/X.py` (its own programs: look, touch, push, lift), within the real-world budget
-   (40 episodes per session, 100 in the run, 120 s of robot time each). It analyses the frames with `py analysis/X.py`
+   (40 episodes per session, 100 in the run, 120 s of robot time each). The real world is for observing and measuring
+   the scene, not for practising: its programs run with `explore/` only, not `skills/` or `helpers/` (11-20 smoke
+   run: the agent tested its skills in the real world through an exploration program, judged by eye from the
+   keyframes, before declaring its simulator ready; the brief now says not to, and the skills are not there). It analyses the frames with `py analysis/X.py`
    (sandboxed; writes `sim/` and `analysis/`), builds `sim/`, checks it (`sim check`) and compares it with real frames
    (`sim render --like <a real frame>`: the same arm pose and believed camera pose; real | yours | the depth
    difference).
@@ -87,3 +90,10 @@ Resumed sessions start in the reconstruction phase again with a new real-world b
 - `sim render`'s geometry is exact: on that trial's real frame, the agent's simulator rendered with the episode's own
   (hidden) calibration error lined up with the real image to 0.1 px; at the believed pose it was off by 11 px, which is
   that error.
+- **The smoke session** (11-20, run `r2s_smoke`, $6 cap, 45 min wall, 10 real-world and 30 practice episodes): $4.29,
+  22 min. It looked at three scenes, fused the wrist frames into top-down height maps with its own analysis scripts,
+  measured the objects (the box 0.20-0.21 m, walls 6.5 cm; tape rolls 5.2 cm across, 2.1-2.5 cm tall; the screwdriver
+  0.20 m; the coil 0.17 x 0.08 m: close to the truth it was never told), wrote its scene with a script (tape rolls as
+  rings of 16 boxes, the ruler, the hinged lid), compared it with real frames (`sim render`: wrist depth median
+  difference 4.7 mm), modelled the sensors, declared it ready, practised 30 episodes, and was kept (29/36 in its
+  simulator). It also ran its skills in the real world 7 times before `sim ready` (fixed since, above).

@@ -80,6 +80,19 @@ def code_snapshot(ws, dst, extra=()):
     return dst
 
 
+def explore_snapshot(ws, dst):
+    """A real-world program's code: explore/ ONLY (the real world is for observing the scene, not for practising the
+    skills: skills/ and helpers/ are not there)."""
+    from ..selfsim.suite import rmtree_ro
+    dst = Path(dst)
+    rmtree_ro(dst)
+    dst.mkdir(parents=True)
+    shutil.copytree(ws / "explore", dst / "explore", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    for p in dst.rglob("*"):
+        p.chmod(0o555 if p.is_dir() else 0o444)
+    return dst
+
+
 def next_dir(root):
     root.mkdir(parents=True, exist_ok=True)
     n = len([d for d in root.iterdir() if d.is_dir() and d.name.isdigit()]) + 1
@@ -230,7 +243,7 @@ def cmd_real(a, ws, meta, run_dir, budget):
             fail("real run: a program under explore/ (explore/NAME.py, with run(ctx))")
         if not (ws / prog).exists():
             fail(f"{prog}: no such file")
-        snap, entry, label = code_snapshot(ws, tmp, extra=("explore",)), str(prog), f"program {prog}"
+        snap, entry, label = explore_snapshot(ws, tmp), str(prog), f"program {prog}"
     out, n, ok_eps, voids, L = real_episodes(ws, run_dir, budget, snap, entry, fam, idxs, label)
     ledger_add(run_dir, kind="real", session=s, episodes=-voids, status="done", call=n, task=fam, action=a.action,
                platform_errors=voids, dir=str(out.relative_to(ws)))
@@ -614,6 +627,10 @@ observe and touch through the robot: its two cameras (colour and depth), its arm
 and the segmentation model. In this run the real world is a photorealistic stand-in for the real lab (a rendering of
 the scanned real scene, with the real cameras' depth faults and calibration error); treat it as the real robot.
 
+**The real world is for observing and measuring the scene, not for practising.** Your exploration programs run
+there with `explore/` only (not `skills/` or `helpers/`): use them to look, touch, push, lift and move things to learn
+what the scene is and how it behaves, not to try out or tune your skills: that is what your simulator is for.
+
 **Based on what you see there, reconstruct the scene as your own simulator** (`sim/`, docs/selfsim.md): the table, the
 objects (their shapes, sizes, colours, masses), the box and its lid, the lights and what the cameras see, how the
 depth sensor behaves, and how the tasks' scenes vary (`sim/layouts.py`). The robot itself is given: your simulator
@@ -646,7 +663,8 @@ docs/perception.md). Depth and calibration as on the real robot (docs/perception
         # a real-world scene of that task (layout idx, or a random one): both cameras at home, then the wrist
         # camera from each hand pose (the hand pointing down, its TCP at x,y,z m, the fingers along yaw rad)
     {pr} real run explore/NAME.py --task close-box [--idx 17] [--n 2]
-        # your own exploration program (run(ctx), the skills' API) in the real world: move, look, touch, push, lift...
+        # your own exploration program (run(ctx), the skills' API; explore/ only) in the real world: look, touch,
+        # push, lift... to learn the scene (not to try your skills)
     {pr} py analysis/NAME.py [args]       # your analysis script (numpy, scipy, cv2, PIL, mujoco, yaml), in the sandbox
     {pr} sim check [--n 3]                # build your simulator; sample, place and settle layouts; previews
     {pr} sim render --layout sim/views/X.yaml --like real_world/NNN/EE/observations/MMM_d415.json
@@ -708,8 +726,9 @@ def session_prompt(it, st, B, Lg, resumed=False):
                 f"updated.").replace("  ", " ")
     return (f"Session {it}. Read AGENTS.md, then docs/selfsim.md, docs/robot.md, docs/perception.md, docs/skill_api.md "
             f"and docs/tasks.md. You start without a simulator: based on what the robot's cameras show you in the real "
-            f"world (`real look`, and your own exploration programs with `real run`), reconstruct the scene in sim/ as your "
-            f"own simulator, which you will use to teach yourself the skills. Compare it with the real frames (`sim "
+            f"world (`real look`, and your own exploration programs with `real run`, for observing and measuring, not for "
+            f"trying your skills), reconstruct the scene in sim/ as your own simulator, which you will use to teach "
+            f"yourself the skills. Compare it with the real frames (`sim "
             f"render`) and refine it until you judge it good enough; then run `sim ready` (it saves your reconstruction in "
             f"sessions/{s_}/sim/) and write and improve the three skills by practising them in your simulator. The skills "
             f"are empty now.{prev} {pn} {budget} End with your best version in place, your simulator in sim/ and notes.md "

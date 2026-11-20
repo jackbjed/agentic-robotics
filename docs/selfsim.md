@@ -126,8 +126,10 @@ standard library, your own files in `sim/`).
 - `real look --task T [--idx I] [--wrist "x,y,z[,yaw];..."]`: a real-world scene: both cameras at the arm's home pose,
   then the wrist camera with the hand pointing down at each TCP position (up to 8). One real-world episode.
 - `real run explore/NAME.py --task T [--idx I] [--n K]`: your own program in the real world, with the skills' API
-  (`run(ctx)`): look from anywhere, touch, push, open and close the lid, lift things (the gripper's opening and the arm's
-  force estimate tell you sizes and weights). Save what you want to `ctx.out` (it appears in `program/`).
+  (`run(ctx)`): look from anywhere, touch, push, move the lid, lift things (the gripper's opening and the arm's force
+  estimate tell you sizes and weights). Save what you want to `ctx.out` (it appears in `program/`). It runs with
+  `explore/` only (your `skills/` and `helpers/` are not there): the real world is for learning the scene, not for
+  trying or tuning your skills, which you practise in your simulator.
 - `py analysis/NAME.py [args]`: your script in the sandbox, from the workspace's root: it reads anything in the workspace
   and writes `sim/` and `analysis/` (numpy, scipy, cv2, PIL, mujoco, yaml; no robot, no network; 10 min).
 - `sim check [--n 3]`: builds your simulator (sim.yaml, scene.xml with the robot), samples n layouts per task, places and

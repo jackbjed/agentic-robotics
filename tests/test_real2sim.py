@@ -156,3 +156,13 @@ def test_real_world_export_has_no_verdict(tmp_path):
                        dict(instruction="Close the lid of the white box."))
     assert not (tmp_path / "ws" / "result.json").exists()
     assert set(info) == {"task", "robot_time_s", "time_limit_hit", "program_result", "program_error", "frames", "platform_error"}
+
+
+def test_real_world_programs_get_explore_only(tmp_path):
+    """(11-20 smoke run: the agent ran its skills in the real world through an exploration program, judged by eye.)"""
+    from agentic_robotics.learning.real2sim import explore_snapshot
+    ws = tmp_path / "ws"
+    for d in ("explore", "skills", "helpers"):
+        (ws / d).mkdir(parents=True); (ws / d / "x.py").write_text("X = 1\n")
+    snap = explore_snapshot(ws, tmp_path / "snap")
+    assert sorted(p.name for p in snap.iterdir()) == ["explore"]
