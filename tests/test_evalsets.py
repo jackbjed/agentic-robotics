@@ -74,3 +74,10 @@ def test_clutter_pick_any_layout():
         assert L["target"] in ("tape_red", "tape_yellow", "tape_white", "cable", "screwdriver")
         assert 2 <= len(L["distractors"]) <= 4 and 15 <= g[0] <= 35 and g[-1] <= 60 and L["free_yaws"]
     assert got >= 2
+
+
+def test_choose_per_target():
+    targets = ["cable", "tape_red", "cable", "screwdriver", "tape_red", "cable", "tape_red"]
+    chosen, short = ES.choose([0, 1, 2, 4, 5, 6], targets, 25, per_target=2, targets=["tape_red", "cable", "screwdriver"])
+    assert chosen == [0, 1, 2, 4] and short == {"screwdriver": 2}
+    assert ES.choose([0, 1, 2], targets, 2) == ([0, 1], 0)

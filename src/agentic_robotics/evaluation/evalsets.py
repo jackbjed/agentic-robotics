@@ -11,17 +11,19 @@ ablation; evalhidden: the same kind of set, never shown to any agent):
      judge), with exact segmentation (the oracle) and the experiment's cameras and arm start. The first attempt uses
      the set's own reset seed, so an episode certified then is exactly the episode later evaluated; a candidate that
      fails gets further attempts (other sensor seeds, the next reference program). Certified = solved once.
-  3. the set: the first N certified candidates in candidate order (never chosen by difficulty)
+  3. the set: the first N certified candidates in candidate order (never chosen by difficulty); with --per-target K,
+     the first K certified of each of the family's objects (a set balanced over the objects)
      -> data/<banks>/<split>_L0.certified.json (all certified indices, which program solved each, in how much robot
      time) and the suite spec {split, idxs, seed} for the experiment.
 
-    ar evalset build --task place-box --split evalset --n 25 [--candidates 80] [--seed 31]
+    ar evalset build --task place-box --split evalset --n 25 [--per-target 5] [--candidates 80] [--seed 31]
         [--task-config configs/tasks/tasks_B_rig_home_oracle.yaml] [--solver initial_skills/tasks] [--solver DIR:scratch]
         [--attempts 2] [--workers 12] [--vlm EXPERIMENT --vlm-usd X]
     ar evalset show [--task T] [--split S]
 
 A reference program is a skill folder (default initial_skills/tasks: the robot's own hand-written skills, with the
-skill library); DIR:scratch runs one written without the library (an agent's checkpoint)."""
+skill library); DIR:scratch runs one written without the library (an agent's checkpoint); DIR...@CONFIG runs it in
+that task config (an agent's program needs SAM3: the oracle knows the objects' names only)."""
 from __future__ import annotations
 
 import json
@@ -43,9 +45,12 @@ def cert_file(task, split):
     return paths.DATA / TK.get(task)["banks"] / f"{split}_L0.certified.json"
 
 
-def _solver(s):
-    root, _, mode = str(s).partition(":")
-    return Path(root) if Path(root).is_absolute() else paths.ROOT / root, mode != "scratch"
+def _solver(s, default_cfg):
+    """DIR[:scratch][@TASK_CONFIG] -> (skill root, library?, task config): an agent's program asks for objects in its
+    own words, which only SAM3 understands (the oracle knows the objects' names only): give it the SAM3 condition."""
+    s, _, cfg = str(s).partition("@")
+    root, _, mode = s.partition(":")
+    return (Path(root) if Path(root).is_absolute() else paths.ROOT / root), mode != "scratch", cfg or default_cfg
 
 
 def certify(task, split, candidates, task_cfg, solvers, attempts, workers, seed, vlm=None, log=print, run_suite=None):
@@ -53,21 +58,22 @@ def certify(task, split, candidates, task_cfg, solvers, attempts, workers, seed,
     from ..config import task_config
     if run_suite is None:
         from .runner import run_suite
-    t = task_config(task_cfg)
     out_root = paths.RUNS / "evalsets" / task / split
     solved, tries, remaining = {}, [], list(range(candidates))
     plan = [(k, s) for k in range(attempts) for s in solvers]
     for n_try, (k, s) in enumerate(plan):
         if not remaining:
             break
-        root, lib = _solver(s)
+        root, lib, cfg = _solver(s, task_cfg)
         sd = seed + 1000 * k                                    # (attempt 0: the set's own reset seeds)
-        out = out_root / f"try{n_try}_{root.name}_s{sd}"
-        log(f"[{task} {split}] attempt {n_try}: {root.name} ({'library' if lib else 'scratch'}), seed {sd}, "
+        out = out_root / f"{root.name}_{Path(cfg).stem}_s{sd}"   # (stable: a rebuild reuses finished episodes)
+        log(f"[{task} {split}] attempt {n_try}: {root.name} ({'library' if lib else 'scratch'}, {Path(cfg).stem}), seed {sd}, "
             f"{len(remaining)} candidates")
-        S = run_suite(root, dict(family=task, split=split, idxs=remaining, seed=sd), t, out, workers=workers, sandbox=True,
+        S = run_suite(root, dict(family=task, split=split, idxs=remaining, seed=sd), task_config(cfg), out, workers=workers, sandbox=True,
                       entry=TK.get(task)["entry"], log=None, vlm=vlm, library=lib)
-        recs = [json.loads(l) for l in open(out / "episodes.jsonl")] if (out / "episodes.jsonl").exists() else []
+        want = set(remaining)                                   # (the file may hold earlier runs' episodes too)
+        recs = [r for r in (json.loads(l) for l in open(out / "episodes.jsonl")) if r["idx"] in want] \
+            if (out / "episodes.jsonl").exists() else []
         voided = 0
         for r in recs:
             if r.get("category") == "platform_error":
@@ -82,8 +88,20 @@ def certify(task, split, candidates, task_cfg, solvers, attempts, workers, seed,
     return solved, tries
 
 
+def choose(certified, target_of, n, per_target=None, targets=None):
+    """The set: the first n certified (candidate order), or the first per_target certified of each target.
+    -> (indices, shortfall per target or total)"""
+    if not per_target:
+        return certified[:n], max(0, n - len(certified))
+    by = {}
+    for i in certified:
+        by.setdefault(target_of[i], []).append(i)
+    chosen = sorted(i for t in targets for i in by.get(t, [])[:per_target])
+    return chosen, {t: per_target - len(by.get(t, [])[:per_target]) for t in targets if len(by.get(t, [])) < per_target}
+
+
 def build(task, split, n=25, candidates=80, seed=None, task_cfg=DEFAULT_CONFIG, solvers=(DEFAULT_SOLVER,), attempts=2,
-          workers=12, vlm=None, log=print, run_suite=None, generate=None):
+          workers=12, vlm=None, log=print, run_suite=None, generate=None, per_target=None):
     td = TK.get(task)
     seed = SET_SEED.get(split, 31) if seed is None else int(seed)
     f = bank_file(task, split)
@@ -98,14 +116,16 @@ def build(task, split, n=25, candidates=80, seed=None, task_cfg=DEFAULT_CONFIG, 
     t0 = time.time()
     solved, tries = certify(task, split, N, task_cfg, list(solvers), attempts, workers, seed, vlm, log, run_suite)
     certified = sorted(solved)
-    chosen = certified[:n]
-    rec = dict(task=task, split=split, family_targets=td.get("targets"), seed=seed, n_wanted=n, candidates_drawn=candidates,
-               candidates_valid=N, certified=certified, set=chosen, short=max(0, n - len(chosen)),
+    L = [json.loads(line) for line in open(f) if line.strip()]
+    chosen, short = choose(certified, [x["target"] for x in L], n, per_target, td.get("targets"))
+    rec = dict(task=task, split=split, family_targets=td.get("targets"), seed=seed, n_wanted=n, per_target=per_target,
+               candidates_drawn=candidates, candidates_valid=N, certified=certified, set=chosen, short=short,
                per_idx={str(i): solved[i] for i in certified}, attempts=tries, task_config=task_cfg,
                solvers=list(solvers), built=time.strftime("%Y-%m-%d %H:%M"), wall_s=round(time.time() - t0, 1),
                suite=dict(split=split, idxs=chosen, seed=seed))
+    rec["targets_certified"] = {k: sum(1 for i in certified if L[i]["target"] == k) for k in sorted({x["target"] for x in L})}
+    rec["targets_candidates"] = {k: sum(1 for x in L if x["target"] == k) for k in sorted({x["target"] for x in L})}
     if chosen:
-        L = [json.loads(line) for line in open(f) if line.strip()]
         rec["targets_in_set"] = {k: sum(1 for i in chosen if L[i]["target"] == k) for k in sorted({L[i]["target"] for i in chosen})}
     cert_file(task, split).write_text(json.dumps(rec, indent=1))
     log(f"[{task} {split}] certified {len(certified)}/{N}; the set: {len(chosen)} episodes"
@@ -135,8 +155,9 @@ def cli(a):
     ap = argparse.ArgumentParser(prog=f"ar evalset {a.action}")
     ap.add_argument("--task"); ap.add_argument("--split", default="evalset", choices=("evalset", "evalhidden"))
     ap.add_argument("--n", type=int, default=25); ap.add_argument("--candidates", type=int, default=80)
+    ap.add_argument("--per-target", type=int, help="the first K certified of each of the family's objects")
     ap.add_argument("--seed", type=int); ap.add_argument("--task-config", default=DEFAULT_CONFIG)
-    ap.add_argument("--solver", action="append", help="a reference program's skill folder (DIR or DIR:scratch); repeatable")
+    ap.add_argument("--solver", action="append", help="a reference program: DIR[:scratch][@TASK_CONFIG]; repeatable")
     ap.add_argument("--attempts", type=int, default=2); ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--vlm", help="the vlm block of this experiment for the reference programs (default: none)")
     ap.add_argument("--vlm-usd", type=float, default=0.0)
@@ -150,4 +171,5 @@ def cli(a):
     if o.vlm and o.vlm_usd > 0:
         V = dict(paths.load_yaml(o.vlm)["vlm"], tag=f"evalset-{o.task}-{o.split}:certify", run_usd=o.vlm_usd)
         V["max_calls_per_episode"] = 1
-    build(o.task, o.split, o.n, o.candidates, o.seed, o.task_config, o.solver or [DEFAULT_SOLVER], o.attempts, o.workers, V)
+    build(o.task, o.split, o.n, o.candidates, o.seed, o.task_config, o.solver or [DEFAULT_SOLVER], o.attempts, o.workers, V,
+          per_target=o.per_target)
