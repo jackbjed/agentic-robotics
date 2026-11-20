@@ -56,10 +56,25 @@ def env_ro():
     return out
 
 
-def program_cmd(cmd, skills_dir, out_dir, sock_dir, extra_env=None):
-    """Wrap a host command line in the program sandbox."""
-    args = _base(net=False) + env_ro()
+def hide_args(hide):
+    """Paths made invisible inside the sandbox: a directory becomes an empty tmpfs, a file reads as empty."""
+    out = []
+    for h in hide or ():
+        h = Path(h)
+        if h.is_dir():
+            out += ["--tmpfs", str(h)]
+        elif h.exists():
+            out += ["--ro-bind", "/dev/null", str(h)]
+    return out
+
+
+def program_cmd(cmd, skills_dir, out_dir, sock_dir, extra_env=None, hide=None, rw=None):
+    """Wrap a host command line in the program sandbox. hide: paths made invisible (real2sim: the scene's model files,
+    selfsim.hidden_paths); rw: more directories bound writable (real2sim's analysis scripts: sim/, analysis/)."""
+    args = _base(net=False) + env_ro() + hide_args(hide)
     args += ["--ro-bind", str(skills_dir), str(skills_dir)]
+    for d in rw or ():
+        args += ["--bind", str(d), str(d)]
     args += ["--bind", str(out_dir), str(out_dir), "--bind", str(sock_dir), str(sock_dir)]
     env = {"HOME": "/tmp", "PATH": "/usr/bin:/bin", "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1",
            "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "LANG": "C.UTF-8",

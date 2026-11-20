@@ -178,3 +178,8 @@ own skill, which it beats at level 3 by 48 to 7.
   robot, where the gap to the scan (lighting, sensor colour) is a further step.
 - B's and C's failures are specific and fixable: a colour gate, a solid-top assumption. A training set mixing
   renderings, or the brief's test note naming the risk, might close them.
+
+## real2sim
+
+An agent that starts without a simulator, reconstructs the scene from the real world (the photorealistic twin) and
+practises in its own reconstruction: docs/real2sim.md (the agent's guide to building it: docs/selfsim.md).

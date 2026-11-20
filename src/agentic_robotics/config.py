@@ -42,4 +42,6 @@ def episode_base(t, record=None, parity=False, vlm=None, library=True):
         base["scene"]["arm_start"] = t["arm_start"]
     if not library:
         base["library"] = False
+    if t.get("program_mirror"):                                # (real2sim: the program plans with the robot kit,
+        base["program_mirror"] = t["program_mirror"]           # no scene in its own model; docs/real2sim.md)
     return base

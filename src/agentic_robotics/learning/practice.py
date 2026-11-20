@@ -366,7 +366,22 @@ def main(argv=None):
     sub.add_parser("eval").set_defaults(fn=cmd_eval)
     s = sub.add_parser("scene"); s.set_defaults(fn=cmd_scene)
     s.add_argument("action", choices=("check",)); s.add_argument("path"); s.add_argument("--task")
+    # real2sim (learning/real2sim.py): the real world, the agent's own simulator, its analysis scripts
+    s = sub.add_parser("real"); s.add_argument("action", choices=("look", "run")); s.add_argument("program", nargs="?")
+    s.add_argument("--task", required=True); s.add_argument("--idx"); s.add_argument("--n", type=int, default=1)
+    s.add_argument("--wrist")
+    s = sub.add_parser("sim"); s.add_argument("action", choices=("check", "render", "ready"))
+    s.add_argument("--n", type=int, default=3); s.add_argument("--layout"); s.add_argument("--like")
+    s = sub.add_parser("py"); s.add_argument("script"); s.add_argument("args", nargs=argparse.REMAINDER)
+    argv = list(sys.argv[1:] if argv is None else argv)
+    for k in range(len(argv) - 1):                            # (--wrist "-0.30,...": a value that starts with "-")
+        if argv[k] == "--wrist" and not argv[k + 1].startswith("--"):
+            argv[k:k + 2] = [f"--wrist={argv[k + 1]}", ""]
+    argv = [x for x in argv if x != ""]
     a = ap.parse_args(argv)
+    if a.cmd in ("real", "sim", "py") or (a.cmd in ("run", "status") and context()[3].get("real2sim")):
+        from .real2sim import dispatch
+        return dispatch(a)
     a.fn(a)
 
 

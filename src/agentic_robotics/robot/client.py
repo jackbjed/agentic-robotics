@@ -102,6 +102,9 @@ def make_robot(sock_path):
     if pl:                                                 # the world's arm still refuses fingertips under the table)
         rig["safety"]["table_z"] = float(pl["table_z"])
         rig["safety"]["tcp_lo"] = [*rig["safety"]["tcp_lo"][:2], float(pl["tcp_lo_z"])]
+    if h.get("mirror") == "kit":                           # (real2sim: the robot kit, no scene in the program's model)
+        from ..selfsim import KIT
+        twin.B.MODEL = KIT
     S = twin.RealSim(SocketArm(link), SocketCams(link), rig, twin.camera_calib(mounts), speed=1.0, v_max=None,
                      log_dir=None)
     S.task_timing = True                                   # (the robot path's timing: real_box run, PickTwin)

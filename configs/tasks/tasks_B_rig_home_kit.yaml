@@ -1,0 +1,13 @@
+# real2sim (docs/real2sim.md): condition B at the real rig's cameras, the arm starting at home, and the program
+# planning with the robot kit (program_mirror: kit): no scene in the program's own model, the scene's model files
+# hidden from its sandbox. As tasks_B_rig_home.yaml otherwise.
+kind: clutter_pick
+scene: configs/scenes/clutter_pick.yaml
+robot: configs/robot/panda_twin.yaml
+cameras: configs/cameras/d415_rig.yaml
+perception: sam3
+object_set: real
+arm_start: home
+program_mirror: kit
+robot_time_limit_s: 60               # the server refuses motion after this much robot time (place-box: 90 s)
+wall_limit_s: 900                    # a program process is killed after this much wall time

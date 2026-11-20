@@ -187,6 +187,9 @@ def init(run_id, exp_path, add_eval_set=False, tasks=None, initial=None):
     """add_eval_set (ablation, `--add-evaluation-set`): the agent may run the evaluation set itself (learning.
     exposed_eval_suite) during its sessions and see its per-episode results."""
     X = experiment(exp_path)
+    if X.get("real2sim"):                                      # (no simulator at the start: learning/real2sim.py)
+        from . import real2sim
+        return real2sim.init(run_id, X)
     L = X["learning"]
     ws, rd = paths.WORKSPACES / run_id, run_dir(run_id)
     if ws.exists() or rd.exists():
@@ -396,7 +399,11 @@ def iterate(run_id, resume=None, note=None, progress_every=None):
     resume_on = bool(A.get("resume")) if resume is None else bool(resume)
     prev_sid = last_session_id(read_ledger(run_id)) if resume_on else None
     real_new = list(st.get("real_pending") or [])
-    prompt = session_prompt(it, st, B, read_ledger(run_id), real_note=prompt_note(real_new), resumed=bool(prev_sid))
+    if B.get("real2sim"):
+        from . import real2sim
+        prompt = real2sim.session_prompt(it, st, B, read_ledger(run_id), resumed=bool(prev_sid))
+    else:
+        prompt = session_prompt(it, st, B, read_ledger(run_id), real_note=prompt_note(real_new), resumed=bool(prev_sid))
     if note:
         prompt += f" A message from the operator: {note.strip()}"
     every = progress_every or (B.get("progress") or {}).get("every_output_tokens")
@@ -432,6 +439,8 @@ def iterate(run_id, resume=None, note=None, progress_every=None):
     cand = rd / "candidates" / sid
     snapshot(ws, cand)
     shutil.copy2(ws / "notes.md", rd / "sessions" / sid / "notes.md")
+    if B.get("real2sim"):                                     # (its simulator at the session's end, kept with the session)
+        real2sim.archive_sim(run_id, sid)
     inc_dir = rd / "checkpoints" / st["incumbent"]
     diff, full = "", ""
     for d in CODE_DIRS:                                       # (the code only: not the brief, notes, run metadata)
@@ -454,16 +463,32 @@ def iterate(run_id, resume=None, note=None, progress_every=None):
     elif viol:
         decision = dict(keep=False, why="uses the robot's own code (skills from scratch): " + "; ".join(viol[:5]))
         S = None
+    elif B.get("real2sim"):                                   # (both versions in its simulator as it is now)
+        S, S_inc, inc_dev, cand_dev = real2sim.dev_eval(run_id, sid, cand, st, X)
+        decision = select(inc_dev, cand_dev, S, B["selection"])
+        st = dict(st, incumbent_dev=S_inc)
     else:
         S = dev_eval(run_id, sid, cand, X)
         decision = select(rd / "dev" / st["incumbent"], rd / "dev" / sid, S, B["selection"], real=bool(real_new))
     ledger(run_id, kind="decision", session=sid, candidate=sid, incumbent=st["incumbent"], **decision)
+    I = st.get("incumbent_dev") or {}
     print(f"  dev: {None if S is None else (S['successes'], S['n'], S['t_success_mean'])} vs incumbent "
-          f"{st['incumbent_dev']['successes']}/{st['incumbent_dev']['n']} ({st['incumbent_dev']['t_success_mean']} s) -> "
+          f"{I.get('successes')}/{I.get('n')} ({I.get('t_success_mean')} s) -> "
           f"{'KEEP' if decision['keep'] else 'reject'}: {decision['why']}")
     if decision["keep"]:
         shutil.copytree(cand, rd / "checkpoints" / sid)
         state(run_id, incumbent=sid, iteration=it, incumbent_dev=S, last=dict(session=sid, decision=decision, dev=S))
+    elif B.get("real2sim"):
+        state(run_id, incumbent_dev=st.get("incumbent_dev"))
+        for d in CODE_DIRS:                                   # (back to the incumbent's code; notes, sim/, data stay)
+            if (ws / d).exists():
+                shutil.rmtree(ws / d)
+            if (inc_dir / d).exists():
+                shutil.copytree(inc_dir / d, ws / d)
+                (ws / d).chmod(0o755)
+                for p in (ws / d).rglob("*"):
+                    p.chmod(0o755 if p.is_dir() else 0o644)
+        state(run_id, iteration=it, last=dict(session=sid, decision=decision, dev=S))
     else:
         for d in CODE_DIRS:                                   # (back to the incumbent's code; notes, practice stay)
             if (ws / d).exists():

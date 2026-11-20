@@ -95,6 +95,8 @@ def _run_episode(skill_root, ep, out_dir, entry, sandbox, egl_device, wall_limit
     try:
         while not Path(str(sock) + ".ready").exists():
             if srv.poll() is not None:
+                if ep.get("selfsim") and (out / "result.json").exists():      # (real2sim: its own simulator failed)
+                    return json.load(open(out / "result.json"))
                 raise RuntimeError(f"world server exited ({srv.returncode}): {(out / 'server.log').read_text()[-1500:]}")
             if time.time() - t0 > 180:
                 raise RuntimeError("world server did not start in 180 s")
@@ -105,7 +107,11 @@ def _run_episode(skill_root, ep, out_dir, entry, sandbox, egl_device, wall_limit
         if ep.get("library", True) is False:                    # (skills from scratch: execution/guard.py)
             cmd.append("--no-library")
         if sandbox:
-            cmd = sbx.program_cmd(cmd, skill_root, prog_out, sock_dir)
+            hide = None
+            if ep.get("program_mirror") == "kit" or ep.get("selfsim"):     # (real2sim: nothing describes the scene)
+                from ..selfsim import hidden_paths
+                hide = hidden_paths()
+            cmd = sbx.program_cmd(cmd, skill_root, prog_out, sock_dir, hide=hide)
             henv = None
         else:
             henv = dict(env, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa")

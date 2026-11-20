@@ -1,0 +1,33 @@
+<mujoco>
+  <asset>
+    <material name="tabletop" rgba="0.22 0.22 0.24 1"/>
+    <material name="card" rgba="0.93 0.93 0.9 1"/>
+  </asset>
+  <worldbody>
+    <light name="top" pos="-0.3 0 2.2" dir="0 0 -1" diffuse="0.55 0.55 0.55" castshadow="false"/>
+    <geom name="table" type="box" size="0.6 0.6 0.015" pos="0 0 -0.015" material="tabletop"/>
+    <geom name="floor_plane" type="plane" size="3 3 0.1" pos="0 0 -0.86" rgba="0.5 0.5 0.5 1"/>
+    <body name="tape_red" pos="0.3 0.3 0.02"><freejoint/>
+      <geom type="cylinder" size="0.024 0.0095" pos="0 0 0.0095" rgba="0.8 0.1 0.1 1" mass="0.07" friction="0.8 0.01 0.001"/></body>
+    <body name="tape_yellow" pos="0.3 0.4 0.02"><freejoint/>
+      <geom type="cylinder" size="0.026 0.0095" pos="0 0 0.0095" rgba="0.9 0.8 0.1 1" mass="0.07"/></body>
+    <body name="tape_white" pos="0.4 0.3 0.02"><freejoint/>
+      <geom type="cylinder" size="0.025 0.0095" pos="0 0 0.0095" rgba="0.92 0.92 0.92 1" mass="0.07"/></body>
+    <body name="screwdriver" pos="0.4 0.4 0.02"><freejoint/>
+      <geom type="capsule" fromto="-0.08 0 0.012 0.0 0 0.012" size="0.012" rgba="0.8 0.2 0.1 1" mass="0.06"/>
+      <geom type="cylinder" fromto="0.0 0 0.012 0.10 0 0.012" size="0.003" rgba="0.7 0.7 0.7 1" mass="0.02"/></body>
+    <body name="block" pos="0.5 0.3 0.02"><freejoint/>
+      <geom type="box" size="0.03 0.02 0.02" pos="0 0 0.02" rgba="0.08 0.08 0.08 1" mass="0.05"/></body>
+    <body name="box" pos="0.3 -0.3 0.0"><freejoint/>
+      <geom name="box_floor" type="box" size="0.095 0.095 0.0015" pos="0 0 0.0015" material="card" mass="0.08"/>
+      <geom type="box" size="0.0015 0.095 0.029" pos="0.0935 0 0.029" material="card" mass="0.03"/>
+      <geom type="box" size="0.0015 0.095 0.029" pos="-0.0935 0 0.029" material="card" mass="0.03"/>
+      <geom type="box" size="0.095 0.0015 0.029" pos="0 0.0935 0.029" material="card" mass="0.03"/>
+      <geom type="box" size="0.095 0.0015 0.029" pos="0 -0.0935 0.029" material="card" mass="0.03"/>
+      <body name="lid" pos="0 -0.095 0.058">
+        <joint name="box_lid" type="hinge" axis="1 0 0" range="0 3.0" damping="0.05" frictionloss="0.02"/>
+        <geom type="box" size="0.095 0.095 0.0015" pos="0 0.095 0.0015" material="card" mass="0.03"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

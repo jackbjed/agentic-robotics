@@ -1,0 +1,18 @@
+# A crude hand-made reconstruction for the platform's tests (tests/test_real2sim.py): NOT the real scene's sizes, and
+# never shown to an agent.
+scene: scene.xml
+table: table
+objects:
+  red tape roll: tape_red
+  yellow tape roll: tape_yellow
+  white tape roll: tape_white
+  screwdriver: screwdriver
+  black block with holes: block
+box:
+  name: white box
+  body: box
+  lid_joint: box_lid
+  inside: [[-0.088, 0.088], [-0.088, 0.088], [-0.005, 0.055]]
+sensors:
+  depth: {noise: [0.001, 0.002], dropout: 0.01, edge_holes_px: 1}
+  calibration_error: {d415: [0.004, 0.8], L_wrist: [0.002, 0.5]}

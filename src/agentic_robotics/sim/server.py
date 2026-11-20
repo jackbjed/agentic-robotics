@@ -77,11 +77,17 @@ class World:
         self.spec, self.out = spec, Path(out)
         self.out.mkdir(parents=True, exist_ok=True)
         sc = spec.get("scene", {})
-        self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
-                                      colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"),
-                                      task=spec.get("family", "clutter-pick"), mounts=sc.get("mounts", "twin"),
-                                      arm_start=sc.get("arm_start"))
-        if spec.get("layout") is not None:                          # (a scene the agent wrote: sim/custom.py, practice)
+        if spec.get("selfsim"):                                     # (real2sim: the agent's own simulator, its layout)
+            from ..selfsim.world import SelfSimScene
+            self.scene = SelfSimScene(spec["selfsim"], spec.get("family", "clutter-pick-any"))
+        else:
+            self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
+                                          colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"),
+                                          task=spec.get("family", "clutter-pick"), mounts=sc.get("mounts", "twin"),
+                                          arm_start=sc.get("arm_start"))
+        if spec.get("selfsim"):
+            self.task = self.scene.reset_layout(spec["layout"], spec["seed"], idx=spec.get("idx", -1))
+        elif spec.get("layout") is not None:                        # (a scene the agent wrote: sim/custom.py, practice)
             self.task = self.scene.reset_layout(spec["layout"], spec["seed"])
         else:
             self.task = self.scene.reset(spec["split"], spec["level"], spec["idx"], spec["seed"])
@@ -143,7 +149,8 @@ class World:
         if cmd == "hello":
             r = self.arm.hello()
             return dict(r, ok=True, robot_time_limit_s=self.limit, t0=self.scene.t0, camera_mounts=self.scene.mounts,
-                        planner=self.scene.planner), []
+                        planner=self.scene.planner,
+                        mirror="kit" if (self.spec.get("program_mirror") == "kit" or self.spec.get("selfsim")) else None), []
         if cmd == "task":
             return dict(ok=True, task=self.task), []
         if cmd == "now":
@@ -245,7 +252,9 @@ class World:
         cv2.imwrite(str(base) + "_rgb.png", cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
         cv2.imwrite(str(base) + "_depth.png", np.where(np.isfinite(depth), np.clip(depth * 1000, 0, 65535), 0).astype(np.uint16))
         st = self.arm.state()
-        json.dump(dict(cam=cam, K=list(K), t=round(self.t_rel(), 4), q=st["q"], width=st["width"]), open(str(base) + ".json", "w"))
+        R, eye = self.scene.P.world.nominal_camera(cam)            # (the pose the program believes: the nominal mount)
+        json.dump(dict(cam=cam, K=list(K), t=round(self.t_rel(), 4), q=st["q"], width=st["width"], R=R.tolist(),
+                       eye=eye.tolist()), open(str(base) + ".json", "w"))
 
     # ------------------------------------------------------------------ the end
     def finish(self, h):
@@ -260,14 +269,19 @@ class World:
         sc.jd = sc.judge()
         S = sc.summary()
         nbad = int(self.scene.P.d.warning[1].number)                  # (mjWARN_BADQACC: MuJoCo reset the world mid-episode)
-        if nbad:
+        if nbad and self.spec.get("selfsim"):                       # (the agent's own simulator: its failure, counted)
+            S = dict(S, judge_category=S["category"], category="sim_unstable", success=False,
+                     sim_error=f"physics instability in your simulator: MuJoCo reset it {nbad}x (dof "
+                               f"{int(self.scene.P.d.warning[1].lastinfo)})")
+        elif nbad:
             self.platform_errors.append(f"physics instability: MuJoCo reset the simulation {nbad}x (dof "
                                         f"{int(self.scene.P.d.warning[1].lastinfo)})")
         self.f_actions.close(); self.f_events.close()
         if self.rec.video and self.rec.frames:
-            write_video(self.rec.frames, self.out / "video.mp4", self.rec.fps_v, S)
+            Sv = S if self.spec.get("record", {}).get("verdict", True) else None   # (real2sim's real world: no verdict)
+            write_video(self.rec.frames, self.out / "video.mp4", self.rec.fps_v, Sv)
             if self.spec.get("record", {}).get("keyframes", True):
-                write_keyframes(self.rec.frames, self.out / "keyframes.png", S)
+                write_keyframes(self.rec.frames, self.out / "keyframes.png", Sv)
         if self.platform_errors:                                    # (not the program's failure: void, re-run)
             S = dict(S, judge_category=S["category"], category="platform_error", success=False,
                      platform_errors=self.platform_errors[:5])
@@ -297,8 +311,9 @@ def write_video(frames, path, fps, S):
         cv2.putText(bar, txt, (8, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
         out.append(np.concatenate([bar, im], 0))
     last = out[-1].copy()
-    verdict = f"{S['category']}" + (f"  {S['t_success']:.1f} s" if S["t_success"] is not None else "")
-    cv2.putText(last, verdict, (8, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (120, 255, 120) if S["success"] else (255, 120, 120), 2, cv2.LINE_AA)
+    if S is not None:                                           # (S None: no verdict on the video)
+        verdict = f"{S['category']}" + (f"  {S['t_success']:.1f} s" if S["t_success"] is not None else "")
+        cv2.putText(last, verdict, (8, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (120, 255, 120) if S["success"] else (255, 120, 120), 2, cv2.LINE_AA)
     out += [last] * int(fps)
     h, w = out[0].shape[:2]; h -= h % 2; w -= w % 2
     p = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}",
@@ -323,7 +338,8 @@ def write_keyframes(frames, path, S, n=8):
     rows = [np.concatenate(tiles[k:k + 2], 1) for k in range(0, len(tiles), 2)]
     sheet = np.concatenate(rows, 0)
     bar = np.full((26, sheet.shape[1], 3), 25, np.uint8)
-    v = f"{S['category']}" + (f" at {S['t_success']:.1f} s" if S["t_success"] is not None else "") + f", max lift {S['max_lift_mm']} mm"
+    v = ("robot cameras: scene | wrist" if S is None else
+         f"{S['category']}" + (f" at {S['t_success']:.1f} s" if S["t_success"] is not None else "") + f", max lift {S['max_lift_mm']} mm")
     cv2.putText(bar, v, (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
     cv2.imwrite(str(path), cv2.cvtColor(np.concatenate([bar, sheet], 0), cv2.COLOR_RGB2BGR))
 
@@ -338,9 +354,14 @@ def main():
     spec = json.load(open(a.spec))
     try:
         world = World(spec, a.out)
-    except Exception:
+    except Exception as e:
         Path(a.out).mkdir(parents=True, exist_ok=True)
         (Path(a.out) / "server_error.txt").write_text(traceback.format_exc())
+        if spec.get("selfsim"):                                 # (real2sim: the agent's simulator failed to build or
+            json.dump(dict(success=False, category="sim_error", sim_error=f"{type(e).__name__}: {e}"[:800],   # reset)
+                           program_result=None, program_error=None, robot_time_s=0.0, t_success=None,
+                           episode={k: spec.get(k) for k in ("family", "split", "level", "idx", "seed")}),
+                      open(Path(a.out) / "result.json", "w"), indent=1)
         raise
     ctx = zmq.Context()
     sock = ctx.socket(zmq.REP)

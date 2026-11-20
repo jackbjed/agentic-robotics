@@ -34,8 +34,11 @@ def test_experiment_consistent(f):
     fams = list(X["tasks"]) + list(X.get("test_tasks") or [])
     for f_ in fams:
         TK.get(f_)
-    for f_ in X["tasks"]:
-        assert f_ in X["practice"]["families"], (f.name, f_)
+    if X.get("real2sim"):                                      # (practice in the agent's own simulator: the real
+        assert set(X["real2sim"]["families"]) == set(X["tasks"])   # world's ranges per task instead)
+    else:
+        for f_ in X["tasks"]:
+            assert f_ in X["practice"]["families"], (f.name, f_)
     for name, spec in X["suites"].items():
         assert set(spec.get("families", {})) <= set(fams), (f.name, name)
     L = X.get("learning") or {}

@@ -1,0 +1,13 @@
+# real2sim (docs/real2sim.md): episodes in the AGENT'S OWN simulator (its sim/: selfsim/world.py). The scene, its
+# colour and its sensor model are the agent's; what stays the platform's: the robot (the kit), its limits and timing,
+# SAM3, the arm starting at home, the time limits, the success checks, and the program planning with the kit.
+kind: clutter_pick
+scene: configs/scenes/clutter_pick.yaml
+robot: configs/robot/panda_twin.yaml
+cameras: configs/cameras/d415_rig_ideal.yaml    # (not used by the agent's simulator: its sim.yaml sensors are)
+perception: sam3
+object_set: real
+arm_start: home
+program_mirror: kit
+robot_time_limit_s: 60               # the server refuses motion after this much robot time (place-box: 90 s)
+wall_limit_s: 900                    # a program process is killed after this much wall time
