@@ -149,7 +149,7 @@ def main(argv=None):
     s = sub.add_parser("compare"); s.set_defaults(fn=cmd_compare)
     s.add_argument("a"); s.add_argument("b"); s.add_argument("--names", nargs=2, default=("A", "B"))
     s = sub.add_parser("learn"); s.set_defaults(fn=lambda a: __import__("agentic_robotics.learning.loop", fromlist=["cli"]).cli(a))
-    s.add_argument("action", choices=("init", "run", "status", "evaluate", "add-real", "extend"))
+    s.add_argument("action", choices=("init", "run", "status", "evaluate", "add-real", "extend", "progress"))
     s.add_argument("rest", nargs=argparse.REMAINDER)
     a = ap.parse_args(argv)
     a.fn(a)

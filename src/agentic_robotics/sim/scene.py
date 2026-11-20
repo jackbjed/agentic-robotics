@@ -177,7 +177,7 @@ class ClutterPickScene:
             lst = the[0] if len(the) == 1 else ", ".join(the[:-1]) + " and " + the[-1]
             return dict(kind="pack", objects=names, object=names[0], destination=t["destination"],
                         instruction=t["instruction"].format(objects=lst, destination=t["destination"]))
-        out = dict(kind=self.task_name.replace("-", "_"), object=ph,
+        out = dict(kind=t.get("kind", self.task_name.replace("-", "_")), object=ph,
                    instruction=t["instruction"].format(object=ph, destination=t.get("destination", "")))
         for k in ("destination", "part"):
             if t.get(k):

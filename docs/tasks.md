@@ -11,6 +11,7 @@ time). The program is told `ctx.task`: `kind`, `instruction`, `object` (its name
 | place | "Put the yellow tape roll into the white box." (the box open, the lid at 100–120°) | inside the box's walls, released (no finger touching it), the box upright, nothing else in the box, nothing off the table |
 | close-box | "Close the lid of the white box." (the lid open 70–120°) | the lid < 8°, the box upright and not shoved more than 10 cm |
 | pack | "Put the black cable, the yellow tape roll and the screwdriver into the white box, then close its lid." (2–3 objects, the box open, the lid at 100–120°; 180 s of robot time) | every named object inside the box's walls and released, the lid < 8°, the box upright, nothing else in the box, nothing off the table |
+| place-box | "Put the screwdriver into the white box." (1–3 other objects; the arm starts at its home joints, as on the real robot; 90 s of robot time) | as place |
 | press | "Press the button on top of the kettle's handle (it releases the kettle's lid)." | the kettle's lid > 30° open (the 16 mm button cap pressed 2.5 mm releases the latch; a spring opens the lid), the kettle upright |
 | insert | "Put the short wooden cylinder onto one of the vertical wooden sticks of the wooden stand with three vertical sticks: ..." | the cylinder (40 × 40 mm, 22 mm hole) on one of the 18 mm sticks (~17 cm tall), below its tip, released |
 
@@ -20,6 +21,10 @@ Objects:
   cable.
 - **pack:** 2–3 of the tape rolls, the black block with holes, the screwdriver and the coiled cable; `ctx.task`
   carries `objects` (their names) and `destination` ("white box").
+- **place-box:** practice and development with the red, yellow and white tape rolls, the coiled cable and the
+  screwdriver. `place-box-new` (held-out only) is the same task with the black block with holes and the glue bottle.
+  `ctx.task["kind"]` is "place" for both. A run of this task gives the agent `docs/task_place_box.md` as its tasks doc
+  (`learning.tasks_doc`), so it is told that it is tested on other objects, not which ones.
 - **the white box:** 191 × 193 × 58 mm, its lid hinged on one side.
 - **the kettle:** 1.36 kg, Ø14 cm, 18 cm tall, its button on top of the handle.
 - **the stand:** three 18 mm sticks, ~17 cm tall.

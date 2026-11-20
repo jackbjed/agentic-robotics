@@ -62,10 +62,18 @@ def test_add_real_and_prompts(tmp_path, monkeypatch):
     assert "secret" not in (real / "001_r_ok" / "result.json").read_text()          # (no machine paths copied)
     assert (real / "001_r_ok" / "frames" / "000_d415_rgb.png").exists() and (real / "README.md").exists()
     assert "joint" not in (real / "001_r_ok" / "actions.md").read_text().lower()
+    stopped = tmp_path / "r_stopped"                                   # (Ctrl-C: only the spec was saved)
+    fake_real_run(stopped, h, False)
+    r = json.loads((stopped / "result.json").read_text())
+    (stopped / "result.json").write_text(json.dumps(dict(error="no server record", interrupted=True, verdict=r["verdict"],
+                                                         spec=dict(r["spec"], mode="live", backend="robot", task=r["task"]))))
+    add_real("t1", [str(stopped)])
+    s3 = (real / "003_r_stopped" / "summary.md").read_text()
+    assert "the real robot, LIVE" in s3 and "operator stopped it" in s3 and "Pick up the red tape roll" in s3
     st = loop.state("t1")
-    assert len(st["real_pending"]) == 2
+    assert len(st["real_pending"]) == 3
     note = prompt_note(st["real_pending"])
-    assert "NEW REAL-ROBOT RUNS" in note and "2 live on the robot, 1 of them successes" in note
+    assert "NEW REAL-ROBOT RUNS" in note and "3 live on the robot, 1 of them successes" in note
     B = json.loads((rd / "budget.json").read_text())
     p = loop.session_prompt(3, st, B, loop.read_ledger("t1"), real_note=note, resumed=True)
     assert p.startswith("Session 3 (you are continuing") and "NEW REAL-ROBOT RUNS" in p

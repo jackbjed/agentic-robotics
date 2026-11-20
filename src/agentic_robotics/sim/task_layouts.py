@@ -8,6 +8,9 @@ by sim/custom.py's builder (the same rules as the agent's own scenes and the clu
   press      the kettle at any yaw whose lid-release button the hand reaches from above + 0-2 others
   insert     the stand with three sticks (their tips reachable from above) + the cylinder upright 8-16 cm away + 0-1 other
   pack       the open white box (lid 100-120 deg) + 2-3 of its targets 16-28 cm from its middle, >= 9 cm apart, + 0-1 other
+  place-box  the open white box (lid 100-120 deg) + the target + 1-3 others anywhere on the free table, 16-32 cm from the
+             box's middle, >= 9 cm apart (the target fixed per layout index, as pack's objects); the arm at its home
+             joints (as on the real robot), not over the target; place-box-new the same
 Splits train / val / test, 300 / 60 / 100 layouts (level 0 only), seeds per task and split (SEEDS).
 
     bin/ar layouts --task press --split train --n 300"""
@@ -22,7 +25,8 @@ import numpy as np
 
 from .. import paths, tasks as TK
 
-SEEDS = {"pick": 2101, "place": 2201, "close-box": 2301, "press": 2401, "insert": 2501, "pack": 2601}
+SEEDS = {"pick": 2101, "place": 2201, "close-box": 2301, "press": 2401, "insert": 2501, "pack": 2601, "place-box": 2701,
+         "place-box-new": 2801}
 SPLIT_OFF = {"train": 0, "val": 10, "test": 20}
 N_DEFAULT = {"train": 300, "val": 60, "test": 100}
 AREA_X, AREA_Y = (-0.43, -0.18), (-0.13, 0.17)
@@ -36,6 +40,17 @@ def _rand_xy(rng, margin=0.0):
 def _near(rng, c, r_lo, r_hi):
     a = rng.uniform(0, 2 * math.pi); r = rng.uniform(r_lo, r_hi)
     return [float(c[0] + r * math.cos(a)), float(c[1] + r * math.sin(a))]
+
+
+def _free_spot(rng, objs, b, k):
+    """(place-box) anywhere on the free table: clear of the box and its open lid, >= 9 cm from the others; the long
+    objects kept further from the area's edges (pack's rule)."""
+    mg = {"screwdriver": 0.10, "cable": 0.06}.get(k, 0.035)
+    for _ in range(200):
+        c = [float(rng.uniform(-0.49 + mg, -0.12 - mg)), float(rng.uniform(-0.18 + mg, 0.21 - mg))]
+        if 0.16 <= math.dist(c, b) <= 0.32 and all(math.dist(c, objs[o][:2]) >= 0.09 for o in objs if o != "box_white"):
+            return c
+    return _near(rng, b, 0.16, 0.28)
 
 
 def spec_for(task, rng, rng_choice=None):
@@ -83,6 +98,16 @@ def spec_for(task, rng, rng_choice=None):
             objs[k] = free_spot(k) + [yaw()]
         sp = dict(target=ts[0], targets=ts, objects=objs, joints=joints)
         return sp
+    elif task in ("place-box", "place-box-new"):
+        b = [float(rng.uniform(-0.37, -0.27)), float(rng.uniform(-0.05, 0.09))]
+        objs["box_white"] = b + [yaw()]; joints["box_lid_deg"] = float(rng.uniform(100, 120))
+        rc = rng_choice if rng_choice is not None else rng
+        t = str(rc.choice(td["targets"]))
+        others = [k for k in pool if k != t and k not in RED_CONFLICTS.get(t, [])]
+        extra = [str(k) for k in rc.choice(others, int(rc.integers(1, 4)), replace=False)]
+        for k in [t] + extra:
+            objs[k] = _free_spot(rng, objs, b, k) + [yaw()]
+        return dict(target=t, objects=objs, joints=joints, arm_start="home")   # (as the real robot starts)
     elif task == "press":
         t = "kettle"; c = [float(rng.uniform(-0.38, -0.24)), float(rng.uniform(-0.06, 0.12))]; objs[t] = c + [yaw()]
         for k in rng.choice(pool, int(rng.integers(0, 3)), replace=False):

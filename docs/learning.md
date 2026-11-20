@@ -105,8 +105,14 @@ ar learn run      --run-id ID [--resume-session]
 
   No machine paths or keys are copied.
 - **The next session's prompt** names the new runs (live / dry, version, outcome) and points to `real/`. The brief of
-  runs made from now on says that `real/` may appear. Selection is unchanged: a change for the real robot is kept only
-  if it also passes the simulated development evaluation.
+  runs made from now on says that `real/` may appear. `ar learn run --note "..."` adds the operator's own message to
+  the prompt (kept in the ledger).
+- **Selection after real feedback.** The simulated development suite cannot score a fix for the real robot, and it
+  may already be saturated (fidelity2_A_r1: 90/90). So a session given new real runs is kept if the dev suite does not
+  get worse: at most `selection.real.max_loss` (1) success fewer and at most `selection.real.max_dt_s` (1 s) slower
+  per success. A clear sim gain (`min_gain`) is kept as usual. The prompt and `real/README.md` state the rule.
+- **A run the operator stopped** (Ctrl-C) has no robot record; its mode, backend and task come from its spec, and its
+  keyframes from `video/scene.mp4`.
 - **The ledger** records every import (kind `real`), each budget extension (kind `budget`) and, per session, which
   real runs it was told about.
 
@@ -126,3 +132,27 @@ and the next iteration resumes it (`claude -p --resume <session id>`).
 
 Use the workspace record for comparisons across coding agents: another agent cannot resume a Claude session, but any
 agent reads the same `notes.md` and `real/`.
+
+## Progress curves: skill quality against the agent's work (2026-11-19)
+
+User: "shouldn't there be a way to measure how skills improve as the agent works? e.g. by evaluating them in a held
+out evaluation set throughout the agent's work, e.g. by measuring after N, 2N, 3N, 4N tokens".
+
+- **Snapshots during the sessions.** With `learning.progress: {every_output_tokens: N}` in the experiment (or
+  `ar learn run --progress-every N`), the session runs with `--include-partial-messages`. The runner reads each API
+  message's final usage as it ends (`message_delta`; the text deltas are dropped, not logged) and counts the run's
+  output tokens: thinking, text and tool calls, over every session of the run. Each time that count passes a multiple
+  of N, it copies the workspace's code (`skills/`, `helpers/`, `tests/`) to `runs/learning/ID/progress/tNNNNNNNN_sNN/`,
+  with a `.json` beside it: the token count, the session's thinking tokens, the practice episodes used so far, the
+  wall time. It also copies the code at each session's end. The copy is what the agent would hand over if stopped
+  there, half-finished edits included. The agent does not know about it.
+- **Scoring them (`ar learn progress --run-id ID [--suite progress]`, the operator, after learning).** Every snapshot,
+  and the initial skill at 0 tokens, runs on a protected suite that no session sees (the experiment's `progress`
+  suite, else `heldout`). Identical code (tree hash) is scored once. Model calls use the tag `ID-progress` and the
+  budget `vlm.progress_usd`. Output: `progress/curve.md` (table), `curve.json`, `curve.svg` (success % against
+  thousands of output tokens, per task family, with the session ends marked).
+- **Why output tokens.** They measure the agent's own work, its reasoning included, and are comparable across
+  sessions and agents. Input tokens mostly measure how often the context is re-read. The table also gives practice
+  episodes and wall time, for curves against those.
+- **Cost.** One suite run per distinct version: with N = 50k and about 350k output tokens per run, roughly 8 versions ×
+  the suite's episodes. The model calls are capped by `progress_usd`.

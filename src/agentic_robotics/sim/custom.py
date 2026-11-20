@@ -7,6 +7,7 @@
       tape_yellow: [-0.30, 0.075, 0]
       hole_block:  [-0.25, 0.020, 45]
     arm_start: [-0.30, 0.00, 0.22, 0] # optional: fingertip x, y, z (m), hand yaw (deg); default over the target, 22 cm up
+                                      # or "home": the arm at its home joints (the real robot's start)
 
 Checks (the layout generator's, sim/layouts.py): 2-6 objects of the condition's set, the target among them; every
 outline inside the work area (x -0.49..-0.12, y -0.18..0.21) and no two overlapping; the hand reachable at its start
@@ -63,8 +64,8 @@ def parse(spec, task="clutter-pick"):
             raise SceneError(f"{k}: [x, y, yaw_deg] numbers")
         pose[k] = (float(v[0]), float(v[1]), math.radians(float(v[2])))
     st = spec.get("arm_start")
-    if st is not None and not (isinstance(st, (list, tuple)) and len(st) == 4 and all(isinstance(x, (int, float)) for x in st)):
-        raise SceneError("arm_start: [x, y, z, yaw_deg]")
+    if st is not None and st != "home" and not (isinstance(st, (list, tuple)) and len(st) == 4 and all(isinstance(x, (int, float)) for x in st)):
+        raise SceneError("arm_start: [x, y, z, yaw_deg] or \"home\"")
     joints = {}
     for jn, v in (spec.get("joints") or {}).items():
         if jn not in JOINTS or not isinstance(v, (int, float)):
@@ -100,14 +101,20 @@ def build(P, spec, task="clutter-pick"):
     for jn, v in joints.items():
         d.qpos[m.joint(jn).qposadr[0]] = v
     P.mj.mj_forward(m, d)
-    if st is None:
-        top = max(float(P.footprint(k)[1]) for k in pose if np.linalg.norm(np.array(pose[k][:2]) - pose[target][:2]) < 0.12)
-        st_tip, st_yaw = np.r_[pose[target][:2], min(0.30, max(0.22, top + 0.08))], 0.0
+    if st == "home":                                              # (the real robot's start: its home joints, the
+        from .twin import TIP                                     # whole table in view; nothing about the target)
+        q = P.teleport_arm(None, 0.0, q=P.S.q_home)
+        R = d.site_xmat[P.S.tcp].reshape(3, 3)
+        st_tip, st_yaw = d.site_xpos[P.S.tcp] + R[:, 2] * TIP, math.atan2(R[1, 0], R[0, 0])
     else:
-        st_tip, st_yaw = np.array(st[:3], float), math.radians(float(st[3]))
-    if not (0.12 <= st_tip[2] <= 0.30 and BOUNDS_X[0] - 0.05 <= st_tip[0] <= BOUNDS_X[1] + 0.05 and BOUNDS_Y[0] - 0.05 <= st_tip[1] <= BOUNDS_Y[1] + 0.05):
-        raise SceneError("arm_start must be over the work area, fingertips 12-30 cm up")
-    q = P.teleport_arm(st_tip, st_yaw)
+        if st is None:
+            top = max(float(P.footprint(k)[1]) for k in pose if np.linalg.norm(np.array(pose[k][:2]) - pose[target][:2]) < 0.12)
+            st_tip, st_yaw = np.r_[pose[target][:2], min(0.30, max(0.22, top + 0.08))], 0.0
+        else:
+            st_tip, st_yaw = np.array(st[:3], float), math.radians(float(st[3]))
+        if not (0.12 <= st_tip[2] <= 0.30 and BOUNDS_X[0] - 0.05 <= st_tip[0] <= BOUNDS_X[1] + 0.05 and BOUNDS_Y[0] - 0.05 <= st_tip[1] <= BOUNDS_Y[1] + 0.05):
+            raise SceneError("arm_start must be over the work area, fingertips 12-30 cm up")
+        q = P.teleport_arm(st_tip, st_yaw)
     if q is None:
         raise SceneError("the hand cannot be at arm_start (out of the arm's reach / limits)")
     P.mj.mj_forward(m, d)

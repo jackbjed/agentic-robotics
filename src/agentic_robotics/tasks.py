@@ -16,6 +16,11 @@ judge_*; every 1/30 s of robot time, success = the condition held for 1 s):
   pack          2-3 named objects into the open white box, then its lid closed: every one inside its walls, released,
                 the lid < 8 deg, the box upright, nothing else in it, nothing off the table (the real robot's box task,
                 2026-11-19); 180 s of robot time
+  place-box     the named object into the open white box (place's check), among 1-3 other objects: the red, yellow and
+                white tape rolls, the cable, the screwdriver; 90 s of robot time (2026-11-19, user: "learn pick and place
+                of the red tape, yellow tape, white tape, cable, screwdriver ... in the box ... tested on other objects")
+  place-box-new the same task with objects place-box never practises: the black block with holes, the glue bottle
+                (held-out only: in no practice or development suite). Both tell the program kind "place".
 press and insert use the multi-task model (scripts/build_tasks_model.py); their scenes have plain MuJoCo colour only (no
 scans of the kettle, stand or cylinder in the splat compositor)."""
 from __future__ import annotations
@@ -35,6 +40,13 @@ TASKS = {
                  targets=["tape_red", "tape_yellow", "tape_white", "hole_block", "screwdriver", "cable"], fixed=["box_white"],
                  instruction="Put {objects} into the {destination}, then close its lid.", destination="white box",
                  time_limit_s=180.0),
+    "place-box": dict(object_set="real", banks="layouts_place_box", judge="in_box", entry="skills/place.py", levels=[0],
+                      targets=["tape_red", "tape_yellow", "tape_white", "cable", "screwdriver"], fixed=["box_white"],
+                      kind="place", instruction="Put the {object} into the {destination}.", destination="white box",
+                      time_limit_s=90.0),
+    "place-box-new": dict(object_set="real", banks="layouts_place_box_new", judge="in_box", entry="skills/place.py",
+                          levels=[0], targets=["hole_block", "glue"], fixed=["box_white"], kind="place",
+                          instruction="Put the {object} into the {destination}.", destination="white box", time_limit_s=90.0),
     "press": dict(object_set="tasks", banks="layouts_press", judge="kettle_open", entry="skills/press.py", levels=[0],
                   targets=["kettle"], colour_only="mujoco",
                   instruction="Press the button on top of the {object}'s handle (it releases the kettle's lid).",

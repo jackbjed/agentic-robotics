@@ -15,6 +15,8 @@ when the window fills; the session id stays the same and `total_cost_usd` counts
   --disable-slash-commands         no skills or commands
   --no-session-persistence         (unless resuming) the transcript is kept only in this run's log (stream-json)
   --max-budget-usd B               the session's spending cap (the CLI's own accounting, API-equivalent dollars)
+  --include-partial-messages       (only with progress snapshots) each API message's final token usage as it ends;
+                                   the runner keeps those events (message_delta) and drops the text deltas
 Verified 2026-11-18 (docs/isolation.md): reads/writes outside the workspace and any other shell command, also chained
 after the allowed one, were denied. Limits of this isolation: docs/isolation.md."""
 from __future__ import annotations
@@ -23,6 +25,7 @@ import json
 import os
 import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -47,8 +50,9 @@ def cli_info():
         return dict(error=f"{type(e).__name__}: {e}"[:200])
 
 
-def command(prompt, system_append, model, max_budget_usd, effort=None, persist=False, resume=None):
-    """persist: the conversation is saved (it can be resumed); resume: a saved session's id to continue."""
+def command(prompt, system_append, model, max_budget_usd, effort=None, persist=False, resume=None, partial=False):
+    """persist: the conversation is saved (it can be resumed); resume: a saved session's id to continue; partial: the
+    stream carries each message's final usage (progress snapshots)."""
     practice = str(paths.ROOT / "bin" / "ar-practice")
     cmd = [claude_bin(), "-p", prompt, "--output-format", "stream-json", "--verbose", "--restricted",
            "--tools", TOOLS, "--allowedTools", "Read", "Edit", "Write", "Glob", "Grep", f"Bash({practice} *)", f"Bash({practice})",
@@ -59,6 +63,8 @@ def command(prompt, system_append, model, max_budget_usd, effort=None, persist=F
         cmd.insert(cmd.index("--max-budget-usd"), "--no-session-persistence")
     if resume:
         cmd += ["--resume", str(resume)]
+    if partial:
+        cmd.insert(cmd.index("--verbose") + 1, "--include-partial-messages")
     if model:
         cmd += ["--model", model]
     if effort:
@@ -67,10 +73,13 @@ def command(prompt, system_append, model, max_budget_usd, effort=None, persist=F
 
 
 def run_session(workspace, prompt, system_append, log_dir, model=None, max_budget_usd=2.0, wall_limit_s=1800,
-                effort=None, env_extra=None, persist=False, resume=None):
-    """Run one session to its end (or the wall limit). -> dict(cost, usage, turns, duration, denials, init info, exit)."""
+                effort=None, env_extra=None, persist=False, resume=None, progress=None):
+    """Run one session to its end (or the wall limit). -> dict(cost, usage, turns, duration, denials, init info, exit).
+    progress: dict(every=N, offset=the run's output tokens before this session, snapshot=f(cum_tokens, info)): f is
+    called each time the run's output tokens (thinking included) pass a multiple of N (the stream's per-message usage)."""
     log_dir = Path(log_dir); log_dir.mkdir(parents=True, exist_ok=True)
-    cmd = command(prompt, system_append, model, max_budget_usd, effort, persist=persist, resume=resume)
+    cmd = command(prompt, system_append, model, max_budget_usd, effort, persist=persist, resume=resume,
+                  partial=progress is not None)
     env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "VIRTUAL_ENV_PROMPT", "PYTHONPATH", "CONDA_PREFIX")}
     env.update(env_extra or {})
     tok = ((paths.local().get("secrets") or {}).get("claude_oauth_token_file"))
@@ -83,7 +92,14 @@ def run_session(workspace, prompt, system_append, log_dir, model=None, max_budge
     (log_dir / "prompt.md").write_text(prompt); (log_dir / "system_append.md").write_text(system_append)
     t0 = time.time()
     out = open(log_dir / "claude.jsonl", "w"); err = open(log_dir / "claude.stderr", "w")
-    p = subprocess.Popen(cmd, cwd=str(workspace), env=env, stdout=out, stderr=err, stdin=subprocess.DEVNULL)
+    acct = dict(output_tokens=0, thinking_tokens=0, messages=0, snapshots=0)
+    if progress is None:
+        p = subprocess.Popen(cmd, cwd=str(workspace), env=env, stdout=out, stderr=err, stdin=subprocess.DEVNULL)
+    else:
+        p = subprocess.Popen(cmd, cwd=str(workspace), env=env, stdout=subprocess.PIPE, stderr=err, stdin=subprocess.DEVNULL,
+                             text=True, bufsize=1)
+        pump = threading.Thread(target=_pump, args=(p.stdout, out, acct, progress, t0), daemon=True)
+        pump.start()
     killed = False
     try:
         p.wait(timeout=wall_limit_s)
@@ -93,12 +109,59 @@ def run_session(workspace, prompt, system_append, log_dir, model=None, max_budge
             p.wait(timeout=30)
         except subprocess.TimeoutExpired:
             p.kill(); p.wait()
+    if progress is not None:
+        pump.join(timeout=120)
     out.close(); err.close()
     res = parse_stream(log_dir / "claude.jsonl")
+    if progress is not None:
+        res["progress"] = dict(acct, every=progress["every"], offset=progress.get("offset", 0))
     res.update(exit=p.returncode, killed_at_wall_limit=killed, wall_s=round(time.time() - t0, 1),
                persisted=bool(persist or resume), resumed_from=resume)
     json.dump(res, open(log_dir / "session.json", "w"), indent=1)
     return res
+
+
+def _pump(src, out, acct, progress, t0):
+    """The session's stream -> claude.jsonl, without the text deltas; each message's final usage (message_delta) is
+    counted and logged as a compact "usage_delta" line, and the snapshot callback runs at every multiple of N."""
+    every, off = int(progress["every"]), int(progress.get("offset", 0))
+    acct["next"] = (off // every + 1) * every
+    for line in src:
+        try:
+            _pump_line(line, out, acct, progress, t0, off)
+        except Exception as ex:                              # (never stop draining the pipe: the CLI would block)
+            out.write(line)
+            out.write(json.dumps(dict(type="pump_error", error=f"{type(ex).__name__}: {ex}"[:300])) + "\n")
+
+
+def _pump_line(line, out, acct, progress, t0, off):
+    try:
+        e = json.loads(line)
+    except json.JSONDecodeError:
+        out.write(line); return
+    if e.get("type") != "stream_event":
+        out.write(line); out.flush(); return
+    ev = e.get("event") or {}
+    if ev.get("type") != "message_delta":                  # (text deltas, block starts / stops: dropped)
+        return
+    u = ev.get("usage") or {}
+    acct["output_tokens"] += int(u.get("output_tokens") or 0)
+    acct["thinking_tokens"] += int((u.get("output_tokens_details") or {}).get("thinking_tokens") or 0)
+    acct["messages"] += 1
+    cum = off + acct["output_tokens"]
+    out.write(json.dumps(dict(type="usage_delta", t=round(time.time() - t0, 1), usage=u, session_output_tokens=acct["output_tokens"],
+                              run_output_tokens=cum)) + "\n")
+    out.flush()
+    while cum >= acct["next"]:
+        nxt = acct["next"]
+        try:
+            progress["snapshot"](nxt, dict(run_output_tokens=cum, session_output_tokens=acct["output_tokens"],
+                                           session_thinking_tokens=acct["thinking_tokens"], messages=acct["messages"],
+                                           wall_s=round(time.time() - t0, 1)))
+            acct["snapshots"] += 1
+        except Exception as ex:                              # (a failed copy must not stall the session's stream)
+            out.write(json.dumps(dict(type="snapshot_error", at=nxt, error=f"{type(ex).__name__}: {ex}"[:300])) + "\n")
+        acct["next"] = nxt + int(progress["every"])
 
 
 def parse_stream(path):

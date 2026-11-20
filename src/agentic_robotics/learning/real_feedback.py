@@ -39,9 +39,11 @@ need:
 **Dry runs** sent no motion. The arm stayed where it was, so they show the perception and the first plans on real
 images, not the outcome.
 
-**Live runs** moved the arm. Their verdict is the operator's.
+**Live runs** moved the arm. Their verdict is the operator's. A run the operator stopped (Ctrl-C) has no robot
+record (no trajectory table): its frames, plan images, events and video are what remains.
 
-A change for the real robot must still pass the simulated development evaluation to be kept.
+After a session with new real runs, your version is kept if the simulated development evaluation does not get
+worse: at most one success fewer, at most 1 s slower per success.
 """
 
 
@@ -143,6 +145,9 @@ def add_real(run_id, dirs):
         if not rf.exists():
             raise SystemExit(f"{src}: no result.json (a real/run episode directory?)")
         r = json.loads(rf.read_text())
+        for k_ in ("mode", "backend", "task"):               # (a run stopped with Ctrl-C: only its spec was saved)
+            if r.get(k_) is None and (r.get("spec") or {}).get(k_) is not None:
+                r[k_] = r["spec"][k_]
         h = (r.get("spec") or {}).get("skills_hash")
         v = vers.get(h)
         version = (f"{v}" + (" (the current version)" if v == incumbent else "")) if v else "not a version of this run's skill"
@@ -161,7 +166,8 @@ def add_real(run_id, dirs):
         for sub in ("program", "plan", "frames"):
             if (src / sub).exists():
                 shutil.copytree(src / sub, out / sub, ignore=shutil.ignore_patterns("__pycache__"))
-        vid = src / "episode.mp4" if (src / "episode.mp4").exists() else (src / "twin" / "video.mp4")
+        vid = next((v for v in (src / "episode.mp4", src / "twin" / "video.mp4", src / "video" / "scene.mp4") if v.exists()),
+                   src / "episode.mp4")
         if vid.exists():
             _keyframes(vid, out / "keyframes.png")
         for p in out.rglob("*"):
@@ -185,5 +191,6 @@ def prompt_note(pending):
                       f"{p['outcome'][:90]}" for p in pending)
     return (f" NEW REAL-ROBOT RUNS since your last session ({len(pending)}, {len(live)} live on the robot, {ok} of them "
             f"successes), in the workspace's real/ (read real/README.md, then each run's summary.md): {lines}. Use them "
-            f"to make the skill work on the real robot as well as in simulation; a change must still pass the simulated "
-            f"development evaluation to be kept.")
+            f"to make the skill work on the real robot as well as in simulation. After this session your version is kept "
+            f"if the simulated development evaluation does not get worse (at most one success fewer, at most 1 s slower "
+            f"per success).")

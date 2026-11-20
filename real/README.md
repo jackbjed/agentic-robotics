@@ -62,8 +62,12 @@ real/run summary                                   # results/summary.md: every e
 - **Skills:**
   - from a learning run, a checkpoint, e.g. `runs/learning/opusA_evalset_r1/checkpoints/s01`;
   - from scratch: add `--library off`;
-  - with a model call: add `--vlm configs/experiments/<exp>.yaml --vlm-usd X` (at most one call per episode;
-    ledger tag `real`).
+  - **Astra is on by default** (2026-11-19): at most one call per episode, with the vlm block of the skill's own
+    learning run (`runs/learning/<run>/experiment.json`), else `configs/experiments/fidelity2_A.yaml`'s, or
+    `--vlm EXPERIMENT`. `--vlm-usd X` caps all real runs' calls together (ledger tag `real`, default $2). `--no-vlm`
+    turns it off.
+  - **Put it in the box:** `--task place` tells the program "Put the <object> into the white box." (entry
+    `skills/place.py`). The default, `--task pick`, tells it "Pick up the <object> and lift it."
 - **Rehearsal without the robot:** `--backend twin [--split val --level 1 --idx 0 --seed 13]` runs the same path on the
   simulator at the calibrated cameras, with its judge.
 - **Robot backend without the robot:** start a copy of the arm server with `--fake` on another port, then pass

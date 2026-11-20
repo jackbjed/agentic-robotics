@@ -3,13 +3,18 @@
   real/run check [--backend robot|twin] [--object "red tape roll"]
         no motion: the arm server's answer and the arm's state, a frame from each camera, SAM3 on the scene frame for
         the object (masks drawn): results/check_<time>/
-  real/run episode --skills DIR --object "red tape roll" [--mode dry|live] [--tag NAME] [--library on|off]
-        [--time-limit S] [--max-trajectories N] [--speed S] [--sam3 ours|robot] [--vlm EXPERIMENT --vlm-usd X]
+  real/run episode --skills DIR --object "red tape roll" [--task pick|place] [--mode dry|live] [--tag NAME]
+        [--library on|off] [--time-limit S] [--max-trajectories N] [--speed S] [--sam3 ours|robot]
+        [--vlm EXPERIMENT | --no-vlm] [--vlm-usd X]
         [--backend twin --split val --level 1 --idx 0 --seed 13 --task-config configs/tasks/clutter_pick_A_rig.yaml]
         ONE episode: the skill program in its sandbox, real/server.py for the robot (or the twin). dry (the default)
         sends no motion; live sends it (robot: only with the operator at the E-stop, typed confirmation, the arm server
         started with --allow-motion and, by default, confirming every trajectory). After a live robot episode the
         operator gives the verdict. Writes results/<time>_<backend>_<mode>_<tag>/ (README.md: what is in it).
+        Astra is ON by default (the skill's one call per episode): the vlm block of the skill's learning run
+        (runs/learning/<run>/experiment.json), else configs/experiments/fidelity2_A.yaml's; --vlm-usd caps ALL real
+        runs' model spending together (ledger tag 'real', default $2); --no-vlm turns it off.
+        --task place: "Put the <object> into the white box." (skills/place.py), else "Pick up the <object> and lift it."
   real/run verdict RESULTS_DIR success|fail [--knocked-off] [--intervened] [--note ...]
         the operator's verdict on a live robot episode, after it (or to correct it)
   real/run summary [RESULTS_DIR ...]
@@ -96,7 +101,35 @@ def arm_hello(port=None, timeout_s=5.0):
         s.close(); c.term()
 
 
+def vlm_block(a, skills):
+    """The skill's one model call per episode (on by default): the vlm block of the learning run the skill comes from,
+    else of --vlm EXPERIMENT (default fidelity2_A). None with --no-vlm or a block without a model."""
+    if a.no_vlm:
+        return None
+    V = None
+    if a.vlm:
+        V = paths.load_yaml(a.vlm).get("vlm")
+    else:
+        for d in [skills] + list(skills.parents):              # (runs/learning/<run>/checkpoints/sNN or candidates/sNN)
+            if (d / "experiment.json").exists() and (d / "budget.json").exists():
+                V = json.loads((d / "experiment.json").read_text()).get("vlm")
+                break
+        if V is None:
+            V = paths.load_yaml(ROOT / "configs" / "experiments" / "fidelity2_A.yaml").get("vlm")
+    if not (V or {}).get("enabled"):
+        return None
+    V = dict(V, tag="real", run_usd=a.vlm_usd)
+    V["max_calls_per_episode"] = min(int(V.get("max_calls_per_episode", 1)), 1)
+    return V
+
+
+def vlm_spent(tag):
+    from agentic_robotics.perception.vlm import spent
+    return spent(tag)
+
+
 def run_episode(a):
+    a.entry = a.entry or ("skills/place.py" if a.task == "place" else "skills/pick.py")
     hi = {}
     if a.backend == "robot":
         from agentic_robotics.sim import twin  # noqa: F401
@@ -124,13 +157,15 @@ def run_episode(a):
     if a.backend == "robot":
         if not a.object:
             raise SystemExit("--object is needed on the robot (the target's name, e.g. 'red tape roll')")
-        task = dict(kind="clutter_pick", instruction=f"Pick up the {a.object} and lift it.", object=a.object)
+        task = (dict(kind="place", instruction=f"Put the {a.object} into the white box.", object=a.object,
+                     destination="white box") if a.task == "place" else
+                dict(kind="clutter_pick", instruction=f"Pick up the {a.object} and lift it.", object=a.object))
     elif a.object:
         raise SystemExit("--object: the twin's layout names its own target")
-    V = None
-    if a.vlm:
-        V = dict(paths.load_yaml(a.vlm)["vlm"], tag="real", run_usd=a.vlm_usd)
-        V["max_calls_per_episode"] = min(int(V.get("max_calls_per_episode", 1)), 1)
+    V = vlm_block(a, skills)
+    if V is not None:
+        print(f"Astra on: at most one call per episode; all real runs together capped at ${a.vlm_usd} (spent so far "
+              f"${vlm_spent('real'):.3f}); --no-vlm turns it off", flush=True)
     spec = dict(mode=a.mode, backend=a.backend, task=task, robot_time_limit_s=a.time_limit, max_trajectories=a.max_trajectories,
                 sam3=a.sam3, vlm=V, record=not a.no_record, depth_fps=a.depth_fps, port=a.port, replay_frames=a.replay_frames,
                 twin=dict(task_config=a.task_config, split=a.split, level=a.level, idx=a.idx, seed=a.seed) if a.backend == "twin" else None,
@@ -333,7 +368,8 @@ def main():
     s.add_argument("--port", type=int, default=None, help="the arm server's port (default rig.json's)")
     s.add_argument("--replay-frames", help="tests: a real run's frames/ dir instead of the cameras")
     s = sub.add_parser("episode")
-    s.add_argument("--skills", required=True); s.add_argument("--entry", default="skills/pick.py")
+    s.add_argument("--skills", required=True)
+    s.add_argument("--entry", default=None, help="default skills/pick.py (--task place: skills/place.py)")
     s.add_argument("--object", help="robot: the target's name, as the task names it ('red tape roll')")
     s.add_argument("--mode", default="dry", choices=("dry", "live"))
     s.add_argument("--backend", default="robot", choices=("robot", "twin"))
@@ -343,8 +379,10 @@ def main():
     s.add_argument("--speed", type=float, default=None, help="RealSim time scale (default rig.json's: 0.5)")
     s.add_argument("--wall-limit", type=float, default=1800.0)
     s.add_argument("--sam3", default="ours", choices=("ours", "robot"), help="ours: :8151/:8154 (bin/ar services); robot: :8131/:8134")
-    s.add_argument("--vlm", metavar="EXPERIMENT", help="allow the skill's one Astra call, with this experiment's vlm block")
-    s.add_argument("--vlm-usd", type=float, default=0.0, help="the cap for all real runs' model calls (ledger tag 'real')")
+    s.add_argument("--task", default="pick", choices=("pick", "place"), help="robot: pick = lift it; place = into the white box")
+    s.add_argument("--vlm", metavar="EXPERIMENT", help="the vlm block of this experiment (default: the skill's run's, else fidelity2_A)")
+    s.add_argument("--no-vlm", action="store_true", help="no model call (Astra is on by default)")
+    s.add_argument("--vlm-usd", type=float, default=2.0, help="the cap for ALL real runs' model calls together (ledger tag 'real')")
     s.add_argument("--no-record", action="store_true"); s.add_argument("--depth-fps", type=float, default=0.0)
     s.add_argument("--port", type=int, default=None, help="the arm server's port (default rig.json's)")
     s.add_argument("--replay-frames", help="robot backend, tests: a real run's frames/ dir instead of the cameras")

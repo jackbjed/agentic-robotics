@@ -1,0 +1,83 @@
+# Put the named object into the white box, skills from scratch (2026-11-19, user: "launch a new agent session by
+# telling to the agent in the prompt that it's allowed to call astra to point at objects (one call per episode max) and
+# practice on more objects: ... it has to learn pick and place of the red tape, yellow tape, white tape, cable,
+# screwdriver, and the place should be in the box, and tell the agent it will be tested on other objects. the
+# evaluation tests given to it should reflect that"; "the new session should start with no skills at all").
+# The agent: Opus 5.5, medium effort, an EMPTY start (no skill library: execution/guard.py), condition A (splat colour,
+# the real objects, SAM3, the fitted D415 depth, the real rig's calibrated camera poses). The arm starts at its home
+# joints, as on the real robot (the clutter-pick layouts start it over the target).
+# Practice and development: place-box (its five objects). Held-out: place-box on new layouts AND place-box-new (the
+# black block with holes, the glue bottle: objects it never practises on); the agent is told it is tested on other
+# objects, not which. Progress: the code every 50k agent output tokens on a protected suite (ar learn progress).
+name: place_box_A
+task: configs/tasks/clutter_pick_A_rig.yaml
+skill: initial_skills/empty_place
+entry: skills/place.py
+tasks: [place-box]
+test_tasks: [place-box-new]
+suites:
+  dev:
+    families:
+      place-box:     {split: val, n: 40, seed: 11}
+  heldout:
+    protected: true
+    families:
+      place-box:     {split: test, n: 50, seed: 5}
+      place-box-new: {split: test, n: 60, seed: 5}
+  progress:
+    protected: true
+    families:
+      place-box:     {split: test, idx: [50, 74], seed: 7}
+      place-box-new: {split: test, idx: [60, 84], seed: 7}
+  smoke:
+    families:
+      place-box:     {split: val, idx: [50, 52], seed: 13}
+practice:
+  split: train
+  seed_range: [100, 999]
+  families:
+    place-box: {levels: [0], idx_range: [0, 275]}
+vlm:                             # one Astra call per episode (ledger tags place_box_A_r1 / -dev / -progress / -heldout)
+  enabled: true
+  model: astra
+  max_calls_per_episode: 1
+  max_usd_per_episode: 0.03
+  run_usd: 4.0                   # practice: about one call per episode (~$0.011)
+  dev_usd: 1.5
+  progress_usd: 4.0              # the progress snapshots, 48 episodes each
+  heldout_usd: 1.5               # the final held-out evaluation (110 episodes)
+learning:
+  library: false
+  tasks_doc: task_place_box.md   # the workspace's docs/tasks.md (only this task: no other tasks' objects)
+  task_text: >-
+    **The task (put it in the box).** The program is told to put one named object into the open white box: "Put the
+    <object> into the white box." (ctx.task: kind "place", "object" = its name, "destination" = "white box"). The box
+    stands open on the table with the object and 1-3 other objects around it; the arm starts at its home pose, as on
+    the real robot. Practice and development use five objects: the red tape roll, the yellow tape roll, the white tape
+    roll, the coiled black cable and the screwdriver. **You will also be tested on other objects, not in this list
+    (in simulation and on the real robot): the skill must find the object it is told by name and put it in the box,
+    not only these five.** It succeeds when the object is inside the box's walls, released (no finger touching it),
+    the box upright, nothing else put in the box and nothing knocked off the table, for 1 second. The robot refuses to
+    move after 90 s of robot time. **You may call Astra to point at objects: at most one call per episode**
+    (`ctx.vlm`), for example to point at the named object in the scene camera's first frame.
+  prompt_note: >-
+    Your goal: a skill that picks up the object it is told and puts it into the white box. Practice uses the red,
+    yellow and white tape rolls, the cable and the screwdriver; you will also be tested on other objects, so the skill
+    must find the object it is told by name. You may call Astra (ctx.vlm, at most one call per episode) to point at
+    objects.
+  test_note: "Your version is evaluated on new layouts: with the five practice objects, and with other objects that you never practise on."
+  resume_session: true
+  progress: {every_output_tokens: 50000}
+  dev_suite: dev
+  dev_workers: 16
+  practice_workers: 12
+  practice_episodes_per_session: 200
+  practice_episodes_total: 400
+  practice_max_per_call: 12
+  practice_timeout_note: true
+  model: claude-opus-5-5
+  effort: medium
+  agent_usd_per_session: 25.0    # the CLI's API-equivalent estimate (the sessions run on the subscription login)
+  agent_usd_total: 50.0
+  agent_wall_s_per_session: 14400
+  selection: {min_gain: 2, min_dt_s: 0.5}
