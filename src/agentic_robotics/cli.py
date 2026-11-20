@@ -100,10 +100,10 @@ def cmd_services(a):
 def cmd_layouts(a):
     if a.task and a.task != "clutter-pick":
         from .sim.task_layouts import generate as gen_task
-        r = gen_task(a.task, a.split, a.n, workers=a.workers)
+        r = gen_task(a.task, a.split, a.n, workers=a.workers, object_set=a.object_set)
     else:
         from .sim.layouts import generate
-        r = generate(a.object_set, a.split, a.level, a.n, workers=a.workers)
+        r = generate(a.object_set or "substitute", a.split, a.level, a.n, workers=a.workers)
     print(json.dumps(r))
 
 
@@ -143,7 +143,8 @@ def main(argv=None):
     s = sub.add_parser("services"); s.set_defaults(fn=cmd_services)
     s.add_argument("action", choices=("start", "stop", "status")); s.add_argument("names", nargs="*")
     s = sub.add_parser("layouts"); s.set_defaults(fn=cmd_layouts)
-    s.add_argument("--object-set", default="substitute"); s.add_argument("--split", required=True)
+    s.add_argument("--object-set", default=None, help="clutter-pick: substitute (default); --task: simple = simple_sim's")
+    s.add_argument("--split", required=True)
     s.add_argument("--level", type=int, default=0); s.add_argument("--n", type=int)
     s.add_argument("--task", default=None, help="pick | place | close-box | press | insert (sim/task_layouts.py)")
     s.add_argument("--workers", type=int, default=32)

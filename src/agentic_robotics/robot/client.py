@@ -95,8 +95,14 @@ class SocketCams:
 def make_robot(sock_path):
     from ..sim import twin
     link = Link(sock_path)
-    mounts = link.call("hello")[0].get("camera_mounts", "twin")   # (the poses the program believes: as the world's)
-    S = twin.RealSim(SocketArm(link), SocketCams(link), twin.load_rig(), twin.camera_calib(mounts), speed=1.0, v_max=None,
+    h = link.call("hello")[0]
+    mounts = h.get("camera_mounts", "twin")                # (the poses the program believes: as the world's)
+    rig = twin.load_rig()
+    pl = h.get("planner")                                  # (simple_sim: a floor under its lower table, not its height;
+    if pl:                                                 # the world's arm still refuses fingertips under the table)
+        rig["safety"]["table_z"] = float(pl["table_z"])
+        rig["safety"]["tcp_lo"] = [*rig["safety"]["tcp_lo"][:2], float(pl["tcp_lo_z"])]
+    S = twin.RealSim(SocketArm(link), SocketCams(link), rig, twin.camera_calib(mounts), speed=1.0, v_max=None,
                      log_dir=None)
     S.task_timing = True                                   # (the robot path's timing: real_box run, PickTwin)
     return S, link

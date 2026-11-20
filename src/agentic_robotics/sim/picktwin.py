@@ -23,6 +23,16 @@ CAM_W, CAM_H = B.SIZE["d415"]
 
 PICKABLE = ["tape_red", "tape_yellow", "tape_white", "hole_block", "cable", "screwdriver", "glue", "sticky_pad"]
 PARK_Z = -0.865 + 0.0005                         # floor
+Z_MIN_TIP0 = CE.Z_MIN_TIP                        # (the grasp check's lowest fingertip: over the twin's table top, z = 0)
+
+
+def world_rig(rig, S_):
+    """The robot's limits in an object set's world (sim/scene.py OBJECT_SETS): simple_sim's table is lower, so the
+    fingertips / links are kept over ITS top (table_z), and the TCP box's floor goes down with it."""
+    if S_.get("table_z") is not None:
+        sf = rig["safety"]
+        sf["table_z"] = float(S_["table_z"]); sf["tcp_lo"] = [*sf["tcp_lo"][:2], float(S_["tcp_lo_z"])]
+    return rig
 
 
 class _NoCams:
@@ -37,7 +47,11 @@ class _NoCams:
 
 class PickTwin:
     def __init__(self, render=True, world_cls=None):
-        self.rig = load_rig()
+        from .scene import active_set
+        S_ = active_set()
+        self.rig = world_rig(load_rig(), S_)
+        self.table_z = float(S_.get("table_z") or 0.0)
+        CE.Z_MIN_TIP = Z_MIN_TIP0 + self.table_z                         # (kin_grasps: over this world's table)
         self.world = w = (world_cls or TB.BoxSim)()
         self.arm = CE._FastArm(w, self.rig, None)
         self.S = RealSim(self.arm, _NoCams(), self.rig, {}, speed=1.0, v_max=None, log_dir=None)

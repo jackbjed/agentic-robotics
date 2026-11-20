@@ -142,7 +142,8 @@ class World:
         cmd = h.get("cmd")
         if cmd == "hello":
             r = self.arm.hello()
-            return dict(r, ok=True, robot_time_limit_s=self.limit, t0=self.scene.t0, camera_mounts=self.scene.mounts), []
+            return dict(r, ok=True, robot_time_limit_s=self.limit, t0=self.scene.t0, camera_mounts=self.scene.mounts,
+                        planner=self.scene.planner), []
         if cmd == "task":
             return dict(ok=True, task=self.task), []
         if cmd == "now":

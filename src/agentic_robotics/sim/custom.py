@@ -39,9 +39,14 @@ class SceneError(ValueError):
 
 def parse(spec, task="clutter-pick"):
     from .. import tasks as TK
-    td = TK.get(task)
+    from .scene import active_set
+    td, A = TK.get(task), active_set()
     targets = tuple(td.get("targets", TARGETS))
     pool = POOL_TASKS if td["object_set"] == "tasks" else POOL + ("box_white",)
+    if A.get("pool"):                                             # (simple_sim: its own objects)
+        if list(targets) != ["box_white"]:
+            targets = tuple(A["targets"])
+        pool = tuple(A["pool"]) + ("box_white",)
     if not isinstance(spec, dict):
         raise SceneError("a scene is a mapping with target, objects, [arm_start], [joints]")
     t = spec.get("target")
@@ -130,7 +135,7 @@ def build(P, spec, task="clutter-pick"):
         p, R = w.pose(k)
         mv = float(np.linalg.norm(p - p0[k])); tilt = math.degrees(math.acos(min(1.0, R[2, 2])))
         moved[k] = round(mv * 1000, 1)
-        if P.com_z(k) < -0.05:
+        if P.com_z(k) < float(getattr(P, "table_z", 0.0)) - 0.05:
             raise SceneError(f"{k} fell off the table while settling")
         if mv > 0.02 or tilt > 20:
             raise SceneError(f"{k} is not stable there (moved {mv * 1000:.0f} mm, tilted {tilt:.0f} deg while settling)")

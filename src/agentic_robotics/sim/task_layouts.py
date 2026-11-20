@@ -61,8 +61,13 @@ def _free_spot(rng, objs, b, k):
 def spec_for(task, rng, rng_choice=None):
     """rng_choice (pack): the objects' choice, fixed per layout index, so that a layout redrawn for a bad placement keeps
     its objects (else the long ones, the screwdriver and the cable, would be under-represented)."""
-    td = TK.get(task)
+    from .scene import active_set
+    td = dict(TK.get(task)); A = active_set()
     pool = ["tape_red", "tape_yellow", "tape_white", "hole_block", "cable", "screwdriver", "glue", "sticky_pad"]
+    if A.get("pool"):                                          # (simple_sim: its five objects, each one a target)
+        pool = list(A["pool"])
+        if td.get("targets") and td["targets"] != ["box_white"]:
+            td["targets"] = list(A["targets"])
     yaw = lambda: float(rng.uniform(0, 360))
     objs, joints = {}, {}
     if task == "pick":
@@ -187,11 +192,10 @@ def sample(P, task, seed, idx, max_tries=60):
 
 
 def _worker(job):
-    task, split, seed, idx = job
+    task, split, seed, idx, os_ = job
     global _P
     if "_P" not in globals():
         from .scene import use_object_set, world_class
-        os_ = TK.get(task)["object_set"]
         use_object_set(os_)
         from .picktwin import PickTwin
         _P = PickTwin(render=True, world_cls=world_class(os_))
@@ -202,15 +206,21 @@ def _worker(job):
     return idx, L, why, time.time() - t0
 
 
-def generate(task, split, n=None, workers=8, log=print):
+SIMPLE_SEED_OFF = 100000                                   # (simple_sim's banks: other draws than the twin's)
+
+
+def generate(task, split, n=None, workers=8, log=print, object_set=None):
+    """object_set: None = the family's own (tasks.py); simple = simple_sim's version (data/<banks>_simple/)."""
+    from .scene import bank_name
     td = TK.get(task)
+    os_ = object_set or td["object_set"]
     n = n or N_DEFAULT[split]
-    seed = SEEDS[task] + SPLIT_OFF[split]
+    seed = SEEDS[task] + SPLIT_OFF[split] + (SIMPLE_SEED_OFF if os_ == "simple" else 0)
     if n <= 0:
         return dict(ok=0, n=0)
-    out = paths.DATA / td["banks"]; out.mkdir(parents=True, exist_ok=True)
+    out = paths.DATA / bank_name(td, os_); out.mkdir(parents=True, exist_ok=True)
     f = out / f"{split}_L0.jsonl"
-    jobs = [(task, split, seed, i) for i in range(n)]
+    jobs = [(task, split, seed, i, os_) for i in range(n)]
     t0 = time.time(); got, fails = {}, []
     with get_context("spawn").Pool(workers) as pool:
         for idx, L, why, dt in pool.imap_unordered(_worker, jobs, chunksize=1):
@@ -220,5 +230,6 @@ def generate(task, split, n=None, workers=8, log=print):
     with open(f, "w") as fo:
         for i in sorted(got):
             fo.write(json.dumps(got[i]) + "\n")
-    json.dump(dict(task=task, split=split, seed=seed, n=n, ok=len(got), failed=fails), open(f.with_suffix(".meta.json"), "w"), indent=1)
+    json.dump(dict(task=task, split=split, seed=seed, n=n, ok=len(got), failed=fails, object_set=os_),
+              open(f.with_suffix(".meta.json"), "w"), indent=1)
     return dict(path=str(f), ok=len(got), n=n, failed=len(fails), wall_s=round(time.time() - t0, 1), fails=fails[:3])

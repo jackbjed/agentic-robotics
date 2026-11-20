@@ -36,31 +36,63 @@ OBJ_TASKS = {"kettle": dict(kind="kettle", r=0.070, h=0.177, z0=0.0, desc="the s
              "peg_stand": dict(kind="peg_stand", h=0.173, z0=0.0, desc="the wooden stand with three vertical wooden sticks"),
              "wood_cyl": dict(kind="kcup", r=0.020, h=0.040, z0=0.0, hole=0.022,
                               desc="the wooden cylinder (a hole goes along its axis)")}
+# simple_sim (docs/simple_sim.md, scripts/build_simple_sim.py): a simple, INACCURATE world: the table 5 cm lower,
+# brown; MuJoCo primitives for objects; a plain grey box. The same body names (the vendored world needs them):
+PHRASES_SIMPLE = {"tape_red": "red cylinder", "tape_yellow": "yellow cylinder", "tape_white": "red cube",
+                  "hole_block": "blue cube", "sticky_pad": "green cube", "box_white": "grey box"}
+SIMPLE_POOL = ("tape_red", "tape_yellow", "tape_white", "hole_block", "sticky_pad")
 OBJECT_SETS = {
     "real": dict(model=None, phrases=dict(PHRASES, box_white="white box"), banks="layouts"),   # the twin's objects
     "tasks": dict(model="sim/models/twin_6522_wedge_tasks.xml", phrases=PHRASES_TASKS, banks="layouts_tasks",
                   world="tasks"),                                        # + kettle, stand with sticks, wooden cylinder
     "substitute": dict(model="sim/models/twin_6522_wedge_substitute.xml", phrases=PHRASES_SUBSTITUTE,
                        banks="layouts_substitute"),
+    # the families it has (their banks: <the family's banks>_simple), its own objects and box; table_z: its table top;
+    # the robot's limits there (sim/picktwin.py): the world's arm refuses fingertips under ITS table, while the
+    # program's planner gets a looser floor (planner_floor_z) that does not give the table's height away
+    "simple": dict(model="sim/models/simple_sim.xml", phrases=PHRASES_SIMPLE, banks_suffix="_simple", world="simple",
+                   pool=SIMPLE_POOL, targets=SIMPLE_POOL, destination="grey box", table_z=-0.05,
+                   tasks=("place-box", "close-box", "clutter-pick-any"), planner_floor_z=-0.10, tcp_lo_z=-0.10),
 }
+ACTIVE = {"name": "real"}                                      # (the object set this process uses: use_object_set)
 
 
 def use_object_set(name):
     """Point the vendored code's model at the object set's (before any PickTwin / BoxSim is built). -> the set."""
     from .twin import B, TB
     S = OBJECT_SETS[name]
+    ACTIVE.setdefault("model0", B.MODEL)
     if S["model"] is not None:
         B.MODEL = paths.SRC / "agentic_robotics" / S["model"]
+    elif str(B.MODEL).endswith(OBJECT_SETS["simple"]["model"].split("/")[-1]):
+        B.MODEL = ACTIVE["model0"]                             # (after simple_sim: the twin again)
     if S.get("world") == "tasks":
         for k, v in OBJ_TASKS.items():
             TB.OBJ.setdefault(k, dict(v))
+    ACTIVE["name"] = name
     return S
+
+
+def active_set():
+    """The object set this process uses (use_object_set; default real)."""
+    return OBJECT_SETS[ACTIVE["name"]]
+
+
+def bank_name(task_def, object_set):
+    """The layout banks' folder of a task family in an object set."""
+    S = OBJECT_SETS[object_set]
+    if object_set == "substitute":
+        return S["banks"]
+    return task_def["banks"] + S.get("banks_suffix", "")
 
 
 def world_class(name):
     if OBJECT_SETS[name].get("world") == "tasks":
         from .worlds import TasksBoxSim
         return TasksBoxSim
+    if OBJECT_SETS[name].get("world") == "simple":
+        from .worlds import SimpleBoxSim
+        return SimpleBoxSim
     return None
 
 
@@ -87,10 +119,16 @@ class ClutterPickScene:
         object_set = object_set or "real"
         if object_set == "substitute" and task != "clutter-pick":
             raise ValueError("condition C's substitute objects have clutter-pick layouts only")
+        if object_set == "simple" and task not in OBJECT_SETS["simple"]["tasks"]:
+            raise ValueError(f"simple_sim has no {task} (its families: {', '.join(OBJECT_SETS['simple']['tasks'])})")
         if self.tdef.get("colour_only") and colour != self.tdef["colour_only"]:
             raise ValueError(f"task {task}: colour {self.tdef['colour_only']} only (no scans of its objects)")
         self.object_set = object_set
-        self.phrases = use_object_set(object_set)["phrases"]
+        S_ = use_object_set(object_set)
+        self.phrases = S_["phrases"]
+        self.table_z = float(S_.get("table_z", 0.0))
+        self.destination = S_.get("destination")                # (simple_sim: its own box)
+        self.planner = (dict(table_z=S_["planner_floor_z"], tcp_lo_z=S_["tcp_lo_z"]) if "planner_floor_z" in S_ else None)
         if colour == "splat" and object_set != "real":
             raise ValueError("the splat composite has the 6522 scan's objects only (none for the substitutes, the kettle, "
                              "the stand or the cylinder)")
@@ -119,7 +157,7 @@ class ClutterPickScene:
     def reset(self, split, level, idx, seed):
         key = (split, int(level))
         if key not in self.banks:
-            self.banks[key] = load_bank(split, level, self.object_set, None if self.object_set == "substitute" else self.tdef["banks"])
+            self.banks[key] = load_bank(split, level, self.object_set, bank_name(self.tdef, self.object_set))
         return self.reset_layout(self.banks[key][int(idx)], seed, split, level, idx)
 
     def reset_layout(self, L, seed, split="custom", level=-1, idx=-1):
@@ -183,11 +221,12 @@ class ClutterPickScene:
             lst = the[0] if len(the) == 1 else ", ".join(the[:-1]) + " and " + the[-1]
             return dict(kind="pack", objects=names, object=names[0], destination=t["destination"],
                         instruction=t["instruction"].format(objects=lst, destination=t["destination"]))
+        dest = self.destination or t.get("destination", "")
         out = dict(kind=t.get("kind", self.task_name.replace("-", "_")), object=ph,
-                   instruction=t["instruction"].format(object=ph, destination=t.get("destination", "")))
+                   instruction=t["instruction"].format(object=ph, destination=dest))
         for k in ("destination", "part"):
             if t.get(k):
-                out[k] = t[k]
+                out[k] = dest if k == "destination" else t[k]
         return out
 
     def truth_hint(self):
@@ -218,7 +257,7 @@ class ClutterPickScene:
             if lk >= TASK["wrong_lift"] and P.touching_fingers(k, fc):
                 wrong = k
             disturb[k] = float(np.linalg.norm(P.world.pose(k)[0][:2] - self.xy0[k]))
-        off = [k for k in self.L["objs"] if P.com_z(k) < -0.05]
+        off = [k for k in self.L["objs"] if P.com_z(k) < self.table_z - 0.05]
         extra = {}
         kind = self.tdef["judge"]
         if kind == "lift":
@@ -241,16 +280,17 @@ class ClutterPickScene:
         from .twin import TB
         P = self.P; w = P.world
         tilt = lambda k: math.degrees(math.acos(min(1.0, w.pose(k)[1][2, 2])))
+        inside_box = w.inside_box if hasattr(w, "inside_box") else (lambda k: TB.inside_box(w, k))   # (simple_sim: its box)
         if kind == "in_box":
-            inside = TB.inside_box(w, self.target)
-            others = [k for k in self.distractors if k != "box_white" and TB.inside_box(w, k)]
+            inside = inside_box(self.target)
+            others = [k for k in self.distractors if k != "box_white" and inside_box(k)]
             bt = tilt("box_white")
             cond = inside and not touch_t and bt < 10 and not others and not off and wrong is None
             return cond, dict(inside_box=bool(inside), others_in_box=others, box_tilt_deg=round(bt, 1))
         if kind == "packed":
-            ins = [k for k in self.targets if TB.inside_box(w, k)]
+            ins = [k for k in self.targets if inside_box(k)]
             held = any(P.touching_fingers(k) for k in self.targets)
-            others = [k for k in self.distractors if k != "box_white" and TB.inside_box(w, k)]
+            others = [k for k in self.distractors if k != "box_white" and inside_box(k)]
             lid = math.degrees(P.d.qpos[w.lid_q]); bt = tilt("box_white")
             cond = len(ins) == len(self.targets) and not held and lid < 8 and bt < 10 and not others and not off and wrong is None
             return cond, dict(in_box=ins, n_in_box=len(ins), n_targets=len(self.targets), lid_deg=round(lid, 1),
@@ -301,11 +341,16 @@ class ClutterPickScene:
                                           "lid_deg", "box_moved_mm",
                                           "kettle_lid_deg", "button_mm", "latched", "kettle_tilt_deg", "on_stick",
                                           "cyl_to_stick_mm", "stick") if k in jd}
+        nm = (lambda k: k) if self.object_set != "simple" else (lambda k: self.phrases.get(k, k) if k else k)
+        if self.object_set == "simple":                              # (simple_sim's practice records: the names it was
+            for k in ("in_box", "others_in_box"):                    # told, not the twin's body names)
+                if k in task_state:
+                    task_state[k] = [nm(x) for x in task_state[k]]
         return dict(task=self.task_name, task_state=task_state, category=cat, success=self.t_success is not None,
                     t_success=None if self.t_success is None else round(self.t_success, 3),
                     max_lift_mm=round(self.max_lift * 1000, 1), max_disturb_mm=round(dist * 1000, 1),
                     disturbed=bool(dist * 1000 > TASK["disturb_mm"]), touched_target=bool(self.ever_touched),
-                    wrong_object=jd["wrong"], off_table=jd["off_table"], target=self.target,
+                    wrong_object=nm(jd["wrong"]), off_table=[nm(k) for k in jd["off_table"]], target=nm(self.target),
                     n_distractors=len(self.distractors), corrupt={k: v for k, v in self.ep_corrupt.items() if not k.startswith("_")
                                                                   and k in ("preset", "calib", "depth_scale", "latency_s", "light")})
 

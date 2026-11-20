@@ -110,6 +110,44 @@ def substitute_doc(name, txt, ph):
     return txt.replace("the other roll", "the other can")
 
 
+SIMPLE_DEPTH = """**Depth in this simulator: ideal.** Programs get exact depth (only the D415's 0.275 m minimum range), and
+`observe_frame` returns the camera's true pose (`R`, `eye`): 3D points computed from a frame are exact.
+`F.world(obs)` (`ctx.library.F`) gives per-pixel 3D points in the world frame, plus a validity mask.
+
+**Colour:** plain MuJoCo rendering.
+
+"""
+SIMPLE_EDITS = {                                               # doc -> [(the twin's text, simple_sim's)]
+    "robot.md": [("- **World frame:** the twin's frame, metres and radians. The table top is z = 0, and its centre is the "
+                  "origin. The robot", "- **World frame:** metres and radians. x = y = 0 is the table's centre; the table "
+                  "top's height is not given. The robot"),
+                 ("`R` and `eye` are the camera pose the program BELIEVES, its nominal mount: the true pose differs by the "
+                  "episode's calibration error.", "`R` and `eye` are the camera's pose (exact in this simulator).")],
+    "perception.md": [('a name ("red tape roll")', 'a name ("blue cube")'),
+                      ("  - return **another object**: a similar colour, the other roll, a red part of a different object "
+                       "such as a red\n    handle or a red bottle base.", "  - return **another object**: one of a similar "
+                       "colour or shape.")],
+    "skill_api.md": [("red tape roll", "red cylinder"), ("  holds (noisy depth: use a small neighbourhood).", "  holds.")],
+}
+
+
+def simple_doc(name, txt):
+    """simple_sim's docs (docs/simple_sim.md): its sensors (ideal) and objects; nothing about the table's height and
+    nothing about the objects the evaluation uses (the brief says the sim is approximate: other table heights, objects
+    and visuals may be tested)."""
+    if name == "perception.md":
+        a, b = txt.index("**Depth: realistic and noisy, in every condition.**"), txt.index("## Segmentation")
+        txt = txt[:a] + SIMPLE_DEPTH + txt[b:]
+    for old, new in SIMPLE_EDITS.get(name, []):
+        if old not in txt:
+            raise ValueError(f"simple_doc: {name} no longer has {old[:60]!r} (docs changed: update SIMPLE_EDITS)")
+        txt = txt.replace(old, new)
+    for a, b in (("In the twin", "In the simulator"), ("in the twin", "in the simulator"), ("the twin's", "the simulator's"),
+                 ("the twin runs", "the simulator runs")):        # (not "the twin": nothing says it is accurate)
+        txt = txt.replace(a, b)
+    return txt
+
+
 def run_dir(run_id):
     return paths.RUNS / "learning" / run_id
 
@@ -191,6 +229,8 @@ def init(run_id, exp_path, add_eval_set=False, tasks=None, initial=None):
             src_f = L["tasks_doc"]
         if (paths.ROOT / "docs" / src_f).exists():
             txt = (paths.ROOT / "docs" / src_f).read_text()
+            if t_["object_set"] == "simple":                 # (first: the texts it edits are the docs' own)
+                txt = simple_doc(f, txt)
             if not (X.get("vlm") or {}).get("enabled"):
                 txt = strip_vlm(txt)                          # (runs without model calls: no word of ctx.vlm)
             if not lib:
@@ -694,6 +734,13 @@ TASK_SUCCESS = {
                  "\"place\", \"object\" = its name, \"destination\" = the box)",
 }
 TASK_SUCCESS["place-box-new"] = TASK_SUCCESS["place-box"]
+TASK_SUCCESS_SIMPLE = {                                       # (simple_sim: its own box and objects; docs/simple_sim.md)
+    "place-box": TASK_SUCCESS["place-box"].replace("the white box's walls", "the grey box's walls"),
+    "close-box": TASK_SUCCESS["close-box"].replace("the white box's lid", "the grey box's lid"),
+    "clutter-pick-any": ("the named object (one of the red, green and blue cubes, the red and yellow cylinders; 2-4 other "
+                         "objects 1.5-6 cm around it) >= 5 cm above where it rested, held by both fingers, nothing else "
+                         "lifted, for 1 s"),
+}
 TASK_SUCCESS["clutter-pick-any"] = ("the named object (one of the red, yellow and white tape rolls, the coiled cable, the "
                                     "screwdriver; 2-4 other objects 1.5-6 cm around it) >= 5 cm above where it rested, held "
                                     "by both fingers, nothing else lifted, for 1 s")
@@ -701,12 +748,16 @@ TASK_SUCCESS["clutter-pick-any"] = ("the named object (one of the red, yellow an
 
 def tasks_section(B, practice):
     from .. import tasks as TK
+    from ..config import task_config
+    from ..sim.scene import OBJECT_SETS
+    os_ = task_config(B["task"])["object_set"]
+    S, succ = OBJECT_SETS[os_], (TASK_SUCCESS_SIMPLE if os_ == "simple" else {})
     rows = []
     for f in B["tasks"]:
         td = TK.get(f)
         ex = td["instruction"].format(object="<object>", objects="the <object>, the <object> and the <object>",
-                                      destination=td.get("destination", ""))
-        rows.append(f"- **{f}** (`{td['entry']}`): told e.g. \"{ex}\" Success: {TASK_SUCCESS[f]}.")
+                                      destination=S.get("destination") or td.get("destination", ""))
+        rows.append(f"- **{f}** (`{td['entry']}`): told e.g. \"{ex}\" Success: {succ.get(f, TASK_SUCCESS[f])}.")
     if len(rows) == 1:
         return (f"**The task's entry and check.**\n{rows[0]}\nPractise it with `{practice} run --n 6`.\n\n")
     return ("**Tasks in this run.** The program is one skill per task, each with its own entry file (`run(ctx)`); "
@@ -730,6 +781,10 @@ def brief(B, X):
     ph = OBJECT_SETS[t["object_set"]]["phrases"]
     objects = f'"{ph["tape_red"]}" or "{ph["tape_yellow"]}"'
     perception, perception_note, colour = t["perception"], PERCEPTION_NOTE[t["perception"]], COLOUR_NOTE[t["colour"]]
+    depth_text = ("Depth is exact and the cameras' poses are the ones the program believes (docs/perception.md)."
+                  if t.get("preset") == "ideal" else
+                  "Depth is the realistic noisy D415 model and the\ncameras have a per-episode calibration error "
+                  "(docs/perception.md).")
     scenes_text = SCENES_TEXT.format(practice=practice, n=B["scenes"]["checks_per_session"],
                                      names="; ".join(f"{k} = \"{v}\"" for k, v in ph.items())) if B.get("scenes") else ""
     V = B.get("vlm") or {}
@@ -756,7 +811,8 @@ def brief(B, X):
                     if (X.get("learning") or {}).get("practice_timeout_note") else "")
     lib = B.get("library", True)
     robot_text = ("a Franka Panda arm with a two-finger\ngripper over a table, seen by two RealSense D415 cameras (one "
-                  "fixed across the table, one on the hand), simulated in a\nMuJoCo twin of the real setup")
+                  "fixed across the table, one on the hand), simulated in a\n"
+                  + ((X.get("learning") or {}).get("sim_text") or "MuJoCo twin of the real setup"))
     if lib:
         intro = (f"You improve a robot skill program by practising it in simulation. The robot is {robot_text}. The "
                  "program you improve is `skills/pick.py` (entry point `run(ctx)`), with helpers in\n`helpers/`.")
@@ -810,8 +866,7 @@ def brief(B, X):
 {test_text}**Goal, in order:** (1) more successes under that time limit, on layouts you have not seen; (2) less robot time per
 success{'; ' + goal3 if goal3 else ''}. Robot speed, limits and the success check are fixed.
 
-**Perception in this run: {perception}.** {perception_note} Depth is the realistic noisy D415 model and the
-cameras have a per-episode calibration error (docs/perception.md). Colour: {colour}.
+**Perception in this run: {perception}.** {perception_note} {depth_text} Colour: {colour}.
 
 **What you can do.** Read and edit anything in this workspace: `skills/`, `helpers/`, `tests/`, `notes.md`. {can_do}
 Practise in simulation with exactly these commands (the only shell commands you can run):

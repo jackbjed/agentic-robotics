@@ -1,0 +1,14 @@
+# simple_sim (docs/simple_sim.md; scripts/build_simple_sim.py; 2026-11-20, user: "train an agent in a much simpler
+# environment ... it should reflect what happens when we train in a simple and inaccurate sim"): the table 5 cm lower
+# and brown, MuJoCo primitives for objects (red, green and blue cubes; red and yellow cylinders), a plain grey box,
+# plain colour, ideal cameras. Its families: place-box, close-box, clutter-pick-any (their banks <banks>_simple).
+# The arm starts at home, as the real robot does. Perception: SAM3 (the real robot's).
+kind: clutter_pick
+scene: configs/scenes/clutter_pick.yaml
+robot: configs/robot/panda_twin.yaml
+cameras: configs/cameras/d415_rig_ideal.yaml
+perception: sam3
+object_set: simple
+arm_start: home
+robot_time_limit_s: 60               # the server refuses motion after this much robot time (place-box: 90 s)
+wall_limit_s: 900                    # a program process is killed after this much wall time

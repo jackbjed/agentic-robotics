@@ -38,3 +38,17 @@ class TasksBoxSim(TB.BoxSim):
                 if self.latched and d.qpos[self.btn_q] < -0.0025:     # the button releases the lid
                     self.set_latch(False)
             self.rec.append((float(d.time), d.qpos.copy()))
+
+
+class SimpleBoxSim(TB.BoxSim):
+    """task_box.BoxSim on simple_sim's model (scripts/build_simple_sim.py): its own grey box, so its own inside test
+    (task_box.inside_box has the white box's sizes). It tests the object's centre of mass, not its body origin (the
+    base's centre): a 5 cm cylinder lying on its side in the box has its base's centre at the wall."""
+    BOX_L, BOX_W, BOX_H, BOX_T = 0.220, 0.170, 0.070, 0.004      # (scripts/build_simple_sim.py)
+
+    def inside_box(self, k, slack=0.0):
+        bp, bR = self.pose("box_white")
+        p = self.d.xipos[self.ob[k]]
+        rel = bR.T @ (p - bp)
+        return bool(abs(rel[0]) < self.BOX_L / 2 - self.BOX_T + slack and abs(rel[1]) < self.BOX_W / 2 - self.BOX_T + slack
+                    and -0.01 < rel[2] < self.BOX_H)

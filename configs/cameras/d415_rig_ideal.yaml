@@ -1,0 +1,8 @@
+# simple_sim's cameras (docs/simple_sim.md): the D415s at the real rig's calibrated poses (as d415_rig.yaml), but IDEAL
+# sensors, as a simple simulator gives: exact depth (only the D415's minimum range and the frame's far limit), no
+# per-episode calibration error (the program's believed poses are the true ones), plain colour.
+preset: ideal
+mounts: calibrated
+colour: mujoco
+colour_noise: false
+latency_s: [0.0, 0.0]
