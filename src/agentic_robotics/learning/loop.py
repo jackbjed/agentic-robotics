@@ -704,11 +704,15 @@ def brief(B, X):
     tasks_text = tasks_section(B, practice) if B.get("tasks") else ""
     E = B.get("eval_access")
     eval_text = EVAL_TEXT.format(practice=practice, runs=E["runs_per_session"], n=len(_suite_eps(E["spec"]))) if E else ""
+    en = (X.get("learning") or {}).get("eval_note")
+    if E and en:                                              # (the evalset ablation: when to use it; no model words
+        if not V.get("enabled"):                              # in a run without model calls)
+            eval_text = eval_text.replace("; its model calls count against the model budget.", ".")
+        eval_text = eval_text.rstrip("\n") + f" {en.strip()}\n\n"
     if E and V.get("eval_usd") is not None:                   # (its own model budget, cached: the evalset ablation)
         eval_text = eval_text.replace("its model calls count against the model budget.",
                                       f"its model calls have their own budget (${V['eval_usd']}), and a request identical "
-                                      "to an earlier one (the same images and words) is answered from a cache, free. Use it "
-                                      "after each version you write: see which episodes fail and why, then improve.")
+                                      "to an earlier one (the same images and words) is answered from a cache, free.")
     timeout_note = ((f"A practice call takes about 30 s per {B.get('practice_workers', 8)} episodes (longer while the "
                      "machine is busy): give these shell commands a timeout of 600000 ms (10 min).\n\n")
                     if (X.get("learning") or {}).get("practice_timeout_note") else "")
@@ -741,7 +745,7 @@ def brief(B, X):
                   "documented interfaces are in `docs/`.")
         rule_lib = (" Write the skill yourself: a version that imports the robot's own code, or reaches\nfor it another "
                     "way (`sys.modules`, `importlib`, `__globals__`, ...), is rejected.")
-        goal3 = "(3) fewer model calls"
+        goal3 = "(3) fewer model calls" if V.get("enabled") else ""
     tn = (X.get("learning") or {}).get("test_note")
     test_text = f"**How your version is evaluated.** {tn}\n\n" if tn else ""
     tt = (X.get("learning") or {}).get("task_text")
@@ -766,7 +770,7 @@ def brief(B, X):
 {task_text}
 
 {test_text}**Goal, in order:** (1) more successes under that time limit, on layouts you have not seen; (2) less robot time per
-success; {goal3}. Robot speed, limits and the success check are fixed.
+success{'; ' + goal3 if goal3 else ''}. Robot speed, limits and the success check are fixed.
 
 **Perception in this run: {perception}.** {perception_note} Depth is the realistic noisy D415 model and the
 cameras have a per-episode calibration error (docs/perception.md). Colour: {colour}.
