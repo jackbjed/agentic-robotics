@@ -11,3 +11,4 @@ perception: sam3
 object_set: real
 arm_start: home
 robot_time_limit_s: 60               # the server refuses motion after this much robot time (place-box: 90 s)
+wall_limit_s: 900                    # a program process is killed after this much wall time

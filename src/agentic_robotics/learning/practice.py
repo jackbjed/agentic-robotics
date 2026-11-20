@@ -97,7 +97,7 @@ def cmd_status(a):
                               seed_range=P["seed_range"], max_per_call=P["max_per_call"]))
     if P.get("families"):
         out["permitted"]["tasks"] = {f: dict(levels=v["levels"], idx_range=v["idx_range"]) for f, v in P["families"].items()}
-    if budget.get("scenes", {}).get("allowed"):
+    if (budget.get("scenes") or {}).get("allowed"):          # (the key is there, None, without custom scenes)
         out["scene_checks"] = f"{checks_used(run_dir, s)}/{budget['scenes']['checks_per_session']} this session"
     V = budget.get("vlm") or {}
     if V.get("enabled"):
