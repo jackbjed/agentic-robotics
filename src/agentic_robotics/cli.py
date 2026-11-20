@@ -8,7 +8,8 @@
   ar compare DIR_A DIR_B                     paired comparison of two suite runs (same episodes)
   ar layouts --object-set substitute --split train --level L --n N   layout banks (condition C)
   ar services start|stop|status [NAME ...]   our own SAM3 and splat-compositor servers (configs/services.yaml)
-  ar learn init|run|status|evaluate|add-real|extend ...   the skill-improvement loop (learning/loop.py)"""
+  ar evalset build|show --task T --split evalset|evalhidden ...   evaluation sets of solvable episodes (evaluation/evalsets.py)
+  ar learn init|run|status|evaluate|progress|add-real|extend ...   the skill-improvement loop (learning/loop.py)"""
 from __future__ import annotations
 
 import argparse
@@ -148,6 +149,8 @@ def main(argv=None):
     s.add_argument("--workers", type=int, default=32)
     s = sub.add_parser("compare"); s.set_defaults(fn=cmd_compare)
     s.add_argument("a"); s.add_argument("b"); s.add_argument("--names", nargs=2, default=("A", "B"))
+    s = sub.add_parser("evalset"); s.set_defaults(fn=lambda a: __import__("agentic_robotics.evaluation.evalsets", fromlist=["cli"]).cli(a))
+    s.add_argument("action", choices=("build", "show")); s.add_argument("rest", nargs=argparse.REMAINDER)
     s = sub.add_parser("learn"); s.set_defaults(fn=lambda a: __import__("agentic_robotics.learning.loop", fromlist=["cli"]).cli(a))
     s.add_argument("action", choices=("init", "run", "status", "evaluate", "add-real", "extend", "progress"))
     s.add_argument("rest", nargs=argparse.REMAINDER)

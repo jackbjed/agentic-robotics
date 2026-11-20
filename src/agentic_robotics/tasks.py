@@ -21,6 +21,9 @@ judge_*; every 1/30 s of robot time, success = the condition held for 1 s):
                 of the red tape, yellow tape, white tape, cable, screwdriver ... in the box ... tested on other objects")
   place-box-new the same task with objects place-box never practises: the black block with holes, the glue bottle
                 (held-out only: in no practice or development suite). Both tell the program kind "place".
+  clutter-pick-any  one named object of place-box's five (the red, yellow and white tape rolls, the cable, the
+                screwdriver) out of clutter: 2-4 other objects 1.5-6 cm from its outline; the lift check (2026-11-19, the
+                evaluation-set ablation, docs/evalsets.md). Kind "clutter_pick".
 press and insert use the multi-task model (scripts/build_tasks_model.py); their scenes have plain MuJoCo colour only (no
 scans of the kettle, stand or cylinder in the splat compositor)."""
 from __future__ import annotations
@@ -47,6 +50,9 @@ TASKS = {
     "place-box-new": dict(object_set="real", banks="layouts_place_box_new", judge="in_box", entry="skills/place.py",
                           levels=[0], targets=["hole_block", "glue"], fixed=["box_white"], kind="place",
                           instruction="Put the {object} into the {destination}.", destination="white box", time_limit_s=90.0),
+    "clutter-pick-any": dict(object_set="real", banks="layouts_clutter_any", judge="lift", entry="skills/pick.py",
+                             levels=[0], targets=["tape_red", "tape_yellow", "tape_white", "cable", "screwdriver"],
+                             kind="clutter_pick", instruction="Pick up the {object} and lift it."),
     "press": dict(object_set="tasks", banks="layouts_press", judge="kettle_open", entry="skills/press.py", levels=[0],
                   targets=["kettle"], colour_only="mujoco",
                   instruction="Press the button on top of the {object}'s handle (it releases the kettle's lid).",

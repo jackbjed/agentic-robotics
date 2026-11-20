@@ -316,7 +316,14 @@ def cmd_eval(a):
     ev = ws / "practice" / "eval"; ev.mkdir(parents=True, exist_ok=True)
     n = len([d for d in ev.iterdir() if d.is_dir()]) + 1
     out = ev / f"{n:03d}"
-    V = dict(budget["vlm"], tag=f"{meta['run_id']}:eval") if (budget.get("vlm") or {}).get("enabled") else None
+    V = None
+    if (budget.get("vlm") or {}).get("enabled"):
+        vb = budget["vlm"]
+        if vb.get("eval_usd") is not None:                     # (its own budget; an identical request answered from
+            V = dict(vb, tag=f"{meta['run_id']}-eval:eval", run_usd=vb["eval_usd"],          # the cache, free)
+                     cache_dir=str(run_dir / "vlm_cache_eval"))
+        else:
+            V = dict(vb, tag=f"{meta['run_id']}:eval")
     t0 = time.time()
     S = run_suite(ws, E["spec"], task_config(budget["task"]), out, workers=E.get("workers", 16), sandbox=True,
                   record=dict(video=True, observations="none", keyframes=True), entry=budget.get("entry", "skills/pick.py"),

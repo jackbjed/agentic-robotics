@@ -74,9 +74,12 @@ def load_bank(split, level, object_set="real", banks=None):
 
 class ClutterPickScene:
     def __init__(self, preset="d415", colour_noise=False, latency_s=(0.0, 0.0), colour="mujoco", object_set=None,
-                 task="clutter-pick", mounts="twin"):
+                 task="clutter-pick", mounts="twin", arm_start=None):
+        """arm_start: None = the layout's own start pose; "home" = the arm at its home joints whatever the layout says
+        (the task config's arm_start: as the real robot starts)."""
         from .. import tasks as TK
         self.task_name, self.tdef = task, TK.get(task)
+        self.arm_start = arm_start
         if self.tdef["object_set"] != "real":                    # (press, insert: the multi-task model, always)
             if object_set not in (None, "real", self.tdef["object_set"]):
                 raise ValueError(f"task {task}: no {object_set!r} version (its objects: {self.tdef['object_set']!r} only)")
@@ -129,7 +132,10 @@ class ClutterPickScene:
         P.reset_world(active=L["objs"])
         for k, q7 in L["objs"].items():
             P.put(k, 0, 0, 0, qpos7=np.asarray(q7))
-        P.teleport_arm(L["start"]["tip"], L["start"]["yaw"], q=L["arm_q"])
+        if self.arm_start == "home":
+            P.teleport_arm(None, 0.0, q=P.S.q_home)
+        else:
+            P.teleport_arm(L["start"]["tip"], L["start"]["yaw"], q=L["arm_q"])
         w = P.world
         if hasattr(w, "latch"):                                      # (the kettle: latched, lid and button home)
             w.set_latch(True)

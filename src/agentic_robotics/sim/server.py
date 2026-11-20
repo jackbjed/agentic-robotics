@@ -79,7 +79,8 @@ class World:
         sc = spec.get("scene", {})
         self.scene = ClutterPickScene(preset=sc.get("preset", "d415"), colour_noise=sc.get("colour_noise", False),
                                       colour=sc.get("colour", "mujoco"), object_set=sc.get("object_set", "real"),
-                                      task=spec.get("family", "clutter-pick"), mounts=sc.get("mounts", "twin"))
+                                      task=spec.get("family", "clutter-pick"), mounts=sc.get("mounts", "twin"),
+                                      arm_start=sc.get("arm_start"))
         if spec.get("layout") is not None:                          # (a scene the agent wrote: sim/custom.py, practice)
             self.task = self.scene.reset_layout(spec["layout"], spec["seed"])
         else:

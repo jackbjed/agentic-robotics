@@ -8,6 +8,8 @@ by sim/custom.py's builder (the same rules as the agent's own scenes and the clu
   press      the kettle at any yaw whose lid-release button the hand reaches from above + 0-2 others
   insert     the stand with three sticks (their tips reachable from above) + the cylinder upright 8-16 cm away + 0-1 other
   pack       the open white box (lid 100-120 deg) + 2-3 of its targets 16-28 cm from its middle, >= 9 cm apart, + 0-1 other
+  clutter-pick-any  the target (one of place-box's five) + 2-4 others 1.5-6 cm from its outline (at least one within
+             3.5 cm), a straight-down grasp still free (the target chosen per layout index)
   place-box  the open white box (lid 100-120 deg) + the target + 1-3 others anywhere on the free table, 16-32 cm from the
              box's middle, >= 9 cm apart (the target fixed per layout index, as pack's objects); the arm at its home
              joints (as on the real robot), not over the target; place-box-new the same
@@ -26,9 +28,9 @@ import numpy as np
 from .. import paths, tasks as TK
 
 SEEDS = {"pick": 2101, "place": 2201, "close-box": 2301, "press": 2401, "insert": 2501, "pack": 2601, "place-box": 2701,
-         "place-box-new": 2801}
-SPLIT_OFF = {"train": 0, "val": 10, "test": 20}
-N_DEFAULT = {"train": 300, "val": 60, "test": 100}
+         "place-box-new": 2801, "clutter-pick-any": 2901}
+SPLIT_OFF = {"train": 0, "val": 10, "test": 20, "evalset": 30, "evalhidden": 40}   # (evalset / evalhidden: candidates
+N_DEFAULT = {"train": 300, "val": 60, "test": 100, "evalset": 80, "evalhidden": 80}  # of evaluation/evalsets.py)
 AREA_X, AREA_Y = (-0.43, -0.18), (-0.13, 0.17)
 RED_CONFLICTS = {"tape_red": ["glue", "screwdriver"]}
 
@@ -40,6 +42,9 @@ def _rand_xy(rng, margin=0.0):
 def _near(rng, c, r_lo, r_hi):
     a = rng.uniform(0, 2 * math.pi); r = rng.uniform(r_lo, r_hi)
     return [float(c[0] + r * math.cos(a)), float(c[1] + r * math.sin(a))]
+
+
+HALF_ANY = {"screwdriver": 0.10, "cable": 0.07}
 
 
 def _free_spot(rng, objs, b, k):
@@ -98,6 +103,13 @@ def spec_for(task, rng, rng_choice=None):
             objs[k] = free_spot(k) + [yaw()]
         sp = dict(target=ts[0], targets=ts, objects=objs, joints=joints)
         return sp
+    elif task == "clutter-pick-any":
+        rc = rng_choice if rng_choice is not None else rng
+        t = str(rc.choice(td["targets"])); c = _rand_xy(rng, HALF_ANY.get(t, 0.05)); objs[t] = c + [yaw()]
+        others = [k for k in pool if k != t and k not in RED_CONFLICTS.get(t, [])]
+        for k in rc.choice(others, int(rc.integers(2, 5)), replace=False):
+            objs[str(k)] = _near(rng, c, 0.06, 0.13) + [yaw()]
+        return dict(target=t, objects=objs, arm_start="home")
     elif task in ("place-box", "place-box-new"):
         b = [float(rng.uniform(-0.37, -0.27)), float(rng.uniform(-0.05, 0.09))]
         objs["box_white"] = b + [yaw()]; joints["box_lid_deg"] = float(rng.uniform(100, 120))
@@ -151,6 +163,10 @@ def sample(P, task, seed, idx, max_tries=60):
             L, rep = build(P, spec, task)
         except SceneError as e:
             why = str(e); continue
+        if task == "clutter-pick-any":                           # (clutter: close neighbours, still graspable)
+            g = sorted(rep["gaps_to_target_mm"].values())
+            if not g or g[0] < 15 or g[0] > 35 or g[-1] > 60 or not L.get("free_yaws"):
+                why = f"clutter gaps {g[:3]} mm / free grasp directions {L.get('free_yaws')}"; continue
         if task == "press":
             bp = P.d.xpos[P.m.body("obj_kettle_button").id]
             if not reachable_from_above(P, [bp]):
@@ -190,6 +206,8 @@ def generate(task, split, n=None, workers=8, log=print):
     td = TK.get(task)
     n = n or N_DEFAULT[split]
     seed = SEEDS[task] + SPLIT_OFF[split]
+    if n <= 0:
+        return dict(ok=0, n=0)
     out = paths.DATA / td["banks"]; out.mkdir(parents=True, exist_ok=True)
     f = out / f"{split}_L0.jsonl"
     jobs = [(task, split, seed, i) for i in range(n)]

@@ -1,0 +1,13 @@
+# The four-task evaluation-set ablation's condition (configs/experiments/evalset_B.yaml, docs/evalsets.md): condition B
+# (plain MuJoCo colour: the kettle has no splat scan) at the real rig's calibrated camera poses, the real objects, and
+# every episode starting with the arm at its HOME joints, as the real robot does (not over the target).
+# Perception: SAM3 (the real robot's).
+# Each task family's judge, instruction and robot-time limit come from tasks.py.
+kind: clutter_pick
+scene: configs/scenes/clutter_pick.yaml
+robot: configs/robot/panda_twin.yaml
+cameras: configs/cameras/d415_rig.yaml
+perception: sam3
+object_set: real
+arm_start: home
+robot_time_limit_s: 60               # the server refuses motion after this much robot time (place-box: 90 s)

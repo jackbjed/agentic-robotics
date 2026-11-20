@@ -21,10 +21,8 @@ Objects:
   cable.
 - **pack:** 2–3 of the tape rolls, the black block with holes, the screwdriver and the coiled cable; `ctx.task`
   carries `objects` (their names) and `destination` ("white box").
-- **place-box:** practice and development with the red, yellow and white tape rolls, the coiled cable and the
-  screwdriver. `place-box-new` (held-out only) is the same task with the black block with holes and the glue bottle.
-  `ctx.task["kind"]` is "place" for both. A run of this task gives the agent `docs/task_place_box.md` as its tasks doc
-  (`learning.tasks_doc`), so it is told that it is tested on other objects, not which ones.
+- **place-box:** the red, yellow and white tape rolls, the coiled cable and the screwdriver; `ctx.task["kind"]` is
+  "place".
 - **the white box:** 191 × 193 × 58 mm, its lid hinged on one side.
 - **the kettle:** 1.36 kg, Ø14 cm, 18 cm tall, its button on top of the handle.
 - **the stand:** three 18 mm sticks, ~17 cm tall.

@@ -5,7 +5,8 @@ backend and the object set; together they are a fidelity condition (docs/fidelit
   colour      mujoco (B, C) | splat (A: our compositor)          cameras/*.yaml
   object_set  real (A, B) | substitute (C)                       tasks/*.yaml
   perception  oracle (milestone 1) | sam3 (our SAM3 servers)     tasks/*.yaml
-  mounts      twin (the twin's camera mounts) | calibrated (the real rig's calib.json poses)   cameras/*.yaml"""
+  mounts      twin (the twin's camera mounts) | calibrated (the real rig's calib.json poses)   cameras/*.yaml
+  arm_start   (optional) home: every episode starts the arm at its home joints, as the real robot does   tasks/*.yaml"""
 from __future__ import annotations
 
 from . import paths
@@ -37,6 +38,8 @@ def episode_base(t, record=None, parity=False, vlm=None, library=True):
                 vlm=vlm if (vlm or {}).get("enabled") else None)
     if t.get("mounts", "twin") != "twin":                      # (absent = the twin's mounts: earlier records' specs)
         base["scene"]["mounts"] = t["mounts"]
+    if t.get("arm_start"):                                     # (absent = the layout's own start pose)
+        base["scene"]["arm_start"] = t["arm_start"]
     if not library:
         base["library"] = False
     return base

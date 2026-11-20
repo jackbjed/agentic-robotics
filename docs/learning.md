@@ -156,3 +156,9 @@ out evaluation set throughout the agent's work, e.g. by measuring after N, 2N, 3
   episodes and wall time, for curves against those.
 - **Cost.** One suite run per distinct version: with N = 50k and about 350k output tokens per run, roughly 8 versions ×
   the suite's episodes. The model calls are capped by `progress_usd`.
+
+## Task docs given to the agent
+
+`docs/tasks.md` goes to multi-task runs. An experiment can give its own instead (`learning.tasks_doc`, copied as the
+workspace's `docs/tasks.md`): `task_place_box.md` (place_box_A: tells the agent it is tested on other objects, not
+which: `place-box-new` = the black block with holes and the glue bottle), `task_four.md` (evalset_B, docs/evalsets.md).

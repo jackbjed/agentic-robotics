@@ -656,6 +656,9 @@ TASK_SUCCESS = {
                  "\"place\", \"object\" = its name, \"destination\" = the box)",
 }
 TASK_SUCCESS["place-box-new"] = TASK_SUCCESS["place-box"]
+TASK_SUCCESS["clutter-pick-any"] = ("the named object (one of the red, yellow and white tape rolls, the coiled cable, the "
+                                    "screwdriver; 2-4 other objects 1.5-6 cm around it) >= 5 cm above where it rested, held "
+                                    "by both fingers, nothing else lifted, for 1 s")
 
 
 def tasks_section(B, practice):
@@ -701,6 +704,11 @@ def brief(B, X):
     tasks_text = tasks_section(B, practice) if B.get("tasks") else ""
     E = B.get("eval_access")
     eval_text = EVAL_TEXT.format(practice=practice, runs=E["runs_per_session"], n=len(_suite_eps(E["spec"]))) if E else ""
+    if E and V.get("eval_usd") is not None:                   # (its own model budget, cached: the evalset ablation)
+        eval_text = eval_text.replace("its model calls count against the model budget.",
+                                      f"its model calls have their own budget (${V['eval_usd']}), and a request identical "
+                                      "to an earlier one (the same images and words) is answered from a cache, free. Use it "
+                                      "after each version you write: see which episodes fail and why, then improve.")
     timeout_note = ((f"A practice call takes about 30 s per {B.get('practice_workers', 8)} episodes (longer while the "
                      "machine is busy): give these shell commands a timeout of 600000 ms (10 min).\n\n")
                     if (X.get("learning") or {}).get("practice_timeout_note") else "")

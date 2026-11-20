@@ -10,18 +10,22 @@ def episode_seed(seed, level, idx):
 
 
 def episodes(spec):
-    """spec: {family (tasks.py; default clutter-pick), split, levels, n | idx, seed} or {families: {name: spec, ...}}
+    """spec: {family (tasks.py; default clutter-pick), split, levels, n | idx | idxs (a list), seed} or {families: {name: spec, ...}}
     (a multi-task suite: the union, in that order)."""
     if "families" in spec:
         out = []
         for fam, sub in spec["families"].items():
             out += episodes(dict(sub, family=fam, seed=sub.get("seed", spec.get("seed", 0))))
         return out
-    lo, hi = spec["idx"] if "idx" in spec else (spec.get("start", 0), spec.get("start", 0) + spec["n"])
+    if "idxs" in spec:                                         # (an explicit list: evaluation/evalsets.py)
+        idxs = [int(i) for i in spec["idxs"]]
+    else:
+        lo, hi = spec["idx"] if "idx" in spec else (spec.get("start", 0), spec.get("start", 0) + spec["n"])
+        idxs = range(int(lo), int(hi))
     fam = spec.get("family", "clutter-pick")
     out = []
     for lv in spec.get("levels", [0]):
-        for i in range(int(lo), int(hi)):
+        for i in idxs:
             ep = dict(split=spec["split"], level=int(lv), idx=i, seed=episode_seed(spec["seed"], lv, i))
             if fam != "clutter-pick":
                 ep["family"] = fam
