@@ -185,3 +185,20 @@ def test_model_loop_with_a_stub_model():
 
     ep = Episode(GRIPPERS, "lift", seed=2)                                           # a model that stops calling tools
     assert run.run_model(ep, Toolbox(ep.robot), StubModel([]), log=lambda *a: None) == "model: stopped calling tools"
+
+
+def test_write_a_program_with_a_stub_model():
+    from agentic_robotics.bimanual import write as W
+
+    class Writer:
+        def respond(self, input, images, instructions=None, **k):
+            self.n_images, self.instructions, self.text = len(images), instructions, input[0]["content"][0]["text"]
+            return dict(ok=True, id="r1", status="completed", output=[{"type": "message", "content": [
+                {"type": "output_text", "text": "a note\n```python\ndef run(robot, task):\n    robot.set_gripper('left', 40)\n```\n"}]}])
+    m = Writer()
+    w = W.write(GRIPPERS, "insert_cylinder", m, example_seed=3, segmenter=True)
+    assert w["ok"] and w["program"].startswith("def run(robot, task):") and m.n_images == 3
+    assert "robot.segment(" in m.instructions and "tool call" not in m.instructions and "within 1 mm" in m.text
+    assert "robot.segment(" not in W.instructions("dexterous", 600.0) and "robot.fingertips(" in W.instructions("dexterous", 600.0)
+    assert W.extract_program("no code")[0] is None and W.extract_program("```python\nx = 1\n```")[0] is None
+    assert W.extract_program("```python\ndef run(robot, task:\n```")[0] is None

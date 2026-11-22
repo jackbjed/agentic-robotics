@@ -165,6 +165,18 @@ python -m agentic_robotics.bimanual.drive DIR judge                             
 `DIR/instructions.md` holds the instructions, the tools and the task. `DIR/checkpoint.pkl` holds the true state: an
 agent under test should be told to use the three commands only, and its session should be checked for that.
 
+**A model writes the program** (`bimanual/write.py`, code as policy): one model call, no revision. The model gets the
+robot's description (the text of direct control), the robot API, the task, how much the layout changes between
+episodes, and the first look of one example episode (three colour images and the arms' states; pick a seed the
+program will not be run on). It cannot run the program or see its output. **This costs money** (`--max-usd`, default 3).
+
+```bash
+python -m agentic_robotics.bimanual.write --env sim_bimanual_grippers --task insert_cylinder --model astra --effort high \
+       --example-seed 3 --segmenter sam3 --out runs/bimanual/x            # program.py, prompt.md, reply.md, write.json
+python -m agentic_robotics.bimanual.run --env sim_bimanual_grippers --task insert_cylinder --seed 0 \
+       --program runs/bimanual/x/program.py --segmenter sam3 --video --out runs/bimanual/x/s0
+```
+
 ## What is verified (2026-11-21)
 
 Reference solutions, `sensors="ideal"`:
@@ -209,9 +221,32 @@ off (true offsets read by replaying each episode's calls):
 The third way leans on the simulated arms being exact relative to each other; on the rig the two bases' calibration
 would add to it.
 
+**A program instead of direct control** (`write.py`, same model, effort high, `sensors="d415"`, example seed 3; one
+call: 17k output tokens, 6.8 min, $0.91; a 567-line program, run as written on seeds 0 and 1):
+
+| task | model | success | robot time |
+|---|---|---|---|
+| `insert_cylinder` | gpt-6-astra, one program | 1/2 | 298 s (success), 532 s (failure) |
+
+Run: `runs/bimanual/insert_cylinder_program_1121/astra/` (`program.py`, `prompt.md`, `s0/`, `s1/`; not in git).
+What the program does: finds the cylinder by colour and the stick by colour and height in the scene camera's depth;
+raises the free arm so its wrist camera looks at the stick from above and fits the stick's top (a silhouette fit);
+grasps the cylinder after a silhouette fit from the holding arm's wrist camera; plans to align the held cylinder
+over the stick in the free arm's camera; then probes downwards on a square spiral (0.85 mm steps), lifting before
+each sideways step, until the tool point goes 9 mm below where the cylinder first touches the stick's top. It never
+calls `robot.segment`.
+
+What happened (true offsets from an instrumented re-run): in both episodes the first move to the stick was refused
+(the raised free arm was in the way); the program's recovery is to send that arm home, which also drops its visual
+alignment step. That left the first estimate of the stick's position, off by 5.0 mm (seed 0) and 10.7 mm (seed 1),
+and the spiral: 104 probes found the hole in seed 0; in seed 1 the robot time ran out before the spiral got that far.
+The grasps left the cylinder's axis 1.5 and 0.4 mm from the tool point. So the direct-control episodes (3/3, 49-85 s) corrected with a
+new look where the unrevised program could only search by touch; a program that the model may run and revise is the
+next thing to compare.
+
 ## Not there yet
 
-- No coding-agent session yet (direct control through `drive`, or writing programs); model results are three episodes per cell, grippers only.
+- No coding-agent session yet (direct control through `drive`, or writing programs), and a model that writes a program cannot yet run and revise it; model results are two or three episodes per cell, grippers only.
 - Programs run in the runner's process, not in the platform's sandbox, and there is no learning loop
   (workspaces, practice, held-out suites) for these environments.
 - `--model` speaks the OpenAI Responses API only. A Claude model is tested through `drive` (in Claude Code) or needs
