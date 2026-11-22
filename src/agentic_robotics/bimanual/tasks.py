@@ -9,6 +9,8 @@ judge on the simulation's TRUE state, and the limits. The same tasks run in both
     move_across     a roll of white tape from the right arm's side of the table to the left arm's      (needs both arms)
     lift            pick a roll of white tape up and hold it                                        (one arm)
     insert_cylinder put a cylinder on a vertical stick that its hole fits with 1 mm to spare all round   (one arm)
+    insert_varied   the same with the cylinder's and the stand's sizes, colours, weights and places varied, and other
+                    objects on the table; nothing about the objects in the text (scenes.py)              (one arm)
 """
 from __future__ import annotations
 
@@ -17,7 +19,7 @@ from typing import Callable
 
 import numpy as np
 
-from . import make
+from . import make, scenes
 from .api import Robot
 from .core import BOTTLE_XY
 
@@ -48,6 +50,7 @@ class Task:
     time_limit_s: float                                         # robot time
     max_calls: int                                              # tool calls of a direct-control episode
     arms: int                                                   # how many arms the task needs
+    scene: Callable | None = None                               # seed -> a varied scene (scenes.py), instead of the layout
 
 
 def _rng(name, seed):
@@ -119,17 +122,30 @@ TASKS = {t.name: t for t in (
          "front of the robot. Thread the cylinder onto the stick, so that the stick passes through its hole, and let go of it: "
          "at the end the cylinder must be on the stick, the robot not touching it, and the stand upright on the table. " + _STICK,
          _stick_layout, lambda S: S.judge_insert(), 600.0, 80, 1),
+    Task("insert_varied",
+         "Task: put the cylinder on the stick. A cylinder with a hole and a stand with one vertical stick are on the table in "
+         "front of the robot. Thread the cylinder onto the stick, so that the stick passes through its hole, and let go of it: "
+         "at the end the cylinder must be on the stick, the robot not touching it, and the stand upright on the table. The "
+         "task requires mm level precision.",
+         lambda seed: scenes.layout(scenes.sample(seed)), lambda S: S.judge_insert(), 600.0, 80, 1, scenes.sample),
 )}
 
 
 class Episode:
     """One episode of a task in an environment: the simulation, the robot a controller gets, the judge."""
 
-    def __init__(self, env, task, seed=0, sensors="d415", record=False, time_limit_s=None, segmenter=None):
+    def __init__(self, env, task, seed=0, sensors="d415", record=False, time_limit_s=None, segmenter=None, scene=None):
+        """scene (tasks with varied scenes, scenes.py): this scene instead of the task's own for `seed`; the seed
+        then only sets the episode's sensor errors."""
         self.task = TASKS[task] if isinstance(task, str) else task
         self.env, self.seed, self.sensors = env, int(seed), sensors
-        self.layout = self.task.layout(self.seed)
-        self.S = make(env, seed=self.seed, sensors=sensors, layout=self.layout, record=record)
+        self.scene = scene if scene is not None else self.task.scene(self.seed) if self.task.scene else None
+        if self.scene is not None:
+            self.layout = scenes.layout(self.scene)
+            self.S = make(env, seed=self.seed, sensors=sensors, record=record, scene=self.scene)
+        else:
+            self.layout = self.task.layout(self.seed)
+            self.S = make(env, seed=self.seed, sensors=sensors, layout=self.layout, record=record)
         self.robot = Robot(self.S, time_limit_s=self.task.time_limit_s if time_limit_s is None else time_limit_s, segmenter=segmenter)
         self.text = self.task.text
         self.verdict = None

@@ -92,13 +92,21 @@ class Arm:
 class BiCore:
     NAME = None                                                # the model's name (models/NAME.xml)
 
-    def __init__(self, seed=0, sensors="d415", out: Path | None = None, record=False, layout="bottle"):
+    def __init__(self, seed=0, sensors="d415", out: Path | None = None, record=False, layout="bottle", scene=None):
+        """scene: a varied cylinder-and-stick scene (scenes.py): the model gets its stand, cylinder and distractors,
+        and the layout is the scene's."""
         f = MODELS / f"{self.NAME}.xml"
         if not f.exists():
             raise FileNotFoundError(f"{f} missing: build it with scripts/build_bimanual.py")
         if sensors not in ("d415", "ideal"):
             raise ValueError('sensors: "d415" (the real cameras\' depth and calibration errors) or "ideal"')
-        self.m = m = mujoco.MjModel.from_xml_path(str(f))
+        self.scene = scene
+        if scene is None:
+            self.m = m = mujoco.MjModel.from_xml_path(str(f))
+        else:
+            from . import scenes
+            self.m = m = mujoco.MjModel.from_xml_string(scenes.model_xml(f, scene))
+            layout = scenes.layout(scene)
         self.d = mujoco.MjData(m); self.dk = mujoco.MjData(m)
         self.sensors, self.out = sensors, (Path(out) if out else None)
         self.arms, self.part = {}, {}

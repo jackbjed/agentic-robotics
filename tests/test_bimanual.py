@@ -66,7 +66,7 @@ def test_environment_cameras_and_state(env):
     rb.move("right", (-350, -300, 300), (0, 0, -1), (0, 1, 0) if env == GRIPPERS else (1, 0, 0))
     S.set_state(st)
     assert np.allclose(S.get_state()["qpos"], st["qpos"])
-    assert set(bimanual.ENVS) == {GRIPPERS, DEXTEROUS} and set(TASKS) == {"open_bottle", "move_across", "lift", "insert_cylinder"}
+    assert set(bimanual.ENVS) == {GRIPPERS, DEXTEROUS} and set(TASKS) == {"open_bottle", "move_across", "lift", "insert_cylinder", "insert_varied"}
 
 
 @pytest.mark.parametrize("env", ENVS)
@@ -94,6 +94,56 @@ def test_insert_cylinder_needs_a_millimetre(offset_mm, ok):
     assert v["ok"] == ok, v
     assert v["released"] and v["stand_upright"]
     assert (v["stick_through_mm"] > 35) == ok
+
+
+def test_varied_scenes():
+    """scenes.py: a scene built from a partial one keeps what was asked and the training limits, and refuses what is
+    outside them; the sampled scenes are fixed by their seed, out of distribution from OOD_FROM on; the simulation
+    has the scene's objects at rest where the scene says, and the reference (true poses) puts the cylinder on."""
+    from agentic_robotics.bimanual import scenes
+    spec = {"seed": 4, "cylinder": {"diameter_mm": 50, "color": "red", "xy_mm": [-300, 60]}, "stand": {"stick_diameter_mm": 12, "yaw_deg": 30},
+            "distractors": [{"shape": "box", "size_mm": [40, 60, 30], "xy_mm": [-150, -250]}]}
+    sc = scenes.build(spec)
+    assert sc == scenes.build(spec) and sc != scenes.build(dict(spec, seed=5)) and sc["ood"] == []
+    assert sc["cylinder"]["hole_mm"] == 14 and sc["cylinder"]["color"] == "red" and sc["cylinder"]["xy_mm"] == [-300, 60]
+    assert sc["stand"]["yaw_deg"] == 30 and sc["distractors"][0]["size_mm"] == [40, 60, 30] and "red" in scenes.describe(sc)
+    T = scenes.TRAIN
+    for seed in range(40):
+        b = scenes.build({}, seed=seed)
+        c, st = b["cylinder"], b["stand"]
+        assert T["cyl_d"][0] <= c["diameter_mm"] <= T["cyl_d"][1] and T["stick_h"][0] <= st["stick_height_mm"] <= T["stick_h"][1]
+        assert c["hole_mm"] == st["stick_diameter_mm"] + scenes.CLEARANCE and c["diameter_mm"] >= c["hole_mm"] + 2 * scenes.WALL
+        assert c["color"] in scenes.COLOURS and len(b["distractors"]) <= T["dis_n"][1] and all(d["shape"] in scenes.SHAPES for d in b["distractors"])
+    for bad, why in (({"cylinder": {"diameter_mm": 80}}, "outside 30..55"), ({"cylinder": {"color": "orange"}}, "not one of"),
+                     ({"cylinder": {"xy_mm": [-300, 0]}, "stand": {"xy_mm": [-300, 40]}}, "free table"),
+                     ({"cylinder": {"diameter_mm": 30}, "stand": {"stick_diameter_mm": 20}}, "wider than the stick"),
+                     ({"distractors": 5}, "outside 0..3"), ({"distractors": [{"shape": "ball"}]}, "not one of"),
+                     ({"cylinder": {"xy_mm": [-300, 200]}}, "outside"), ({"cylinder": {"mass": 1}}, "unknown field")):
+        with pytest.raises(ValueError, match=why):
+            scenes.build(bad)
+    assert scenes.sample(1003) == scenes.sample(1003) != scenes.sample(1004) and scenes.sample(1003)["ood"] == []
+    ood = [scenes.sample(scenes.OOD_FROM + k) for k in range(30)]
+    assert all(len(o["ood"]) >= 2 for o in ood) and {t.split(":")[0] for o in ood for t in o["ood"]} == {"sizes", "colours", "distractors", "density", "place"}
+    assert any(d["shape"] in scenes.OOD_SHAPES for o in ood for d in o["distractors"]) and any(o["cylinder"]["color"] in scenes.OOD_COLOURS for o in ood)
+
+    for scene in (sc, ood[2]):
+        ep = Episode(GRIPPERS, "insert_varied", seed=3, sensors="ideal", scene=scene)
+        S = ep.S
+        assert set(ep.layout) == {"stick_stand", "cylinder"} | {f"distractor_{k}" for k in range(len(scene["distractors"]))}
+        for name, xy in [("cylinder", scene["cylinder"]["xy_mm"]), ("stick_stand", scene["stand"]["xy_mm"])] + [
+                (f"distractor_{k}", d["xy_mm"]) for k, d in enumerate(scene["distractors"]) if d["shape"] not in ("ball", "pill")]:
+            p = S.object_pose(name)[0]
+            assert np.allclose(p[:2] * 1000, xy, atol=0.5) and abs(p[2]) < 0.002, name
+        top = S.stick_top()[0]
+        assert abs(top[2] * 1000 - scene["stand"]["board_mm"][2] - scene["stand"]["stick_height_mm"]) < 1.0
+        assert abs(S.m.body("obj_cylinder").subtreemass[0] - scene["cylinder"]["density"] * math.pi / 4 * (
+            scene["cylinder"]["diameter_mm"] ** 2 - scene["cylinder"]["hole_mm"] ** 2) * scene["cylinder"]["height_mm"] * 1e-9) < 2e-4
+    assert Episode(GRIPPERS, "insert_varied", seed=1003, sensors="ideal").scene == scenes.sample(1003)
+    assert not Episode(GRIPPERS, "insert_varied", seed=1003, sensors="ideal").finish()["ok"]
+    ep = Episode(GRIPPERS, "insert_varied", seed=3, sensors="ideal", scene=sc)
+    assert run.run_scripted(ep, log=lambda *a: None) == "returned"
+    v = ep.finish()
+    assert v["ok"] and v["off_axis_mm"] < 1.1 and v["stick_through_mm"] > 20, v
 
 
 @pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])
@@ -267,3 +317,66 @@ def test_development_session_with_a_stub_model(tmp_path):
 
     s = improve.Session(tmp_path / "s", GRIPPERS, "lift", Dev([]), budget_usd=5.0, log=lambda *a: None)       # resumed: its state
     assert s.state["ended"] == "submitted" and len(s.state["versions"]) == 3 and s.state["submitted"] == 1
+
+
+def test_scene_session_with_a_stub_model(tmp_path, monkeypatch):
+    """improve.py's session on a task with varied scenes: the model's own scenes (within the training limits), the
+    simulation's truth for a practising program and not for an evaluated one, the self-evaluation set of one kind of
+    session and not of the other."""
+    from agentic_robotics.bimanual import improve, practice, scenes
+    monkeypatch.setattr(improve, "EVAL_SET", (1000, 2))
+
+    class Dev:
+        def __init__(self, calls):
+            self.calls, self.seen = list(calls), []
+
+        def respond(self, input, images, **k):
+            self.seen.append(dict(input=input, n_images=len(images), **k))
+            n = len(self.seen)
+            out = []
+            if self.calls:
+                name, args = self.calls.pop(0)
+                out.append({"type": "function_call", "call_id": f"c{n}", "name": name, "arguments": json.dumps(args)})
+            return dict(ok=True, id=f"r{n}", status="completed", output=out, usd=0.01, wait_s=0.0, tokens=dict(input=1000 * n, cached=0, output=100, reasoning=0))
+
+        def results(self):
+            return ["\n".join(c["text"] for c in i.get("output", []) if c.get("type") == "input_text") for s in self.seen for i in s["input"]]
+
+    prog = ("def run(robot, task):\n    t, j = robot.truth(), robot.judge()\n    if t is None:\n        print('no truth', j)\n        return\n"
+            "    print('cylinder at', t['cylinder'], 'objects', sorted(t), 'ok', j['ok'], 'off', j['off_axis_mm'])\n"
+            "    robot.move('left', (-480, 40, 300), (0, 0, -1), (0, 1, 0))\n")
+    mine = {"seed": 11, "cylinder": {"color": "red", "xy_mm": [-300, 60]}, "distractors": 1}
+    dev = Dev([("define_scenes", dict(scenes=[mine, {"cylinder": {"diameter_mm": 90}}, {}])), ("write_program", dict(code=prog, note="reads the truth")),
+               ("run_episodes", dict(scenes=["s1", "example", "s7"])), ("run_episodes", dict(scenes=["s1", "E1"])), ("run_eval_set", {}),
+               ("read_output", dict(scene="s1", contains="move(")), ("view_images", dict(scene="E0", names=["final"])),
+               ("list_scenes", dict(names=["E1", "s2"])), ("submit", dict(final=True))])
+    s = improve.SceneSession(tmp_path / "a", GRIPPERS, "insert_varied", dev, budget_usd=5.0, n_eval=30, eval_set=True, log=lambda *a: None)
+    assert s.run() == "submitted"
+    res, first = dev.results(), dev.seen[0]
+    names = [t["name"] for t in first["tools"]]
+    assert "run_eval_set" in names and "define_scenes" in names and first["n_images"] == 3
+    t0 = first["input"][0]["content"][0]["text"]
+    assert improve.ASK_VARIED in t0 and "no program yet" in t0 and "mm level precision" in t0 and "40 mm" not in t0
+    assert "robot.truth()" in first["instructions"] and "E0 to E1" in first["instructions"] and "go beyond these limits" in first["instructions"]
+    assert "s1 (seed 11): cylinder" in res[1] and "red" in res[1] and "REFUSED" in res[1] and "outside 30..55" in res[1] and "s2 (seed 2)" in res[1]
+    assert "saved as v0" in res[2] and "no scene s7" in res[3]
+    assert "v0 scene s1: FAILED" in res[4] and "cylinder at [-300.0, 60.0, " in res[4] and "'distractor_0'" in res[4] and "ok False" in res[4]
+    assert "v0 scene E1: FAILED" in res[4] and "v0 0/1, self-evaluation set 0/1" in res[4]
+    assert res[5].count("v0 scene E") == 2 and "on_stick" in res[5] and "cylinder at" not in res[5] and "self-evaluation set 0/2" in res[5]
+    assert "move('left'" in res[6] and dev.seen[7]["n_images"] == 1 and "E1 (seed 1001): cylinder" in res[8] and "s2 (seed 2)" in res[8]
+    assert json.loads((tmp_path / "a/runs/v00/s1/scene.json").read_text()) == scenes.build(mine) == s.state["scenes"]["s1"]
+    assert s.state["scenes"]["E1"] == scenes.sample(1001) and (tmp_path / "a/program.py").read_text() == prog
+
+    v = practice.suite(GRIPPERS, "insert_varied", [scenes.OOD_FROM + 2], tmp_path / "a/program.py", tmp_path / "eval", log=lambda *a: None)
+    r = v["results"][0]                                         # the evaluation: the task's own scene of the seed, no truth
+    assert not r["ok"] and r["ended"] == "returned" and r["scene"] == scenes.sample(scenes.OOD_FROM + 2) and r["commands"] == 0
+    assert "no truth None" in (tmp_path / f"eval/s{scenes.OOD_FROM + 2}/output.txt").read_text()
+
+    dev = Dev([("run_eval_set", {}), ("list_scenes", dict(names=["E0"])), ("submit", dict(final=True))])
+    s = improve.SceneSession(tmp_path / "b", GRIPPERS, "insert_varied", dev, budget_usd=5.0, n_eval=30, log=lambda *a: None)
+    assert s.run() == "the model stopped calling tools"       # (nothing to submit)
+    res = dev.results()
+    assert "run_eval_set" not in [t["name"] for t in dev.seen[0]["tools"]] and "E0 to" not in dev.seen[0]["instructions"]
+    assert "unknown tool run_eval_set" in res[1] and "no scene E0" in res[2] and set(s.state["scenes"]) == {"example"}
+    with pytest.raises(ValueError, match="without the self-evaluation set"):
+        improve.SceneSession(tmp_path / "b", GRIPPERS, "insert_varied", Dev([]), budget_usd=5.0, eval_set=True, log=lambda *a: None)

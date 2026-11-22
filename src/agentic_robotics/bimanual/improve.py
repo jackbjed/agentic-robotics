@@ -33,7 +33,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import practice
+from . import practice, scenes
 from .tasks import TASKS, Episode
 from .tools import Toolbox, openai_items, openai_tools, text
 from .write import VARIES, instructions
@@ -79,8 +79,6 @@ warning and the last submitted version counts{fallback}. When you are satisfied,
 """
 
 _FIRST = """
-
-In each episode the layout is new: {varies}.
 {start}
 The first look of practice episode {seed} (the arms at their start poses; the three cameras' colour images):"""
 
@@ -90,6 +88,95 @@ v0, the starting program, was written earlier for this task in one attempt, with
 ```python
 {code}```
 """
+# ---- a session on a task with varied scenes (scenes.py): from nothing, the scenes set up by the model
+ASK_VARIED = ("You should write a skill that solves this task (i.e., picking the cylinder and threading it onto the stick so that "
+              "the stick passes through its hole).\n\nThe skill should be robust to many variations, such as positions and poses of "
+              "the stick and cylinder, size and dimensions of the cylinder and stick, colors of the objects, their densities, and "
+              "the presence of distractors.")
+
+_SCENES = """
+You develop this program (the skill) in a session with a simulator of the robot to practise in. There is no program
+yet, and nothing is told about the objects: the program has the cameras. The practice is yours to set up: you
+choose the scenes, and in practice the simulator's TRUE state is open to you, to test and to measure with. The tools:
+
+write_program, edit_program   save a new version of the program (v0, v1, ...). Any version can be run, so a
+                              version can also be an experiment (a program that only looks and reports).
+define_scenes                 set up practice scenes (see below) -> their names (s1, s2, ...) and what is in each
+list_scenes                   what is in scenes: the objects' sizes, colours, densities and places
+run_episodes                  run a version on scenes, one episode a scene. You get, for each episode: the judge's
+                              verdict (the simulator's success check, on the TRUE state at the end), how the program
+                              ended, the robot time, what the program printed, and the objects' TRUE positions at the
+                              start and at the end{points}.
+{eval_tool}read_output                   more of an episode's output: what the program printed and, on lines starting with "#",
+                              a trace of every robot command: robot time, the command, its result, that arm's TRUE
+                              tool position (and opening), and after NOW the TRUE position of each object that
+                              moved. Compare what the program measured with the truth there.
+view_images                   the overview camera's picture of the end of an episode, and the images the program
+                              handed over with robot.show
+read_program                  a version's text, with line numbers
+submit                        name the version that is your result
+
+The scenes. A scene has one cylinder (standing on the table, its hole upwards), one stand with its stick, and up to
+{dis_n} other objects (distractors). define_scenes takes scenes as JSON objects in which every field can be left out; what
+is left out is drawn at random within its range, by the scene's "seed" (the same object gives the same scene):
+
+  {{"seed": 3,
+   "cylinder": {{"diameter_mm": {cyl_d}, "height_mm": {cyl_h}, "color": "red", "density": {density}, "xy_mm": [x, y]}},
+   "stand": {{"stick_diameter_mm": {stick_d}, "stick_height_mm": {stick_h}, "board_mm": [side, side, thickness],
+             "color": "wood", "stick_color": "wood", "density": {density}, "xy_mm": [x, y], "yaw_deg": {yaw}}},
+   "hole_clearance_mm": {clearance},
+   "distractors": 2}}        (a number, or a list of {{"shape": "box" | "cylinder", "size_mm": [side, side, height] |
+                            [diameter, height], "color": ..., "density": ..., "xy_mm": [x, y], "yaw_deg": ...}})
+
+Lengths in mm, densities in kg/m3 (the weight follows from the size). The hole's diameter is the stick's plus
+hole_clearance_mm ({clear0:g} if left out, and {clear0:g} in the final evaluation); the cylinder's wall is at least {wall:g} mm thick.
+stick_height_mm is the stick's height above the board; the board's sides are {board}, its thickness {board_t}. A
+distractor's sides or diameter are {dis_size}, its height {dis_h}. Colours: {colours}. xy_mm is where the
+object's centre stands on the table: the cylinder and the stand within x {x}, y {y}, with at least {gap} mm
+of free table between them; a distractor within x {dis_x}, y {dis_y}, at least {dis_gap} mm from the cylinder and
+from the stand and {dis_dis} mm from another distractor (between the circles around their outlines); nothing stands on the
+ruler that is fixed to the table (y {ruler}). A scene outside these limits is refused, with the reason. The
+seed also fixes the episode's sensor noise and calibration error: a version on a scene gives the same result every
+time, and run_episodes keeps results.
+
+In a program, robot.show(label, image) hands an image to you (H x W x 3 uint8 RGB, or H x W; at most {shown} an episode;
+no robot time): for instance a camera frame with what the program detected drawn on it (cv2). In practice episodes a
+program can also read the simulator: robot.truth() -> {{name: [x, y, z]}} (mm), the objects' TRUE positions now (the
+names and points of run_episodes' results), and robot.judge() -> the judge's verdict on the state as it is now (a dict;
+"ok": success). Both cost no robot time, and both return None in the final evaluation: they are for measuring and
+checking (how far is a measurement from the truth? did a step do what it should?), not for doing the task. {rules}
+
+Your result is the version you submitted last. After the session it is run, without you, on the final evaluation:
+{n_eval} episodes with new scenes, in which the program has the cameras and nothing of the simulator's state, judged by how
+many succeed and then by the robot time it takes. Half of those scenes are drawn at random within the limits above{like}.
+The other half go beyond these limits, in ways that cannot be set up here: sizes outside the ranges above, other
+colours, other kinds of distractors and more of them, lighter and heavier objects, and other placements (objects
+closer together, or elsewhere on the table within the arms' reach). So make the program reliable over many different
+scenes first, without leaning on what only happens to hold in the scenes here; then fast.
+
+The session's budget is ${budget:.0f} of model usage: your replies (the thinking included) and the conversation so far, which
+is read again at every turn, are what costs; simulation is free. Every tool result ends with what is spent. So run
+several scenes at once, read outputs selectively, and prefer edit_program to writing the whole program again. Submit
+a version as soon as it is better than the one submitted before: when the budget runs out the session ends without
+warning and the last submitted version counts (nothing if none). When you are satisfied, call submit with final = true.
+"""
+
+_EVAL_TOOL = """run_eval_set                  run a version on this session's self-evaluation set: the scenes E0 to E{last}, drawn at
+                              random within the limits below and fixed (their names also work in list_scenes,
+                              run_episodes, read_output and view_images). One line per episode.
+"""
+
+_FIRST_SCENE = """
+
+There is no program yet.
+
+The first look of the practice scene "example" (drawn at random; the arms at their start poses; the three cameras'
+colour images):"""
+
+EVAL_SET = (1000, 30)                                           # a session's self-evaluation set: scenes.sample of these seeds
+EXAMPLE = 900                                                   # the scene of the first look: scenes.sample of this seed
+AT_ONCE_SCENES = 8                                              # new episodes of one run_episodes call (the set: all at once)
+
 NUDGE = "Go on with the tools; call submit with final = true when you are satisfied with a version."
 NOTES = ("The conversation has grown long and will now be cut to save budget. Reply with notes of everything you want to keep "
          "(what you found out about the task, the robot and the cameras; what worked and what did not; what you plan next), "
@@ -146,7 +233,9 @@ class Session:
         self._spent = spent
         self.bridge = None
         kind = "grippers" if env == "sim_bimanual_grippers" else "dexterous"
-        self.tools = openai_tools(TOOLS)
+        self.n_eval = int(n_eval)
+        self.specs = self._specs()
+        self.tools = openai_tools(self.specs)
         sf = self.dir / "state.json"
         if sf.exists():
             self.state = json.loads(sf.read_text())
@@ -163,11 +252,24 @@ class Session:
             self.inp, self.images = self._first()
             self._keep()
             self._md("## The first message\n\n" + self.inp[0]["content"][0]["text"] + f"\n\n[{len(self.images)} images, with the arms' states]")
-        self.instr = instructions(kind, self.task.time_limit_s, self.segmenter, closing=_SESSION.format(
-            lo=SEEDS[0], hi=SEEDS[1], shown=practice.SHOWN, points=practice.POINTS.get(self.task.name, ""), rules="\n" + practice.RULES, n_eval=n_eval, budget=self.budget,
-            v0="; v0 is the starting program" if self.state["start"] else "",
-            fallback=" (v0 if none)" if self.state["start"] else " (nothing if none)"))
+        self.instr = instructions(kind, self.task.time_limit_s, self.segmenter, closing=self._closing())
         (self.dir / "instructions.md").write_text(self.instr)
+
+    # ------------------------------------------------------------------ what a kind of session sets (SceneSession)
+    def _specs(self):
+        return TOOLS
+
+    def _closing(self):
+        return _SESSION.format(
+            lo=SEEDS[0], hi=SEEDS[1], shown=practice.SHOWN, points=practice.POINTS.get(self.task.name, ""), rules="\n" + practice.RULES,
+            n_eval=self.n_eval, budget=self.budget, v0="; v0 is the starting program" if self.state["start"] else "",
+            fallback=" (v0 if none)" if self.state["start"] else " (nothing if none)")
+
+    def _intro(self):
+        """The task, as every conversation of the session starts."""
+        return self.task.text + "\n\nIn each episode the layout is new: " + VARIES.get(self.task.name, "the objects are elsewhere") + "."
+
+    _EP = "seed"                                                # what an episode is named by, in texts
 
     # ------------------------------------------------------------------ state
     def _keep(self):
@@ -210,7 +312,7 @@ class Session:
     def _first(self):
         ep = Episode(self.env, self.task, seed=self.example_seed, sensors=self.sensors)
         start = _V0.format(code=self._path(0).read_text()) if self.state["start"] else "\nThere is no program yet.\n"
-        t = self.task.text + _FIRST.format(varies=VARIES.get(self.task.name, "the objects are elsewhere"), start=start, seed=self.example_seed)
+        t = self._intro() + _FIRST.format(start=start, seed=self.example_seed)
         images = []
         return [{"role": "user", "content": [{"type": "input_text", "text": t}]
                  + openai_items(Toolbox(ep.robot).call("look", {}, free=True), images)}], images
@@ -231,9 +333,9 @@ class Session:
         try:
             if not isinstance(a, dict):
                 raise ValueError("the arguments are not a JSON object (was the reply cut at its length limit? Write less in one call)")
-            fn = {s["name"]: getattr(self, "_t_" + s["name"]) for s in TOOLS}.get(name)
+            fn = {s["name"]: getattr(self, "_t_" + s["name"]) for s in self.specs}.get(name)
             if fn is None:
-                raise ValueError(f"unknown tool {name}: there are {', '.join(s['name'] for s in TOOLS)}")
+                raise ValueError(f"unknown tool {name}: there are {', '.join(s['name'] for s in self.specs)}")
             items = fn(a)
         except (KeyError, ValueError, TypeError, IndexError) as e:
             items = [text(f"bad call: {str(e) or type(e).__name__}")]
@@ -271,6 +373,27 @@ class Session:
     def _run_dir(self, v, seed):
         return self.dir / "runs" / f"v{v:02d}" / f"s{seed}"
 
+    def _results(self, v, keys, brief=False):
+        """The tool result for the episodes `keys` of version v, as run (their directories)."""
+        items, runs, failed = [], self.state["versions"][v]["runs"], []
+        for s in keys:
+            d = self._run_dir(v, s)
+            if not (d / "result.json").exists():                # the process gave no result: not kept, it can be run again
+                items.append(text(f"v{v} {self._EP} {s}: NO RESULT: the episode's process was stopped (15 min of computing: a loop without "
+                                  "robot commands?) or crashed" + ("" if brief else _printed(d))))
+                continue
+            r = json.loads((d / "result.json").read_text())
+            runs[str(s)] = [bool(r["ok"]), r["robot_s"]]
+            failed += [] if r["ok"] else [(s, d)]
+            items.append(text(_episode_line(v, s, r, d, self._EP) if brief else _episode_text(v, s, r, d, self._EP)))
+        if brief:
+            items = [text("\n".join(i["text"] for i in items))]
+        for s, d in ([] if brief else failed[:3]):
+            items += [text(f"v{v} {self._EP} {s}, the overview camera at the end:"), _image(d / "final.jpg")]
+        n = [runs[str(s)][0] for s in keys if str(s) in runs]
+        items.append(text(f"v{v}: {sum(n)} of these {len(n)} episodes succeeded. " + self.results_line()))
+        return items
+
     def _t_run_episodes(self, a):
         v = self._version(a)
         seeds = list(dict.fromkeys(int(s) for s in a["seeds"]))
@@ -285,22 +408,7 @@ class Session:
             with ThreadPoolExecutor(len(new)) as ex:
                 list(ex.map(lambda s: practice.run_sandboxed(self.env, self.task.name, s, self._path(v), self._run_dir(v, s), sensors=self.sensors,
                                                               trace=True, bridge=self.bridge, wall_s=900.0), new))
-        items, runs, failed = [], self.state["versions"][v]["runs"], []
-        for s in seeds:
-            d = self._run_dir(v, s)
-            if not (d / "result.json").exists():                # the process gave no result: not kept, it can be run again
-                items.append(text(f"v{v} seed {s}: NO RESULT: the episode's process was stopped (15 min of computing: a loop without "
-                                  "robot commands?) or crashed" + _printed(d)))
-                continue
-            r = json.loads((d / "result.json").read_text())
-            runs[str(s)] = [bool(r["ok"]), r["robot_s"]]
-            failed += [] if r["ok"] else [(s, d)]
-            items.append(text(_episode_text(v, s, r, d)))
-        for s, d in failed[:3]:
-            items += [text(f"v{v} seed {s}, the overview camera at the end:"), _image(d / "final.jpg")]
-        n = [runs[str(s)][0] for s in seeds if str(s) in runs]
-        items.append(text(f"v{v}: {sum(n)} of these {len(n)} episodes succeeded. " + self.results_line()))
-        return items
+        return self._results(v, seeds)
 
     def _episode(self, a):
         v, s = self._version(a), int(a["seed"])
@@ -318,7 +426,7 @@ class Session:
                if k >= k0 and (tr or not l.startswith("#")) and (not has or has.lower() in l.lower())]
         out = [f"{k:5d}| {l[:300]}" for k, l in sel[:n]]
         more = f"; the next one is line {sel[n][0]}" if len(sel) > n else ""
-        return [text(f"v{v} seed {s}: output.txt has {len(lines)} lines; {len(sel)} from line {k0} on match; {len(out)} shown{more}\n" + "\n".join(out))]
+        return [text(f"v{v} {self._EP} {s}: output.txt has {len(lines)} lines; {len(sel)} from line {k0} on match; {len(out)} shown{more}\n" + "\n".join(out))]
 
     def _t_view_images(self, a):
         v, s, d = self._episode(a)
@@ -328,9 +436,9 @@ class Session:
             name = str(name)
             hit = [n for n in shown if name in (n, n[:-4], n[3:-4], n[:2])]
             if name == "final" and (d / "final.jpg").exists():
-                items += [text(f"v{v} seed {s}, the overview camera at the end:"), _image(d / "final.jpg")]
+                items += [text(f"v{v} {self._EP} {s}, the overview camera at the end:"), _image(d / "final.jpg")]
             elif hit:
-                items += [text(f"v{v} seed {s}, {hit[0]}:"), _image(d / "shown" / hit[0])]
+                items += [text(f"v{v} {self._EP} {s}, {hit[0]}:"), _image(d / "shown" / hit[0])]
             else:
                 items.append(text(f"no image {name!r}: this episode has final" + "".join(", " + n for n in shown)))
         return items or [text("names: which images?")]
@@ -398,10 +506,10 @@ class Session:
         st["prev"], st["last"] = None, None
         st["compactions"] += 1
         vs = "\n".join(f"v{v} ({m['lines']} lines{', from v' + str(m['base']) if m['base'] is not None else ''}): {m['note']} | practice: "
-                       + (", ".join(f"seed {s} {'ok' if r[0] else 'FAIL'} {r[1]} s" for s, r in m["runs"].items()) or "not run")
+                       + (", ".join(f"{self._EP} {s} {'ok' if r[0] else 'FAIL'} {r[1]} s" for s, r in m["runs"].items()) or "not run")
                        for v, m in enumerate(st["versions"]))
         newest = len(st["versions"]) - 1
-        t = (self.task.text + "\n\nIn each episode the layout is new: " + VARIES.get(self.task.name, "the objects are elsewhere") + ".\n\n"
+        t = (self._intro() + "\n\n"
              "This session started earlier; the conversation so far was cut to save budget. You keep your notes, the versions "
              "(read_program) and all episode results (read_output, view_images).\n\nThe versions:\n" + vs + "\n\n" + self.results_line()
              + "\n\nYour notes:\n" + (st["notes"] or "(none)")
@@ -530,6 +638,180 @@ class Session:
         return st["ended"]
 
 
+_NAME = {"type": "string", "description": "a scene's name"}
+_N, _XY = {"type": "number"}, {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+_COL = {"type": "string", "enum": list(scenes.COLOURS)}
+
+
+def _obj(description=None, **props):
+    return dict({"type": "object", "properties": props, "additionalProperties": False}, **({"description": description} if description else {}))
+
+
+_SCENE_SPEC = _obj(
+    "a scene (the instructions: The scenes); every field can be left out",
+    seed={"type": "integer"},
+    cylinder=_obj(diameter_mm=_N, height_mm=_N, color=_COL, density=_N, xy_mm=_XY),
+    stand=_obj(stick_diameter_mm=_N, stick_height_mm=_N, board_mm={"type": "array", "items": _N, "minItems": 3, "maxItems": 3},
+               color=_COL, stick_color=_COL, density=_N, xy_mm=_XY, yaw_deg=_N),
+    hole_clearance_mm=_N,
+    distractors={"anyOf": [{"type": "integer", "description": "how many"},
+                           {"type": "array", "items": _obj(shape={"type": "string", "enum": list(scenes.SHAPES)},
+                                                           size_mm={"type": "array", "items": _N}, color=_COL, density=_N, xy_mm=_XY, yaw_deg=_N)}]})
+
+
+def _scene_tools(eval_set):
+    keep = {s["name"]: s for s in TOOLS}
+    out = [keep["write_program"], keep["edit_program"],
+           _spec("define_scenes", "Set up practice scenes -> their names and what is in each.",
+                 {"scenes": {"type": "array", "items": _SCENE_SPEC}}, ["scenes"]),
+           _spec("list_scenes", "What is in scenes (sizes, colours, densities, places); without names: all of them.",
+                 {"names": {"type": "array", "items": _NAME}}),
+           _spec("run_episodes", f"Run a version on scenes, one episode each (at most {AT_ONCE_SCENES} new ones a call, run at the same time; a few minutes).",
+                 {"scenes": {"type": "array", "items": _NAME}, "version": _VER}, ["scenes"])]
+    if eval_set:
+        out.append(_spec("run_eval_set", "Run a version on the whole self-evaluation set (E0, E1, ...): one line per episode.", {"version": _VER}))
+    for name in ("read_output", "view_images"):
+        p = keep[name]["parameters"]
+        props = {("scene" if k == "seed" else k): (_NAME if k == "seed" else x) for k, x in p["properties"].items()}
+        out.append(_spec(name, keep[name]["description"], props, ["scene" if k == "seed" else k for k in p["required"]]))
+    return out + [keep["read_program"], keep["submit"]]
+
+
+class SceneSession(Session):
+    """A session on a task with varied scenes (scenes.py): the model starts from nothing, sets up its own practice
+    scenes within the training limits (define_scenes), and its practice episodes run with the simulation's truth
+    (practice.py: practice). eval_set: it also gets a fixed self-evaluation set (EVAL_SET) to run versions on.
+    Episodes are named by their scene."""
+    _EP = "scene"
+
+    def __init__(self, *a, eval_set=False, **k):
+        self.eval_set = bool(eval_set)
+        super().__init__(*a, **k)
+        if self.state.get("eval_set", self.eval_set) != self.eval_set:
+            raise ValueError("this session was started " + ("with" if self.state["eval_set"] else "without") + " the self-evaluation set")
+
+    def _specs(self):
+        return _scene_tools(self.eval_set)
+
+    def _eval_names(self):
+        return [f"E{k}" for k in range(EVAL_SET[1])] if self.eval_set else []
+
+    def _closing(self):
+        T = scenes.TRAIN
+        r = lambda key: f"{T[key][0]:g}..{T[key][1]:g}"
+        return _SCENES.format(
+            points=practice.POINTS.get(self.task.name, ""), shown=practice.SHOWN, rules="\n" + practice.RULES, n_eval=self.n_eval, budget=self.budget,
+            eval_tool=_EVAL_TOOL.format(last=EVAL_SET[1] - 1) if self.eval_set else "",
+            like=f" (as this session's self-evaluation set is; its {EVAL_SET[1]} scenes are not among them)" if self.eval_set else "",
+            dis_n=T["dis_n"][1], clear0=scenes.CLEARANCE, wall=scenes.WALL, colours=", ".join(scenes.COLOURS), gap=T["gap"], dis_gap=T["dis_gap"],
+            dis_dis=T["dis_dis"], ruler=f"{scenes.RULER[0]:g}..{scenes.RULER[1]:g}",
+            **{key: r(key) for key in ("cyl_d", "cyl_h", "density", "stick_d", "stick_h", "yaw", "clearance", "board", "board_t", "dis_size",
+                                       "dis_h", "x", "y", "dis_x", "dis_y")})
+
+    def _intro(self):
+        return self.task.text + " " + ASK_VARIED
+
+    def _first(self):
+        st = self.state
+        st["eval_set"] = self.eval_set
+        st["scenes"] = {"example": scenes.sample(EXAMPLE)}
+        st["scenes"].update({n: scenes.sample(EVAL_SET[0] + k) for k, n in enumerate(self._eval_names())})
+        st["n_scenes"] = 0
+        sc = st["scenes"]["example"]
+        ep = Episode(self.env, self.task, seed=sc["seed"], sensors=self.sensors, scene=sc)
+        images = []
+        return [{"role": "user", "content": [{"type": "input_text", "text": self._intro() + _FIRST_SCENE}]
+                 + openai_items(Toolbox(ep.robot).call("look", {}, free=True), images)}], images
+
+    def results_line(self):
+        out, ev = [], set(self._eval_names())
+        for v, m in enumerate(self.state["versions"]):
+            parts = []
+            for what, runs in (("", [r for s, r in m["runs"].items() if s not in ev]), ("self-evaluation set ", [r for s, r in m["runs"].items() if s in ev])):
+                if runs:
+                    ok = [r[1] for r in runs if r[0]]
+                    parts.append(f"{what}{len(ok)}/{len(runs)}" + (f" ({sum(ok) / len(ok):.0f} s)" if ok else ""))
+            if parts:
+                out.append(f"v{v} " + ", ".join(parts))
+        sub = self.state["submitted"]
+        return ("Practice so far (successes/episodes, mean robot time of the successes): " + ("; ".join(out) or "nothing run")
+                + f". Submitted: {'v' + str(sub) if sub is not None else 'nothing'}.")
+
+    # ------------------------------------------------------------------ the tools
+    def _t_define_scenes(self, a):
+        st, out = self.state, []
+        specs = a["scenes"]
+        if not isinstance(specs, list) or not specs or len(specs) > 12:
+            raise ValueError("scenes: a list of 1 to 12 scene objects")
+        for spec in specs:
+            n = st["n_scenes"] + 1
+            try:
+                if not isinstance(spec, dict):
+                    raise ValueError("a scene is a JSON object")
+                seed = spec.get("seed", n)
+                if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 1 << 30:
+                    raise ValueError("seed: a whole number from 0 on")
+                sc = scenes.build(spec, seed=seed)
+            except (ValueError, TypeError, KeyError) as e:
+                out.append(f"REFUSED ({json.dumps(spec)[:200]}): {str(e) or type(e).__name__}")
+                continue
+            st["n_scenes"] = n
+            st["scenes"][f"s{n}"] = sc
+            out.append(f"s{n} (seed {sc['seed']}): {scenes.describe(sc)}")
+        return [text("\n".join(out))]
+
+    def _names(self, names):
+        names = list(dict.fromkeys(str(n) for n in names))
+        bad = [n for n in names if n not in self.state["scenes"]]
+        if bad:
+            raise ValueError(f"no scene {', '.join(bad)}: there are {self._scene_names()}")
+        return names
+
+    def _scene_names(self):
+        st, ev = self.state, self._eval_names()
+        return ("example" + (f", {ev[0]} to {ev[-1]}" if ev else "")
+                + (f", s1 to s{st['n_scenes']}" if st["n_scenes"] > 1 else ", s1" if st["n_scenes"] else "") + " (define_scenes makes more)")
+
+    def _t_list_scenes(self, a):
+        names = self._names(a.get("names") or list(self.state["scenes"]))
+        return [text("\n".join(f"{n} (seed {self.state['scenes'][n]['seed']}): {scenes.describe(self.state['scenes'][n])}" for n in names))]
+
+    def _run_dir(self, v, name):
+        return self.dir / "runs" / f"v{v:02d}" / str(name)
+
+    def _run(self, v, names):
+        new = [n for n in names if not (self._run_dir(v, n) / "result.json").exists()]
+        if new:
+            if self.segmenter and self.bridge is None:
+                self.bridge = practice.SegmenterBridge()
+            sc = self.state["scenes"]
+            with ThreadPoolExecutor(len(new)) as ex:                # (practice.SLOTS bounds how many run at the same time)
+                list(ex.map(lambda n: practice.run_sandboxed(self.env, self.task.name, sc[n]["seed"], self._path(v), self._run_dir(v, n),
+                                                              sensors=self.sensors, trace=True, bridge=self.bridge, wall_s=900.0,
+                                                              scene=sc[n], practice=True), new))
+
+    def _t_run_episodes(self, a):
+        v, names = self._version(a), self._names(a["scenes"])
+        if not names:
+            raise ValueError(f"scenes: which? There are {self._scene_names()}")
+        if sum(not (self._run_dir(v, n) / "result.json").exists() for n in names) > AT_ONCE_SCENES:
+            raise ValueError(f"at most {AT_ONCE_SCENES} new episodes a call" + (" (run_eval_set runs the whole self-evaluation set)" if self.eval_set else ""))
+        self._run(v, names)
+        return self._results(v, names)
+
+    def _t_run_eval_set(self, a):
+        v, names = self._version(a), self._eval_names()
+        self._run(v, names)
+        return self._results(v, names, brief=True)
+
+    def _episode(self, a):
+        v, n = self._version(a), str(a["scene"])
+        d = self._run_dir(v, n)
+        if n not in self.state["scenes"] or not (d / "output.txt").exists():
+            raise ValueError(f"v{v} was not run on a scene {n}")
+        return v, n, d
+
+
 def _said(r):
     return "\n".join(c.get("text", "") for o in r["output"] if o.get("type") == "message"
                      for c in o.get("content") or [] if c.get("type") == "output_text").strip()
@@ -573,14 +855,22 @@ def _printed(d, head=12, tail=25):
             + "\n    ...\n" + "\n".join("    " + l for l in pr[-tail:]))
 
 
-_BOOK = ("ok", "task", "env", "seed", "robot_s", "mode", "ended", "sensors", "commands", "shown", "true_start_mm", "true_end_mm", "wall_s")
+_BOOK = ("ok", "task", "env", "seed", "robot_s", "mode", "ended", "sensors", "commands", "shown", "true_start_mm", "true_end_mm", "wall_s",
+         "scene")
 
 
-def _episode_text(v, s, r, d):
+def _episode_line(v, s, r, d, ep="seed"):
+    """An episode's result in one line (a whole evaluation set at once)."""
+    j = {k: x for k, x in r.items() if k in ("on_stick", "released", "stand_upright", "off_axis_mm", "stick_through_mm")}
+    return (f"v{v} {ep} {s}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s; the program "
+            f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])[:160]}" + ("" if r["ok"] else f"; judge: {json.dumps(j)}"))
+
+
+def _episode_text(v, s, r, d, ep="seed"):
     pos = lambda t: "; ".join(f"{n} {tuple(p) if isinstance(p, list) else p}" for n, p in t.items())
     shown = sorted(p.name for p in (Path(d) / "shown").glob("*.png")) if (Path(d) / "shown").exists() else []
     n_lines = len((Path(d) / "output.txt").read_text(errors="replace").splitlines())
-    return (f"v{v} seed {s}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s of robot time, {r['commands']} robot commands; the program "
+    return (f"v{v} {ep} {s}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s of robot time, {r['commands']} robot commands; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])}\n"
             f"  judge: {json.dumps({k: x for k, x in r.items() if k not in _BOOK})}\n"
             f"  TRUE positions (mm) at the start: {pos(r['true_start_mm'])}\n  TRUE positions at the end: {pos(r['true_end_mm'])}"
@@ -593,6 +883,8 @@ def main(argv=None):
     ap.add_argument("--task", required=True, choices=list(TASKS))
     ap.add_argument("--model", required=True, help="a model of configs/models.yaml")
     ap.add_argument("--start", help="the starting program (v0); none: the model starts from nothing")
+    ap.add_argument("--eval-set", action="store_true",
+                    help="a task with varied scenes (insert_varied): the model also gets a fixed self-evaluation set")
     ap.add_argument("--budget-usd", type=float, required=True, help="the session's hard cap on model spending")
     ap.add_argument("--sensors", default="d415", choices=["d415", "ideal"])
     ap.add_argument("--segmenter", choices=["sam3"], help="robot.segment() through the SAM3 service")
@@ -611,9 +903,16 @@ def main(argv=None):
     tag = f"bimanual_improve_{out.resolve().name}"
     vlm = V.VLM(dict(model=a.model, converse=True, max_calls_per_episode=100000, max_usd_per_episode=a.budget_usd, run_usd=a.budget_usd,
                      max_usd_per_call=a.budget_usd), tag=f"{tag}:{a.env}:{a.task}")
-    s = Session(out, a.env, a.task, vlm, budget_usd=a.budget_usd, start=a.start, sensors=a.sensors, segmenter=bool(a.segmenter),
-                effort=a.effort, max_output_tokens=a.max_output_tokens, n_eval=a.eval_episodes, max_hours=a.max_hours,
-                spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
+    kw = dict(budget_usd=a.budget_usd, sensors=a.sensors, segmenter=bool(a.segmenter), effort=a.effort, max_output_tokens=a.max_output_tokens,
+              n_eval=a.eval_episodes, max_hours=a.max_hours, spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
+    if TASKS[a.task].scene:
+        if a.start:
+            ap.error("--start: a session on a task with varied scenes starts from nothing")
+        s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, **kw)
+    elif a.eval_set:
+        ap.error("--eval-set: only for a task with varied scenes")
+    else:
+        s = Session(out, a.env, a.task, vlm, start=a.start, **kw)
     how = s.run()
     print(json.dumps(dict(ended=s.state["ended"], stopped=None if s.state["ended"] else how, submitted=s.state["submitted"],
                           turns=s.state["turn"], spent_usd=round(s.spent(), 4))))

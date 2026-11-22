@@ -92,6 +92,8 @@ VARIES = {
     "lift": "the roll lies anywhere within about 25 cm of where it is in the example",
     "insert_cylinder": "the cylinder and the stand are each anywhere within about 12 cm of where they are in the example, and "
                        "the stand is turned about the vertical by up to 45 degrees either way",
+    "insert_varied": "another cylinder and another stand (other sizes, colours and weights) stand elsewhere, the stand turned about the "
+                     "vertical by up to 45 degrees either way, and there can be other objects on the table",
 }
 
 _ASK = """

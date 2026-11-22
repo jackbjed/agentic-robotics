@@ -4,6 +4,8 @@ development session (improve.py) practises with, and how its result is evaluated
     python -m agentic_robotics.bimanual.practice suite --env sim_bimanual_grippers --task insert_cylinder \\
            --program prog.py --seeds 0-2,4-10 --out runs/bimanual/x [--jobs 5] [--segmenter sam3] [--trace] [--video]
 
+At most SLOTS sandboxed episodes run at the same time on the machine, whoever starts them (each renders: more fail).
+
 Each episode is one process in the sandbox (execution/sandbox.py: no network, no home directory, the platform read
 only, one writable directory); the GPU's device nodes are passed through, because the simulation renders in that
 process. There the program gets a ProgramRobot: the documented calls of api.Robot and show(), nothing else, and it
@@ -14,6 +16,10 @@ An episode's directory gets result.json (the judge's verdict on the TRUE final s
 objects' true positions at the start and the end), output.txt (what the program printed, its traceback; with
 --trace also one "#" line per robot command with the true positions then), shown/ (the images of robot.show),
 final.jpg and, with --video, video.mp4. `suite` adds summary.json.
+
+A development session's practice episodes (never an evaluation) also run with `practice`: the program can then read
+the simulation's TRUE state (robot.truth(), robot.judge(); both give None otherwise), and with a scene of the
+session's own (scenes.py; the episode's scene.json) in place of the task's scene for the seed.
 
 (`practice episode ...` is the one episode, in this process: what the sandbox runs.)
 """
@@ -58,9 +64,13 @@ RULES = ("Imports: only " + ", ".join(i for i in IMPORTS if i != "__future__") +
 # what the TRUE positions of truth() are, as told to a developer (improve.py)
 POINTS = {"insert_cylinder": ": cylinder is the centre of the cylinder's bottom face, stick_top the centre of the stick's top face, "
                              "stick_stand the centre of the board's underside",
+          "insert_varied": ": cylinder is the centre of the cylinder's bottom face, stick_top the centre of the stick's top face, "
+                           "stick_stand the centre of the board's underside, distractor_k the centre of that object's underside",
           "open_bottle": ": bottle is the centre of the bottle's bottom, cap the cap's centre"}
 SHOWN = 12                                                      # images of robot.show kept per episode
 WALL_S = 1500.0                                                 # an episode's process is stopped after this
+SLOTS = 14                                                      # sandboxed episodes at the same time on this machine (each renders
+                                                                # with EGL: beyond about 16 at once, framebuffers fail)
 
 
 def check_program(code):
@@ -107,6 +117,10 @@ def _mm(p):
     return [round(float(v) * 1000, 1) for v in p]
 
 
+def _plain(v):
+    return json.loads(json.dumps(v))
+
+
 def _fmt(v):
     if isinstance(v, str):
         return repr(v)
@@ -141,9 +155,10 @@ class ProgramRobot:
     """What a program gets of the robot: the documented calls of api.Robot and show(), nothing else. With a trace
     file, every command is logged there with its result, the arm's TRUE tool position and the TRUE position of
     every object that moved since it was last logged (read from the simulation's state: no sensor is read, so a
-    traced episode is the untraced one)."""
+    traced episode is the untraced one). practice: truth() and judge() give the simulation's TRUE state (a session's
+    practice; in an evaluation they give None)."""
 
-    def __init__(self, ep, out, trace=None):
+    def __init__(self, ep, out, trace=None, practice=False):
         robot, S = ep.robot, ep.S
         names = ["look", "state", "move", "turn", "home", "wait", "time_s"]
         names += ["set_gripper"] if robot.kind == "grippers" else ["set_joints", "fingertips"]
@@ -210,6 +225,8 @@ class ProgramRobot:
         for n in names:
             object.__setattr__(self, n, wrap(n))
         object.__setattr__(self, "show", show)
+        object.__setattr__(self, "truth", lambda: truth(ep) if practice else None)
+        object.__setattr__(self, "judge", lambda: _plain(ep.task.judge(S)) if practice else None)
         object.__setattr__(self, "counts", lambda: dict(counts))
 
     def __setattr__(self, k, v):
@@ -249,17 +266,21 @@ def _recv(s, n):
     return bytes(b)
 
 
-def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_socket=None, video=False, time_limit_s=None):
-    """One episode of the program, in this process -> the result (also out/result.json)."""
+def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_socket=None, video=False, time_limit_s=None,
+            scene=None, practice=False):
+    """One episode of the program, in this process -> the result (also out/result.json). scene: a scene (scenes.py) or
+    its JSON file, in place of the task's own for the seed."""
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     code = Path(program).read_text()
     t0 = time.time()
+    if scene is not None and not isinstance(scene, dict):
+        scene = json.loads(Path(scene).read_text())
     ep = Episode(env, task, seed=seed, sensors=sensors, record=video, time_limit_s=time_limit_s,
-                 segmenter=SocketSegmenter(seg_socket) if seg_socket else None)
+                 segmenter=SocketSegmenter(seg_socket) if seg_socket else None, scene=scene)
     start = truth(ep)
     bad = check_program(code)
     with open(out / "output.txt", "w", buffering=1) as log:
-        robot = ProgramRobot(ep, out, log if trace else None)
+        robot = ProgramRobot(ep, out, log if trace else None, practice=practice)
         if bad:
             how = "refused: " + "; ".join(bad)
         else:
@@ -278,6 +299,8 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
     c = robot.counts()
     v = dict(ep.finish(), mode="program", ended=how, sensors=sensors, commands=c["commands"], shown=c["shown"],
              true_start_mm=start, true_end_mm=truth(ep), wall_s=round(time.time() - t0, 1))
+    if ep.scene is not None:
+        v["scene"] = ep.scene
     import cv2
     cv2.imwrite(str(out / "final.jpg"), ep.S.render_rec()[..., ::-1])
     if video:
@@ -322,9 +345,33 @@ class SegmenterBridge:
         shutil.rmtree(self.dir, ignore_errors=True)
 
 
+@contextlib.contextmanager
+def _slot():
+    """One of the machine's SLOTS for a rendering episode (file locks, so that it holds across processes): waits for one."""
+    import fcntl
+    from .. import paths
+    d = paths.ROOT / "runs" / ".slots"
+    d.mkdir(parents=True, exist_ok=True)
+    while True:
+        for k in range(SLOTS):
+            f = open(d / f"{k}.lock", "w")
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                f.close()
+                continue
+            try:
+                yield
+            finally:
+                f.close()
+            return
+        time.sleep(0.5)
+
+
 def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, bridge=None, video=False, time_limit_s=None,
-                  wall_s=WALL_S):
-    """One episode of the program in the sandbox -> its result (dict(ok=False, ended=...) if the process gave none)."""
+                  wall_s=WALL_S, scene=None, practice=False):
+    """One episode of the program in the sandbox -> its result (dict(ok=False, ended=...) if the process gave none).
+    scene: a scene dict (kept as out/scene.json) in place of the task's own; practice: see the module's text."""
     from .. import paths
     from ..execution import sandbox
     program, out = Path(program).resolve(), Path(out).resolve()
@@ -334,12 +381,17 @@ def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, br
     cmd += (["--trace"] if trace else []) + (["--video"] if video else [])
     cmd += ["--time-limit", str(time_limit_s)] if time_limit_s else []
     cmd += ["--segmenter-socket", str(bridge.path)] if bridge is not None else []
+    cmd += ["--practice"] if practice else []
+    if scene is not None:
+        (out / "scene.json").write_text(json.dumps(scene) + "\n")
+        cmd += ["--scene", str(out / "scene.json")]
     devices = [d for d in sorted(glob.glob("/dev/nvidia*")) + ["/dev/dri"] if Path(d).exists()]
     full = sandbox.program_cmd(cmd, program.parent, out, bridge.dir if bridge is not None else out, devices=devices,
                                extra_env={"MUJOCO_GL": "egl", "PYOPENGL_PLATFORM": "egl", "PYTHONPATH": str(paths.ROOT / "src")})
     why = ""
     try:
-        r = subprocess.run(full, capture_output=True, text=True, timeout=wall_s)
+        with _slot():
+            r = subprocess.run(full, capture_output=True, text=True, timeout=wall_s)
         if r.returncode != 0:
             why = f"the episode's process failed ({r.returncode}): {r.stderr.strip()[-400:]}"
     except subprocess.TimeoutExpired:
@@ -395,6 +447,8 @@ def main(argv=None):
         if name == "episode":
             p.add_argument("--seed", type=int, required=True)
             p.add_argument("--segmenter-socket")
+            p.add_argument("--scene", help="a scene's JSON file (scenes.py), in place of the task's own for the seed")
+            p.add_argument("--practice", action="store_true", help="robot.truth() and robot.judge() give the TRUE state")
         else:
             p.add_argument("--seeds", required=True, help='e.g. "0-2,4-10"')
             p.add_argument("--jobs", type=int, default=5)
@@ -402,7 +456,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.cmd == "episode":
         v = episode(a.env, a.task, a.seed, a.program, a.out, sensors=a.sensors, trace=a.trace, seg_socket=a.segmenter_socket,
-                    video=a.video, time_limit_s=a.time_limit)
+                    video=a.video, time_limit_s=a.time_limit, scene=a.scene, practice=a.practice)
         print(json.dumps({k: v[k] for k in ("ok", "seed", "robot_s", "ended")}))
         return 0
     v = suite(a.env, a.task, parse_seeds(a.seeds), a.program, a.out, jobs=a.jobs, segmenter=bool(a.segmenter), sensors=a.sensors,

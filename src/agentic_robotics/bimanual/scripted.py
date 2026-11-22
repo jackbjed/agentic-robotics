@@ -6,6 +6,7 @@ simulation, not baselines for an agent.
     lift(S, log=print)             the nearer arm picks the white tape roll up from above and holds it
     move_across(S, log=print)      the right arm brings the tape roll to the middle, the left one takes it to the left
     insert_cylinder(S, log=print)  (grippers) the nearer arm takes the cylinder from above and lowers it onto the stick
+    insert_varied(S, log=print)    (grippers) the same in a varied scene: tries arms and closing directions (a check)
     SOLUTIONS[task](S, log)        -> the task's judge's verdict is then the caller's business (tasks.Episode.finish)
 """
 from __future__ import annotations
@@ -288,4 +289,77 @@ def insert_cylinder(S, log=print, P=None, offset=(0.0, 0.0), over=0.03, engage=0
     log(f"{P} up: {S.move(P, p + [0, 0, 0.12], R)}")
 
 
-SOLUTIONS = {"open_bottle": open_bottle, "lift": lift, "move_across": move_across, "insert_cylinder": insert_cylinder}
+def _insert_once(S, P, yaw, log, over=0.03):
+    """One attempt of insert_varied: arm P, the fingers closing along the table direction at `yaw` (rad)."""
+    from .grippers import grip_R
+    c = S.object_pose("cylinder")[0]
+    g0 = S.m.geom("cyl_w0")
+    h, dia = 2 * float(g0.size[2]), 2 * (float(np.linalg.norm(g0.pos[:2])) + float(g0.size[0]))
+    u = np.array([math.cos(yaw), math.sin(yaw), 0.0])
+    Rh = S.fk(P, S.arms[P].home)[1]
+    R = grip_R((0, 0, -1), u if u @ Rh[:, 1] >= 0 else -u)
+    g = c + [0, 0, max(h / 2 + 0.004, 0.014)]
+    S.move(P, g + [0, 0, 0.15], R)
+    S.set_gripper(P, min(0.08, dia + 0.024), duration=0.3)
+    why = S.move(P, g, R)
+    w = S.set_gripper(P, 0.0)
+    if why or w < 0.5 * dia:
+        raise Stop(f"no grasp ({why}, closed to {w * 1000:.0f} mm)")
+    top, ax = S.stick_top()
+    p, _ = S.tool_pose(P)
+    S.move(P, np.array([p[0], p[1], top[2] + over + h]), R, v=0.05)
+    c = S.object_pose("cylinder")[0]; p, _ = S.tool_pose(P)
+    cmd = np.array([top[0], top[1], top[2] + over]) + (p - c)
+    for _ in range(4):                                                  # the arm sags under the load: command the difference
+        S.move(P, cmd, R)
+        e = S.object_pose("cylinder")[0] - np.array([top[0], top[1], top[2] + over])
+        if np.linalg.norm(e[:2]) < 0.00015:
+            break
+        cmd = cmd - [e[0], e[1], 0.0]
+    engage = min(0.03, 0.6 * float(S.m.geom("stand_stick").size[1]) * 2)
+    r = S.move(P, cmd - [0, 0, over + engage], R, guarded=True, v=0.03)
+    c = S.object_pose("cylinder")[0]
+    log(f"{P} yaw {math.degrees(yaw):.0f}: lowered ({r}); cylinder foot {((c - top) * 1000).round(1)} mm from the stick's top")
+    S.set_gripper(P, min(0.08, dia + 0.03))
+    p, _ = S.tool_pose(P)
+    S.move(P, p + [0, 0, 0.10], R)
+
+
+def insert_varied(S, log=print):
+    """Grippers only: insert_cylinder for the varied scenes (scenes.py), as a check that a scene can be done: from a
+    snapshot of the start it tries each arm (the nearer first) with the fingers closing along each of 6 directions
+    (the one with the most room around the cylinder first, by the TRUE positions of everything) until one attempt
+    puts the cylinder on the stick; the simulation is left as the last attempt left it."""
+    if S.HANDS != "grippers":
+        raise NotImplementedError("insert_varied: no reference solution for the Sharpa hands yet")
+    st0 = S.get_state()
+    c = S.object_pose("cylinder")[0]
+    mid = 0.5 * (S.d.xpos[S.arms["L"].base][1] + S.d.xpos[S.arms["R"].base][1])
+    arms = ("L", "R") if c[1] > mid else ("R", "L")
+    obst = [S.d.geom_xpos[g][:2] for n in S.layout if n != "cylinder" for g in S.obj_geoms[n]]
+    def room(yaw):                                                      # how far the nearest thing is from the hand's line
+        u = np.array([math.cos(yaw), math.sin(yaw)])
+        return min((abs(float((o - c[:2]) @ [-u[1], u[0]])) + max(abs(float((o - c[:2]) @ u)) - 0.11, 0.0) for o in obst), default=1.0)
+    yaws = sorted((math.pi * k / 6 for k in range(6)), key=lambda y: -room(y))
+    last = None
+    for P in arms:
+        for yaw in yaws:
+            S.set_state(st0)
+            try:
+                _insert_once(S, P, yaw, log)
+            except Stop as e:
+                last = e; log(f"{P} yaw {math.degrees(yaw):.0f}: {e}")
+                continue
+            last = None
+            st1 = S.get_state()
+            S.run(1.0)
+            ok = S.judge_insert()["ok"]
+            S.set_state(st1)
+            if ok:
+                return
+    if last is not None:
+        raise last
+
+
+SOLUTIONS = {"open_bottle": open_bottle, "lift": lift, "move_across": move_across, "insert_cylinder": insert_cylinder,
+             "insert_varied": insert_varied}
