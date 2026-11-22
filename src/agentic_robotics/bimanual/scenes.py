@@ -65,6 +65,10 @@ TABLE_COLOURS = {"black": (20, 20, 22), "dark grey": (51, 51, 54), "light grey":
                  "light wood": (205, 165, 115), "dark wood": (100, 66, 40), "green": (40, 115, 75), "blue": (50, 90, 155),
                  "beige": (218, 204, 172), "red brown": (140, 52, 38)}
 PATTERNS = ("plain", "checker", "stripes", "speckle", "wood", "blotches")
+PATTERN_SIZE = dict(checker=((25, 80), 1), stripes=((8, 50), 1), speckle=((1.5, 6), 0.5), wood=((15, 45), 1), blotches=((30, 90), 1))
+# a session's own tables (build_table): less than the evaluation's (TABLE_H, TABLE_COLOURS, PATTERNS)
+TRAIN_TABLE = dict(height=(-25.0, 25.0), colours=("black", "dark grey", "white", "light wood", "green", "blue"),
+                   patterns=("plain", "checker", "stripes", "speckle"))
 TEX = 2048                                                      # px: the table's texture (0.6 mm a pixel)
 TABLE_TOP = (1221.0, 1224.0)                                    # mm: the table top's sides (models/*.xml: table_top)
 
@@ -197,7 +201,7 @@ def build(spec=None, seed=0):
     """A scene within the training limits from a partial one: spec's values where it has them (ValueError if one is
     outside the limits), random ones elsewhere (by `seed`, or spec["seed"])."""
     T, spec = TRAIN, dict(spec or {})
-    _known(spec, ("seed", "cylinder", "stand", "hole_clearance_mm", "distractors"), "scene")
+    _known(spec, ("seed", "cylinder", "stand", "hole_clearance_mm", "distractors", "table"), "scene")
     seed = int(spec.get("seed", seed))
     rng = np.random.default_rng([7, seed])
     c, s = dict(spec.get("cylinder") or {}), dict(spec.get("stand") or {})
@@ -271,7 +275,36 @@ def build(spec=None, seed=0):
     stand["xy_mm"], cyl["xy_mm"] = xy[0], xy[1]
     for d, p in zip(dis, xy[2:]):
         d["xy_mm"] = p
-    return dict(seed=seed, cylinder=cyl, stand=stand, distractors=dis, ood=[])
+    sc = dict(seed=seed, cylinder=cyl, stand=stand, distractors=dis, ood=[])
+    if spec.get("table") is not None:                               # (the objects are those of the scene without it)
+        sc["table"] = build_table(spec["table"], seed)
+    return sc
+
+
+def build_table(t=None, seed=0):
+    """A table within the training limits (TRAIN_TABLE) from a partial one: t's values where it has them (ValueError
+    if one is outside the limits), random ones elsewhere (by `seed`; a value given does not change the others)."""
+    T, t = TRAIN_TABLE, t if t is not None else {}
+    _known(t, ("height_mm", "color", "pattern", "color2", "size_mm", "angle_deg"), "table")
+    rng = np.random.default_rng([11, int(seed)])
+    drawn = dict(height_mm=_u(rng, T["height"]), pattern=str(rng.choice(T["patterns"])), color=str(rng.choice(T["colours"])),
+                 pick2=float(rng.random()), size=float(rng.random()), angle_deg=_u(rng, (0, 180), 1), texture_seed=int(rng.integers(1 << 30)))
+    for key, names in (("color", T["colours"]), ("color2", T["colours"]), ("pattern", T["patterns"])):
+        if t.get(key) is not None and t[key] not in names:
+            raise ValueError(f"table.{key}: {t[key]!r} is not one of {', '.join(names)}")
+    h = _num(t, "height_mm", T["height"], "table.height_mm", drawn["height_mm"])
+    pat, c1 = t.get("pattern") or drawn["pattern"], t.get("color") or drawn["color"]
+    others = [n for n in T["colours"] if n != c1]
+    c2 = t.get("color2") or others[int(drawn["pick2"] * len(others))]
+    size = 0.0
+    if pat != "plain":
+        if c2 == c1:
+            raise ValueError(f"table.color2: the {pat}'s colour must be another one than the table's ({c1})")
+        r, step = PATTERN_SIZE[pat]
+        size = _num(t, "size_mm", r, f"table.size_mm (of {pat})", round((r[0] + drawn["size"] * (r[1] - r[0])) / step) * step)
+    jit = lambda n: [int(np.clip(c + rng.integers(-JITTER, JITTER + 1), 0, 255)) for c in TABLE_COLOURS[n]]
+    return dict(height_mm=h, pattern=pat, color=c1, rgb=jit(c1), color2=c2, rgb2=jit(c2), size_mm=size,
+                angle_deg=_num(t, "angle_deg", (0, 180), "table.angle_deg", drawn["angle_deg"]), texture_seed=drawn["texture_seed"])
 
 
 def _ood(rng, key):
@@ -351,8 +384,7 @@ def sample_table(seed):
     c1 = str(rng.choice(names)); c2 = str(rng.choice([n for n in names if n != c1]))
     jit = lambda n: [int(np.clip(c + rng.integers(-JITTER, JITTER + 1), 0, 255)) for c in TABLE_COLOURS[n]]
     pat = PATTERNS[k % len(PATTERNS)]
-    size = dict(plain=0.0, checker=_u(rng, (25, 80), 1), stripes=_u(rng, (8, 50), 1), speckle=_u(rng, (1.5, 6)),
-                wood=_u(rng, (15, 45), 1), blotches=_u(rng, (30, 90), 1))[pat]
+    size = {p: 0.0 if p == "plain" else _u(rng, *PATTERN_SIZE[p]) for p in PATTERNS}[pat]
     return dict(height_mm=round(h * 2) / 2, pattern=pat, color=c1, rgb=jit(c1), color2=c2, rgb2=jit(c2), size_mm=size,
                 angle_deg=_u(rng, (0, 180), 1), texture_seed=int(rng.integers(1 << 30)))
 

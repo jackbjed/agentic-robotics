@@ -16,6 +16,7 @@ models:
     max_output_tokens: 6000
     price_per_mtok: {in: 8.0, cached: 0.4, out: 40.0}     # the provider's pricing page, 2026-11-21
 budget:
-  total_usd: 57.6     # hard cap on ALL model spending by this repository (runs/budget/openai.jsonl): $12.63 spent on
-                      # the first key ($20 credit, 11-18 to 11-20) + up to $45 on the new key (configs/local.yaml;
-                      # $50 credit on 2026-11-20, refillable: raise this when the user adds credit)
+  total_usd: 63.0     # hard cap on ALL model spending by this repository (runs/budget/openai.jsonl): $12.63 spent on
+                      # the first key ($20 credit, 11-18 to 11-20) + up to $50.37 on the new key (configs/local.yaml;
+                      # $50 credit on 2026-11-20, refillable: raise this when the user adds credit; 2026-11-22: +5.4
+                      # for a $15 session the user approved with a refill)

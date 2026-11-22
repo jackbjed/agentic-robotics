@@ -93,6 +93,8 @@ ASK_VARIED = ("You should write a skill that solves this task (i.e., picking the
               "the stick passes through its hole).\n\nThe skill should be robust to many variations, such as positions and poses of "
               "the stick and cylinder, size and dimensions of the cylinder and stick, colors of the objects, their densities, and "
               "the presence of distractors.")
+ASK_TABLES = (" It should also be robust to variations in the height of the table with respect to the robot, and to changes in "
+              "the table's appearance (i.e., its color and pattern).")
 
 _SCENES = """
 You develop this program (the skill) in a session with a simulator of the robot to practise in. There is no program
@@ -124,7 +126,7 @@ is left out is drawn at random within its range, by the scene's "seed" (the same
    "cylinder": {{"diameter_mm": {cyl_d}, "height_mm": {cyl_h}, "color": "red", "density": {density}, "xy_mm": [x, y]}},
    "stand": {{"stick_diameter_mm": {stick_d}, "stick_height_mm": {stick_h}, "board_mm": [side, side, thickness],
              "color": "wood", "stick_color": "wood", "density": {density}, "xy_mm": [x, y], "yaw_deg": {yaw}}},
-   "hole_clearance_mm": {clearance},
+   "hole_clearance_mm": {clearance},{table_spec}
    "distractors": 2}}        (a number, or a list of {{"shape": "box" | "cylinder", "size_mm": [side, side, height] |
                             [diameter, height], "color": ..., "density": ..., "xy_mm": [x, y], "yaw_deg": ...}})
 
@@ -138,7 +140,7 @@ from the stand and {dis_dis} mm from another distractor (between the circles aro
 ruler that is fixed to the table (y {ruler}). A scene outside these limits is refused, with the reason. The
 seed also fixes the episode's sensor noise and calibration error: a version on a scene gives the same result every
 time, and run_episodes keeps results.
-
+{table}
 In a program, robot.show(label, image) hands an image to you (H x W x 3 uint8 RGB, or H x W; at most {shown} an episode;
 no robot time): for instance a camera frame with what the program detected drawn on it (cv2). In practice episodes a
 program can also read the simulator: robot.truth() -> {{name: [x, y, z]}} (mm), the objects' TRUE positions now (the
@@ -151,7 +153,7 @@ Your result is the version you submitted last. After the session it is run, with
 many succeed and then by the robot time it takes. Half of those scenes are drawn at random within the limits above{like}.
 The other half go beyond these limits, in ways that cannot be set up here: sizes outside the ranges above, other
 colours, other kinds of distractors and more of them, lighter and heavier objects, and other placements (objects
-closer together, or elsewhere on the table within the arms' reach). So make the program reliable over many different
+closer together, or elsewhere on the table within the arms' reach).{table_eval} So make the program reliable over many different
 scenes first, without leaning on what only happens to hold in the scenes here; then fast.
 
 The session's budget is ${budget:.0f} of model usage: your replies (the thinking included) and the conversation so far, which
@@ -160,6 +162,25 @@ several scenes at once, read outputs selectively, and prefer edit_program to wri
 a version as soon as it is better than the one submitted before: when the budget runs out the session ends without
 warning and the last submitted version counts (nothing if none). When you are satisfied, call submit with final = true.
 """
+
+_TABLE_SPEC = """
+   "table": {{"height_mm": {h}, "color": "blue", "pattern": "checker", "color2": "white", "size_mm": 40, "angle_deg": 30}},"""
+
+_TABLE = """
+The table. The frame is fixed to the robots, and "the table surface at z = 0" holds for the usual table: plain dark
+grey, its top at z = 0. A scene without "table" has the usual table. A scene with "table" (every field can be left
+out, and is then drawn at random; "table": {{}} is a table drawn at random) has another table: its top is at
+z = height_mm ({h}; negative: below the usual height), and the ruler and every object are that much higher or
+lower, while the robots and the cameras on them stay where they are. The table's colour is one of {colours};
+its pattern one of {patterns}, in the colour color2: size_mm is the checker's square
+({checker}), the stripes' width ({stripes}) or the speckles' radius ({speckle}), and angle_deg ({angle}) turns the pattern on
+the table.
+"""
+
+_TABLE_EVAL = """ In those {n_eval} the table is the
+usual one. In {n} more episodes, with objects beyond the limits as well, the table is another one: its top higher or
+lower with respect to the robots (also further than can be set up here), of another colour and pattern (also colours
+and patterns that cannot be set up here)."""
 
 _EVAL_TOOL = """run_eval_set                  run a version on this session's self-evaluation set: the scenes E0 to E{last}, drawn at
                               random within the limits below and fixed (their names also work in list_scenes,
@@ -654,16 +675,19 @@ _SCENE_SPEC = _obj(
     stand=_obj(stick_diameter_mm=_N, stick_height_mm=_N, board_mm={"type": "array", "items": _N, "minItems": 3, "maxItems": 3},
                color=_COL, stick_color=_COL, density=_N, xy_mm=_XY, yaw_deg=_N),
     hole_clearance_mm=_N,
+    table=_obj("another table (the instructions: The table)", height_mm=_N, color={"type": "string"}, pattern={"type": "string"},
+               color2={"type": "string"}, size_mm=_N, angle_deg=_N),
     distractors={"anyOf": [{"type": "integer", "description": "how many"},
                            {"type": "array", "items": _obj(shape={"type": "string", "enum": list(scenes.SHAPES)},
                                                            size_mm={"type": "array", "items": _N}, color=_COL, density=_N, xy_mm=_XY, yaw_deg=_N)}]})
 
 
-def _scene_tools(eval_set):
+def _scene_tools(eval_set, tables=False):
     keep = {s["name"]: s for s in TOOLS}
+    scene = _SCENE_SPEC if tables else dict(_SCENE_SPEC, properties={k: v for k, v in _SCENE_SPEC["properties"].items() if k != "table"})
     out = [keep["write_program"], keep["edit_program"],
            _spec("define_scenes", "Set up practice scenes -> their names and what is in each.",
-                 {"scenes": {"type": "array", "items": _SCENE_SPEC}}, ["scenes"]),
+                 {"scenes": {"type": "array", "items": scene}}, ["scenes"]),
            _spec("list_scenes", "What is in scenes (sizes, colours, densities, places); without names: all of them.",
                  {"names": {"type": "array", "items": _NAME}}),
            _spec("run_episodes", f"Run a version on scenes, one episode each (at most {AT_ONCE_SCENES} new ones a call, run at the same time; a few minutes).",
@@ -681,17 +705,20 @@ class SceneSession(Session):
     """A session on a task with varied scenes (scenes.py): the model starts from nothing, sets up its own practice
     scenes within the training limits (define_scenes), and its practice episodes run with the simulation's truth
     (practice.py: practice). eval_set: it also gets a fixed self-evaluation set (EVAL_SET) to run versions on.
-    Episodes are named by their scene."""
+    tables: it is asked for a skill that also works on other tables (height, colour, pattern), and its scenes can
+    have one (scenes.build_table). Episodes are named by their scene."""
     _EP = "scene"
 
-    def __init__(self, *a, eval_set=False, **k):
-        self.eval_set = bool(eval_set)
+    def __init__(self, *a, eval_set=False, tables=False, **k):
+        self.eval_set, self.tables = bool(eval_set), bool(tables)
         super().__init__(*a, **k)
+        if self.state.get("tables", self.tables) != self.tables:
+            raise ValueError("this session was started " + ("with" if self.state["tables"] else "without") + " other tables")
         if self.state.get("eval_set", self.eval_set) != self.eval_set:
             raise ValueError("this session was started " + ("with" if self.state["eval_set"] else "without") + " the self-evaluation set")
 
     def _specs(self):
-        return _scene_tools(self.eval_set)
+        return _scene_tools(self.eval_set, self.tables)
 
     def _eval_names(self):
         return [f"E{k}" for k in range(EVAL_SET[1])] if self.eval_set else []
@@ -699,7 +726,16 @@ class SceneSession(Session):
     def _closing(self):
         T = scenes.TRAIN
         r = lambda key: f"{T[key][0]:g}..{T[key][1]:g}"
+        B, P = scenes.TRAIN_TABLE, scenes.PATTERN_SIZE
+        rr = lambda v: f"{v[0]:g}..{v[1]:g}"
+        tab = dict(table_spec="", table="", table_eval="")
+        if self.tables:
+            tab = dict(table_spec=_TABLE_SPEC.format(h=rr(B["height"])),
+                       table=_TABLE.format(h=rr(B["height"]), colours=", ".join(B["colours"]), patterns=", ".join(B["patterns"]),
+                                           checker=rr(P["checker"][0]), stripes=rr(P["stripes"][0]), speckle=rr(P["speckle"][0]), angle="0..180"),
+                       table_eval=_TABLE_EVAL.format(n_eval=self.n_eval, n=self.n_eval // 2))
         return _SCENES.format(
+            **tab,
             points=practice.POINTS.get(self.task.name, ""), shown=practice.SHOWN, rules="\n" + practice.RULES, n_eval=self.n_eval, budget=self.budget,
             eval_tool=_EVAL_TOOL.format(last=EVAL_SET[1] - 1) if self.eval_set else "",
             like=f" (as this session's self-evaluation set is; its {EVAL_SET[1]} scenes are not among them)" if self.eval_set else "",
@@ -709,11 +745,12 @@ class SceneSession(Session):
                                        "dis_h", "x", "y", "dis_x", "dis_y")})
 
     def _intro(self):
-        return self.task.text + " " + ASK_VARIED
+        return self.task.text + " " + ASK_VARIED + (ASK_TABLES if self.tables else "")
 
     def _first(self):
         st = self.state
         st["eval_set"] = self.eval_set
+        st["tables"] = self.tables
         st["scenes"] = {"example": scenes.sample(EXAMPLE)}
         st["scenes"].update({n: scenes.sample(EVAL_SET[0] + k) for k, n in enumerate(self._eval_names())})
         st["n_scenes"] = 0
@@ -751,6 +788,8 @@ class SceneSession(Session):
                 seed = spec.get("seed", n)
                 if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 1 << 30:
                     raise ValueError("seed: a whole number from 0 on")
+                if "table" in spec and not self.tables:
+                    raise ValueError("scene: unknown field(s) table")
                 sc = scenes.build(spec, seed=seed)
             except (ValueError, TypeError, KeyError) as e:
                 out.append(f"REFUSED ({json.dumps(spec)[:200]}): {str(e) or type(e).__name__}")
@@ -885,6 +924,9 @@ def main(argv=None):
     ap.add_argument("--start", help="the starting program (v0); none: the model starts from nothing")
     ap.add_argument("--eval-set", action="store_true",
                     help="a task with varied scenes (insert_varied): the model also gets a fixed self-evaluation set")
+    ap.add_argument("--tables", action="store_true",
+                    help="a task with varied scenes: the skill is asked to work on other tables too (height, colour, pattern), "
+                         "and the model's scenes can have one")
     ap.add_argument("--budget-usd", type=float, required=True, help="the session's hard cap on model spending")
     ap.add_argument("--sensors", default="d415", choices=["d415", "ideal"])
     ap.add_argument("--segmenter", choices=["sam3"], help="robot.segment() through the SAM3 service")
@@ -908,9 +950,9 @@ def main(argv=None):
     if TASKS[a.task].scene:
         if a.start:
             ap.error("--start: a session on a task with varied scenes starts from nothing")
-        s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, **kw)
-    elif a.eval_set:
-        ap.error("--eval-set: only for a task with varied scenes")
+        s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, tables=a.tables, **kw)
+    elif a.eval_set or a.tables:
+        ap.error("--eval-set, --tables: only for a task with varied scenes")
     else:
         s = Session(out, a.env, a.task, vlm, start=a.start, **kw)
     how = s.run()

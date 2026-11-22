@@ -187,9 +187,11 @@ python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task i
        --start runs/bimanual/x/program.py --segmenter sam3 --budget-usd 20 --out runs/bimanual/y/session   # [--resume]
 python -m agentic_robotics.bimanual.practice suite --env sim_bimanual_grippers --task insert_cylinder \
        --program runs/bimanual/y/session/program.py --seeds 0-2,4-10 --segmenter sam3 --video --out runs/bimanual/y/eval
-# varied scenes: from nothing, the model sets up its practice scenes; --eval-set adds a fixed self-evaluation set
+# varied scenes: from nothing, the model sets up its practice scenes; --eval-set adds a fixed self-evaluation set;
+# --tables asks for a skill that also works on other tables, and the model's scenes can have one (height within
+# +-25 mm, 6 of the 10 colours, plain / checker / stripes / speckle: less than the evaluation's tables, seeds 8000+)
 python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task insert_varied --model astra --effort high \
-       --segmenter sam3 --budget-usd 15 --eval-episodes 30 [--eval-set] --out runs/bimanual/z
+       --segmenter sam3 --budget-usd 15 --eval-episodes 30 [--eval-set] [--tables] --out runs/bimanual/z
 python -m agentic_robotics.bimanual.practice suite --env sim_bimanual_grippers --task insert_varied \
        --program runs/bimanual/z/program.py --seeds 2000-2014,5000-5014 --jobs 7 --segmenter sam3 --video --out runs/bimanual/z_eval
 ```

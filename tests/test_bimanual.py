@@ -181,6 +181,24 @@ def test_another_table():
     v = ep.finish()
     assert v["ok"] and v["stand_upright"], v
 
+    # a session's own tables (build): within narrower limits than the evaluation's, the objects of the seed unchanged
+    T = scenes.TRAIN_TABLE
+    assert scenes.TABLE_H[0] < T["height"][0] < T["height"][1] < scenes.TABLE_H[1]
+    assert set(T["colours"]) < set(scenes.TABLE_COLOURS) and set(T["patterns"]) < set(scenes.PATTERNS)
+    plain, drawn = scenes.build({}, seed=4), scenes.build({"table": {}}, seed=4)
+    assert "table" not in plain and {k: v for k, v in drawn.items() if k != "table"} == plain
+    tabs = [scenes.build_table({}, k) for k in range(60)]
+    assert {t["pattern"] for t in tabs} == set(T["patterns"]) and {t["color"] for t in tabs} == set(T["colours"])
+    assert all(T["height"][0] <= t["height_mm"] <= T["height"][1] and (t["pattern"] == "plain" or t["color2"] != t["color"]) for t in tabs)
+    mine = scenes.build({"table": {"height_mm": -20, "pattern": "stripes", "color": "white", "color2": "blue", "size_mm": 12}}, seed=4)["table"]
+    assert (mine["height_mm"], mine["size_mm"]) == (-20, 12) and scenes.table_texture(mine, 128).std() > 3
+    assert {k: v for k, v in scenes.build_table({"height_mm": -20}, 4).items() if k != "height_mm"} == {k: v for k, v in drawn["table"].items() if k != "height_mm"}
+    for bad, why in (({"height_mm": 30}, "outside -25..25"), ({"color": "beige"}, "not one of"), ({"pattern": "wood"}, "not one of"),
+                     ({"pattern": "checker", "color": "blue", "color2": "blue"}, "another one"), ({"pattern": "speckle", "size_mm": 9}, "outside"),
+                     ({"tilt": 1}, "unknown field")):
+        with pytest.raises(ValueError, match=why):
+            scenes.build({"table": bad}, seed=1)
+
 
 @pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])
 def test_untouched_scene_is_not_a_success(task):
@@ -408,11 +426,30 @@ def test_scene_session_with_a_stub_model(tmp_path, monkeypatch):
     assert not r["ok"] and r["ended"] == "returned" and r["scene"] == scenes.sample(scenes.OOD_FROM + 2) and r["commands"] == 0
     assert "no truth None" in (tmp_path / f"eval/s{scenes.OOD_FROM + 2}/output.txt").read_text()
 
-    dev = Dev([("run_eval_set", {}), ("list_scenes", dict(names=["E0"])), ("submit", dict(final=True))])
+    dev = Dev([("run_eval_set", {}), ("list_scenes", dict(names=["E0"])), ("define_scenes", dict(scenes=[{"table": {}}])), ("submit", dict(final=True))])
     s = improve.SceneSession(tmp_path / "b", GRIPPERS, "insert_varied", dev, budget_usd=5.0, n_eval=30, log=lambda *a: None)
     assert s.run() == "the model stopped calling tools"       # (nothing to submit)
     res = dev.results()
     assert "run_eval_set" not in [t["name"] for t in dev.seen[0]["tools"]] and "E0 to" not in dev.seen[0]["instructions"]
     assert "unknown tool run_eval_set" in res[1] and "no scene E0" in res[2] and set(s.state["scenes"]) == {"example"}
+    assert "REFUSED" in res[3] and "unknown field(s) table" in res[3] and "The table." not in dev.seen[0]["instructions"]
+    assert improve.ASK_TABLES not in dev.seen[0]["input"][0]["content"][0]["text"]
+    assert "table" not in [t for t in dev.seen[0]["tools"] if t["name"] == "define_scenes"][0]["parameters"]["properties"]["scenes"]["items"]["properties"]
     with pytest.raises(ValueError, match="without the self-evaluation set"):
         improve.SceneSession(tmp_path / "b", GRIPPERS, "insert_varied", Dev([]), budget_usd=5.0, eval_set=True, log=lambda *a: None)
+
+    # tables: the skill is asked to work on other tables, and the session's scenes can have one
+    tab = {"seed": 11, "cylinder": {"xy_mm": [-300, 60], "height_mm": 40}, "table": {"height_mm": -20, "pattern": "checker"}}
+    dev = Dev([("define_scenes", dict(scenes=[tab, {"table": {"height_mm": 30}}, {"seed": 11, "cylinder": {"xy_mm": [-300, 60], "height_mm": 40}}])),
+               ("write_program", dict(code=prog, note="reads the truth")), ("run_episodes", dict(scenes=["s1", "s2"])), ("submit", dict(final=True))])
+    s = improve.SceneSession(tmp_path / "c", GRIPPERS, "insert_varied", dev, budget_usd=5.0, n_eval=30, tables=True, log=lambda *a: None)
+    assert s.run() == "submitted"
+    res, first = dev.results(), dev.seen[0]
+    assert improve.ASK_TABLES in first["input"][0]["content"][0]["text"] and "The table." in first["instructions"]
+    assert "-25..25" in first["instructions"] and "In 15 more episodes" in first["instructions"] and "{" + "table" not in first["instructions"]
+    assert "table" in [t for t in first["tools"] if t["name"] == "define_scenes"][0]["parameters"]["properties"]["scenes"]["items"]["properties"]
+    assert "table: top at -20 mm" in res[1] and "checker" in res[1] and "REFUSED" in res[1] and "outside -25..25" in res[1] and "s2 (seed 11)" in res[1]
+    assert "table" in s.state["scenes"]["s1"] and "table" not in s.state["scenes"]["s2"] and "table" not in s.state["scenes"]["example"]
+    assert "cylinder at [-300.0, 60.0, -20.0]" in res[3] and "cylinder at [-300.0, 60.0, -0.0]" in res[3]  # (the truth: on the lower table)
+    with pytest.raises(ValueError, match="with other tables"):
+        improve.SceneSession(tmp_path / "c", GRIPPERS, "insert_varied", Dev([]), budget_usd=5.0, log=lambda *a: None)
