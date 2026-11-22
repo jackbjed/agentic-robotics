@@ -142,7 +142,7 @@ with one of:
 | `--scripted` | the reference solution (`scripted.py`). It reads the simulation's true state: it shows that the task can be done, it is not a baseline |
 | `--program FILE` | a program, in this process |
 | `--calls FILE` | tool calls replayed from a jsonl file (e.g. an earlier episode's `calls.jsonl`, to make its video) |
-| `--model KEY` | a model of `configs/models.yaml` through the tools, on the platform's model client (`perception/vlm.py`: key file, prices, the budget ledger; tag `bimanual_TASK:ENV:SEED`). **This costs money**; `--max-usd` caps the episode (default 3) |
+| `--model KEY` | a model of `configs/models.yaml` through the tools, on the platform's model client (`perception/vlm.py`: key file, prices, the budget ledger; tag `bimanual_TASK:ENV:SEED`). **This costs money**; `--max-usd` caps the episode (default 3); `--effort`, `--max-output-tokens` (per reply, reasoning included) |
 
 `DIR` gets `result.json` (the verdict, how the episode ended, tool calls, model usage), `calls.jsonl`,
 `messages.jsonl`, `final.jpg` and `video.mp4`.

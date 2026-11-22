@@ -76,16 +76,17 @@ def replay(box, calls, log=print):
     return box.ended or "calls replayed"
 
 
-def run_model(ep, box, vlm, log=print, effort=None, messages=None):
+def run_model(ep, box, vlm, log=print, effort=None, messages=None, max_output_tokens=None):
     """Direct control: the model gets the task, a first look and the tools, and acts one call at a time until it calls
-    done(), runs out of tool calls / robot time / budget, or stops calling tools. vlm: perception.vlm.VLM (or anything
+    done(), runs out of tool calls / robot time / budget, or stops calling tools (3 replies in a row without a call). vlm: perception.vlm.VLM (or anything
     with its respond()). -> how it ended."""
     images = []
     inp = [{"role": "user", "content": [{"type": "input_text", "text": ep.text + FIRST_LOOK}]
             + openai_items(box.call("look", {}, free=True), images)}]
     tools, prev, nudges = openai_tools(box.specs), None, 0
     while not box.ended:
-        r = vlm.respond(inp, images, instructions=box.instructions, tools=tools, previous=prev, effort=effort)
+        r = vlm.respond(inp, images, instructions=box.instructions, tools=tools, previous=prev, effort=effort,
+                        max_output_tokens=max_output_tokens)
         if not r.get("ok"):
             return f"model: {r.get('why')}"
         prev = r["id"]
@@ -104,6 +105,7 @@ def run_model(ep, box, vlm, log=print, effort=None, messages=None):
                 return "model: stopped calling tools"
             inp = [{"role": "user", "content": [{"type": "input_text", "text": NUDGE}]}]
             continue
+        nudges = 0
         for c in calls:
             try:
                 args = json.loads(c.get("arguments") or "{}")
@@ -137,6 +139,7 @@ def main(argv=None):
     ap.add_argument("--segmenter", choices=["sam3"], help="--program: robot.segment() through the SAM3 service")
     ap.add_argument("--max-usd", type=float, default=3.0, help="--model: this episode's budget")
     ap.add_argument("--effort", help="--model: reasoning effort (default: the model's in configs/models.yaml)")
+    ap.add_argument("--max-output-tokens", type=int, help="--model: per reply, reasoning included (default: the model's)")
     ap.add_argument("--time-limit", type=float, help="robot seconds (default: the task's)")
     ap.add_argument("--max-calls", type=int, help="tool calls (default: the task's)")
     ap.add_argument("--video", action="store_true")
@@ -163,8 +166,9 @@ def main(argv=None):
             from ..perception.vlm import VLM
             vlm = VLM(dict(model=a.model, converse=True, max_calls_per_episode=box.max_calls + 8, max_usd_per_episode=a.max_usd,
                            max_usd_per_call=min(a.max_usd, 0.5)), tag=f"bimanual_{a.task}:{a.env}:{a.seed}")
-            mode, how = "model", run_model(ep, box, vlm, log, effort=a.effort, messages=messages)
-            extra = vlm.usage()
+            mode, how = "model", run_model(ep, box, vlm, log, effort=a.effort, messages=messages,
+                                             max_output_tokens=a.max_output_tokens)
+            extra = dict(vlm.usage(), effort=a.effort or vlm.m.get("effort"))
     v = dict(ep.finish(), mode=mode, ended=how, sensors=a.sensors, wall_s=round(time.time() - t0, 1), **extra)
     if box is not None:
         v.update(tool_calls=box.n_calls, hints=bool(a.hints))

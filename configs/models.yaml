@@ -9,6 +9,12 @@ models:
     # $ per million tokens: panda_twin astra_e2e.py's table (an upper bound: uncached input billed as cache writes);
     # not re-checked against the provider's current prices
     price_per_mtok: {in: 12.5, cached: 1.0, out: 50.0}
+  astra62:
+    provider: openai_responses
+    model: gpt-6.2-astra          # 2026-11-21: the provider's most capable model (its models page); no "Luna 6.2" exists
+    effort: medium
+    max_output_tokens: 6000
+    price_per_mtok: {in: 8.0, cached: 0.4, out: 40.0}     # the provider's pricing page, 2026-11-21
 budget:
   total_usd: 57.6     # hard cap on ALL model spending by this repository (runs/budget/openai.jsonl): $12.63 spent on
                       # the first key ($20 credit, 11-18 to 11-20) + up to $45 on the new key (configs/local.yaml;
