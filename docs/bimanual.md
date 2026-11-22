@@ -72,6 +72,7 @@ errors). The judge reads the simulation's true state after the scene has rested 
 | `move_across` | 2 | a roll of white tape on the right, where only the right arm reaches | the roll rests on the table beyond y = 400 mm, where only the left arm reaches, and the robot does not touch it | 400 s, 60 calls |
 | `lift` | 1 | the roll in front of the robot, where both arms reach | the roll is held at least 50 mm above the table, touching nothing but the robot | 240 s, 40 calls |
 | `insert_cylinder` | 1 | the stand on the right (x −300..−200, y −200..−100 mm, turned up to 45°), the cylinder standing on the left (x −360..−240, y 40..140 mm), both where both arms reach; seed 0: the reference spots | the cylinder is on the stick (its middle below the stick's top, within 4 mm of the stick's axis), the robot does not touch it, and the stand is upright on the table | 600 s, 80 calls |
+| `insert_varied` | 1 | `scenes.py`: another cylinder and stand in every scene (sizes, colours, densities, places, the stand turned up to 45°) and up to 3 other objects; seeds from 5000 on: beyond those limits (the evaluation's out-of-distribution scenes) | as `insert_cylinder` (the hole 2 mm wider than the stick) | 600 s, 80 calls |
 
 The roll is a ring 50 mm across and 27 mm high (0.06 kg). `insert_cylinder` is the precision task: the cylinder goes
 on only when its axis is within about 1 mm of the stick's (the stick's top is flat, its edge square: nothing guides the
@@ -186,6 +187,11 @@ python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task i
        --start runs/bimanual/x/program.py --segmenter sam3 --budget-usd 20 --out runs/bimanual/y/session   # [--resume]
 python -m agentic_robotics.bimanual.practice suite --env sim_bimanual_grippers --task insert_cylinder \
        --program runs/bimanual/y/session/program.py --seeds 0-2,4-10 --segmenter sam3 --video --out runs/bimanual/y/eval
+# varied scenes: from nothing, the model sets up its practice scenes; --eval-set adds a fixed self-evaluation set
+python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task insert_varied --model astra --effort high \
+       --segmenter sam3 --budget-usd 15 --eval-episodes 30 [--eval-set] --out runs/bimanual/z
+python -m agentic_robotics.bimanual.practice suite --env sim_bimanual_grippers --task insert_varied \
+       --program runs/bimanual/z/program.py --seeds 2000-2014,5000-5014 --jobs 7 --segmenter sam3 --video --out runs/bimanual/z_eval
 ```
 
 - The model's tools: `write_program`, `edit_program` (exact replacements in a version), `run_episodes` (up to 6
@@ -304,6 +310,35 @@ tool call with almost no reasoning (replies of 30-1000 tokens), and the conversa
 The result is specific to these objects (colour thresholds, the stick's height from the task text): other shapes or
 distractors are not tested.
 
+**From nothing, on varied scenes** (`insert_varied`, 2026-11-22). The task text says only what to do; nothing about
+the objects, and no starting program. Every scene (`scenes.py`) has another cylinder and stand (sizes, colours,
+densities, places, the stand turned) and up to 3 other objects. Two sessions of gpt-6-astra (`improve.py`:
+`SceneSession`, effort high, SAM3, `sensors="d415"`, $15 allowed each) ran at the same time. In both the model sets
+up its own practice scenes within the training limits (`define_scenes`), and practice shows the simulator's truth
+(the judge's verdict, true positions, the trace; `robot.truth()` and `robot.judge()` inside a practising program).
+One session (`--eval-set`) also had a fixed self-evaluation set of 30 scenes (`run_eval_set`). The results were then
+run, without the model and with the cameras only, on 30 scenes neither session saw: 15 drawn like the training scenes
+(seeds 2000-2014) and 15 beyond the training limits (seeds 5000-5014: sizes outside the ranges, new colours, new
+kinds of distractors (balls, pills, L and step shapes) and up to 6 of them, lighter and heavier objects, other places).
+
+| | in distribution | out of distribution | robot time (successes) | session |
+|---|---|---|---|---|
+| own scenes only (v19, 321 lines) | 15/15 | 14/15 | 65.5 s | $12.11, 79 turns, 34 min, 46 own scenes, 213 practice episodes |
+| with the self-evaluation set (v25, 402 lines) | 14/15 | 14/15 | 79.2 s | $12.32, 102 turns, 49 min, 35 own scenes, 560 practice episodes (448 on the set; 30/30 from v20 on) |
+| the program of the fixed-object session above (v8) | 1/15 | 0/15 | - | |
+| reference (reads the true state) | 15/15 | 15/15 | 32.3 s | |
+
+Runs: `runs/bimanual/varied_{own,evalset}_1122/` (sessions), `runs/bimanual/varied_final_1122/` (evaluation, with
+videos). The three failures are all perception, before any motion that matters: no cylinder or stick found in the
+first overview picture (own, 5005: objects close to the robots' bases, the stick's top 183 mm above the table), no hole found in the close-up
+(set, 2000: a grey cylinder, in distribution; 5014: a 62 mm wide cylinder with an 8 mm hole). No difference between
+the two sessions shows at this size (29 against 28 of 30). Both ended by themselves, and neither program version ever
+called `robot.truth()` or `robot.judge()`: the episodes' results and traces were enough. Both arrived at the same
+plan: find the two objects in the overview (SAM3 prompts as proposals, checked by geometry: a ring with a hole, the
+highest thin top), look down with the wrist camera at each, grasp, set the cylinder down and look again to calibrate
+the camera against the grasp, carry, lower with contact and search by touch; a table hand-off when the two objects
+need different arms. Assumed in all scenes: the cylinder stands hole-up, and the hole is 2 mm wider than the stick.
+
 ## Not there yet
 
 - No coding-agent session yet (direct control through `drive`, or writing programs); model results are 2 to 10 episodes per cell, one task for programs, grippers only.
@@ -313,4 +348,4 @@ distractors are not tested.
 - `--model` speaks the OpenAI Responses API only. A Claude model is tested through `drive` (in Claude Code) or needs
   a loop on the Anthropic API (the converters are there, the loop is not).
 - Colour is MuJoCo's rendering, not the splat; the right wrist camera's mount is assumed, not calibrated.
-- Four tasks; `insert_cylinder` has no reference solution with the Sharpa hands. The layouts of `open_bottle` cover the area where both reference solutions work, not the whole table.
+- Five tasks; `insert_cylinder` and `insert_varied` have no reference solution with the Sharpa hands. The layouts of `open_bottle` cover the area where both reference solutions work, not the whole table.
