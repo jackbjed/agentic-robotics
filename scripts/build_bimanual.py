@@ -12,6 +12,10 @@ scanned objects, the lights. What changes:
               the pose the platform's default camera config, d415_rig, uses);
             - a bottle with a screw cap (`obj_bottle`, `bottle_cap`, `bottle_cap_free`): a two-handed fixture, ported
               from embodied-rl/bimanual/build_model.py (11-17);
+            - a stick stand and a cylinder with a hole (`obj_stick_stand`, `obj_cylinder`): the precision task
+              (2026-11-21, user: "insert a cylinder through a vertical stick ... the cylinder's hole should only be
+              about 2 mm larger ... so that the task requires mm level precision"), after panda_twin's precision
+              bench (11-16): the hole's wall is CYL_WALLS boxes whose inner faces make a polygon around the stick;
             - a keyframe "home" replaces the twin's: both arms in the same pose, the flange HOME_X ahead of its base
               at height HOME_Z, pointing straight down, hands open.
   grippers  - the fin-ray grippers as in the twin; each wrist D415 (`R_wrist`, `L_wrist`) at the calibrated mount
@@ -63,6 +67,12 @@ CAP_R, CAP_H, CAP_WALL = 0.0210, 0.024, 0.0030  # outer radius, height, wall
 CAP_Z = BODY_H + NECK_H - CAP_H + 0.004         # the cap's bottom when screwed tight (its top 4 mm over the neck's)
 PITCH = 0.004                                   # m per turn
 THREAD_FRICTION = 0.05                          # N m
+# the stick stand and the cylinder (m): the stick's top is flat, its edge square
+STAND_BOARD = (0.120, 0.120, 0.022)             # a wooden board, free on the table
+STICK_R, STICK_H = 0.0090, 0.100                # the stick, and its height above the board
+CYL_R, CYL_H, CYL_BORE, CYL_WALLS = 0.020, 0.040, 0.020, 24   # the hole: 2 mm wider than the stick (1 mm all round)
+CYL_FEET, CYL_FOOT_R, CYL_FOOT_AT = 6, 0.001, 0.018           # what the cylinder stands on (see add_stick_and_cylinder)
+WOOD = dict(density="600", friction="1.0 0.02 0.005", condim="4")
 HOME_X, HOME_Z = 0.31, 0.53                     # the arms' home: the flange in front of the base, above the table
 CAP_PARK = "3 3 -0.8645"                        # the free cap until the threaded one comes off (on the floor, far away)
 
@@ -122,6 +132,35 @@ def add_bottle(wb, eq, con):
     cf = ET.SubElement(wb, "body", name="bottle_cap_free", pos=CAP_PARK)
     ET.SubElement(cf, "freejoint", name="bottle_cap_free_j")
     cap_geoms(cf, "capf", "0.9 0.15 0.12 1")
+
+
+def add_stick_and_cylinder(wb):
+    st = ET.SubElement(wb, "body", name="obj_stick_stand", pos="0.30 0.30 0.0005")
+    ET.SubElement(st, "freejoint", name="obj_stick_stand_free")
+    bx, by, bz = STAND_BOARD
+    ET.SubElement(st, "geom", name="stand_board", type="box", size=f"{bx / 2} {by / 2} {bz / 2}", pos=f"0 0 {bz / 2}",
+                  rgba="0.88 0.71 0.40 1", **WOOD)
+    ET.SubElement(st, "geom", name="stand_stick", type="cylinder", size=f"{STICK_R} {STICK_H / 2}", pos=f"0 0 {bz + STICK_H / 2}",
+                  rgba="0.86 0.70 0.47 1", **WOOD)
+    cy = ET.SubElement(wb, "body", name="obj_cylinder", pos="0.30 0.45 0.0005")
+    ET.SubElement(cy, "freejoint", name="obj_cylinder_free")
+    r_in = CYL_BORE / 2; t = CYL_R - r_in; rc = r_in + t / 2
+    hw = CYL_R * math.tan(math.pi / CYL_WALLS) * 1.05
+    lift = 0.0003
+    for k in range(CYL_WALLS):                                    # (the inner faces: a polygon of apothem r_in)
+        a = 2 * math.pi * k / CYL_WALLS
+        ET.SubElement(cy, "geom", name=f"cyl_w{k}", type="box", size=f"{t / 2:.5f} {hw:.5f} {CYL_H / 2 - lift:.5f}",
+                      pos=f"{rc * math.cos(a):.5f} {rc * math.sin(a):.5f} {CYL_H / 2:.5f}", euler=f"0 0 {a:.5f}",
+                      rgba="0.16 0.36 0.80 1", **WOOD)
+    # The cylinder stands on CYL_FEET points per end face, 0.3 mm proud of the walls, with a stiff contact of their
+    # own (priority): with the 24 boxes flat on the table (96 contacts) it was kicked off the table now and then, at
+    # rest. (With the scene's soft contact, things sink 0.5 mm into the table: the feet would not hold the walls off.)
+    for end, z in (("b", CYL_FOOT_R), ("t", CYL_H - CYL_FOOT_R)):
+        for k in range(CYL_FEET):
+            a = 2 * math.pi * (k + 0.5) / CYL_FEET
+            ET.SubElement(cy, "geom", name=f"cyl_{end}{k}", type="sphere", size=f"{CYL_FOOT_R}",
+                          pos=f"{CYL_FOOT_AT * math.cos(a):.5f} {CYL_FOOT_AT * math.sin(a):.5f} {z:.5f}",
+                          rgba="0.16 0.36 0.80 1", priority="1", solref="0.004 1", **dict(WOOD, density="0"))
 
 
 def calibrated_scene_camera(wb, calib):
@@ -239,6 +278,7 @@ def build(hands, kv=None, key=None):
         else:
             sharpa_hand(hand, P, dflt, asset, act, con, kv)
     add_bottle(wb, eq, con)
+    add_stick_and_cylinder(wb)
     root.append(copy.deepcopy(tw.find("visual")))
     ET.SubElement(root, "statistic", center="-0.2 -0.15 0.2", extent="1.6")
     if key is not None:

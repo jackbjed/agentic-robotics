@@ -5,6 +5,7 @@ simulation, not baselines for an agent.
     open_bottle(S, log=print)      the left arm holds the bottle, the right one unscrews the cap and lifts it off
     lift(S, log=print)             the nearer arm picks the white tape roll up from above and holds it
     move_across(S, log=print)      the right arm brings the tape roll to the middle, the left one takes it to the left
+    insert_cylinder(S, log=print)  (grippers) the nearer arm takes the cylinder from above and lowers it onto the stick
     SOLUTIONS[task](S, log)        -> the task's judge's verdict is then the caller's business (tasks.Episode.finish)
 """
 from __future__ import annotations
@@ -257,4 +258,34 @@ def move_across(S, log=print, mid=(-0.30, -0.12), goal=(-0.30, 0.47)):
     log(f"L home: {S.go_home('L')}")
 
 
-SOLUTIONS = {"open_bottle": open_bottle, "lift": lift, "move_across": move_across}
+def insert_cylinder(S, log=print, P=None, offset=(0.0, 0.0), over=0.03, engage=0.03):
+    """Grippers only. The cylinder is taken from above at mid height; its axis, as it then sits in the gripper (TRUE
+    pose), goes over the stick's (plus `offset`, m: for tests of the fit), is lowered until the stick is `engage`
+    into the hole, and released."""
+    if S.HANDS != "grippers":
+        raise NotImplementedError("insert_cylinder: no reference solution for the Sharpa hands yet")
+    c, cR = S.object_pose("cylinder")
+    P = P or ("L" if c[1] > 0.5 * (S.d.xpos[S.arms["L"].base][1] + S.d.xpos[S.arms["R"].base][1]) else "R")
+    R = S.fk(P, S.arms[P].home)[1]
+    h = 2 * float(S.m.geom("cyl_w0").size[2])
+    g = c + [0, 0, h / 2 + 0.004]
+    log(f"{P} above: {S.move(P, g + [0, 0, 0.15], R)} ({S.last_path})")
+    log(f"{P} down: {S.move(P, g, R)}")
+    log(f"{P} closed to {S.set_gripper(P, 0.0) * 1000:.1f} mm")
+    top, ax = S.stick_top()
+    p, _ = S.tool_pose(P)
+    log(f"{P} lift: {S.move(P, np.array([p[0], p[1], top[2] + over + h]), R, v=0.05)}")
+    c = S.object_pose("cylinder")[0]; p, _ = S.tool_pose(P)
+    off = p - c                                                         # the tool point relative to the cylinder's foot
+    goal = np.array([top[0] + offset[0], top[1] + offset[1], 0.0])
+    log(f"{P} over the stick: {S.move(P, goal + [0, 0, top[2] + over] + off, R)} ({S.last_path})")
+    c = S.object_pose("cylinder")[0]; p, _ = S.tool_pose(P)             # (once more, at rest over the stick)
+    r = S.move(P, goal + [0, 0, top[2] - engage] + (p - c), R, guarded=True, v=0.03)
+    c, cR = S.object_pose("cylinder")
+    log(f"{P} lowered: {r}; cylinder foot {((c - top) * 1000).round(1)} mm from the stick's top, tilt {math.degrees(math.acos(min(cR[2, 2], 1))):.1f} deg")
+    S.set_gripper(P, 0.08)
+    p, _ = S.tool_pose(P)
+    log(f"{P} up: {S.move(P, p + [0, 0, 0.12], R)}")
+
+
+SOLUTIONS = {"open_bottle": open_bottle, "lift": lift, "move_across": move_across, "insert_cylinder": insert_cylinder}

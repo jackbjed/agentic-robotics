@@ -667,6 +667,50 @@
    <geom name="capf_w15" type="box" size="0.0015 0.00438 0.012" pos="0.01802 -0.00746 0.012" euler="0 0 5.89049" rgba="0.9 0.15 0.12 1" friction="1.2 0.02 0.002" condim="4" mass="0.0004" />
    <geom name="capf_mark" type="box" size="0.004 0.0015 0.0008" pos="0.015000000000000001 0 0.024" rgba="1 1 1 1" contype="0" conaffinity="0" mass="0" />
   </body>
+  <body name="obj_stick_stand" pos="0.30 0.30 0.0005">
+   <freejoint name="obj_stick_stand_free" />
+   <geom name="stand_board" type="box" size="0.06 0.06 0.011" pos="0 0 0.011" rgba="0.88 0.71 0.40 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="stand_stick" type="cylinder" size="0.009 0.05" pos="0 0 0.07200000000000001" rgba="0.86 0.70 0.47 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+  </body>
+  <body name="obj_cylinder" pos="0.30 0.45 0.0005">
+   <freejoint name="obj_cylinder_free" />
+   <geom name="cyl_w0" type="box" size="0.00500 0.00276 0.01970" pos="0.01500 0.00000 0.02000" euler="0 0 0.00000" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w1" type="box" size="0.00500 0.00276 0.01970" pos="0.01449 0.00388 0.02000" euler="0 0 0.26180" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w2" type="box" size="0.00500 0.00276 0.01970" pos="0.01299 0.00750 0.02000" euler="0 0 0.52360" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w3" type="box" size="0.00500 0.00276 0.01970" pos="0.01061 0.01061 0.02000" euler="0 0 0.78540" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w4" type="box" size="0.00500 0.00276 0.01970" pos="0.00750 0.01299 0.02000" euler="0 0 1.04720" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w5" type="box" size="0.00500 0.00276 0.01970" pos="0.00388 0.01449 0.02000" euler="0 0 1.30900" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w6" type="box" size="0.00500 0.00276 0.01970" pos="0.00000 0.01500 0.02000" euler="0 0 1.57080" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w7" type="box" size="0.00500 0.00276 0.01970" pos="-0.00388 0.01449 0.02000" euler="0 0 1.83260" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w8" type="box" size="0.00500 0.00276 0.01970" pos="-0.00750 0.01299 0.02000" euler="0 0 2.09440" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w9" type="box" size="0.00500 0.00276 0.01970" pos="-0.01061 0.01061 0.02000" euler="0 0 2.35619" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w10" type="box" size="0.00500 0.00276 0.01970" pos="-0.01299 0.00750 0.02000" euler="0 0 2.61799" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w11" type="box" size="0.00500 0.00276 0.01970" pos="-0.01449 0.00388 0.02000" euler="0 0 2.87979" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w12" type="box" size="0.00500 0.00276 0.01970" pos="-0.01500 0.00000 0.02000" euler="0 0 3.14159" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w13" type="box" size="0.00500 0.00276 0.01970" pos="-0.01449 -0.00388 0.02000" euler="0 0 3.40339" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w14" type="box" size="0.00500 0.00276 0.01970" pos="-0.01299 -0.00750 0.02000" euler="0 0 3.66519" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w15" type="box" size="0.00500 0.00276 0.01970" pos="-0.01061 -0.01061 0.02000" euler="0 0 3.92699" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w16" type="box" size="0.00500 0.00276 0.01970" pos="-0.00750 -0.01299 0.02000" euler="0 0 4.18879" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w17" type="box" size="0.00500 0.00276 0.01970" pos="-0.00388 -0.01449 0.02000" euler="0 0 4.45059" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w18" type="box" size="0.00500 0.00276 0.01970" pos="-0.00000 -0.01500 0.02000" euler="0 0 4.71239" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w19" type="box" size="0.00500 0.00276 0.01970" pos="0.00388 -0.01449 0.02000" euler="0 0 4.97419" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w20" type="box" size="0.00500 0.00276 0.01970" pos="0.00750 -0.01299 0.02000" euler="0 0 5.23599" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w21" type="box" size="0.00500 0.00276 0.01970" pos="0.01061 -0.01061 0.02000" euler="0 0 5.49779" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w22" type="box" size="0.00500 0.00276 0.01970" pos="0.01299 -0.00750 0.02000" euler="0 0 5.75959" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_w23" type="box" size="0.00500 0.00276 0.01970" pos="0.01449 -0.00388 0.02000" euler="0 0 6.02139" rgba="0.16 0.36 0.80 1" density="600" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_b0" type="sphere" size="0.001" pos="0.01559 0.00900 0.00100" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_b1" type="sphere" size="0.001" pos="0.00000 0.01800 0.00100" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_b2" type="sphere" size="0.001" pos="-0.01559 0.00900 0.00100" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_b3" type="sphere" size="0.001" pos="-0.01559 -0.00900 0.00100" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_b4" type="sphere" size="0.001" pos="-0.00000 -0.01800 0.00100" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_b5" type="sphere" size="0.001" pos="0.01559 -0.00900 0.00100" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_t0" type="sphere" size="0.001" pos="0.01559 0.00900 0.03900" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_t1" type="sphere" size="0.001" pos="0.00000 0.01800 0.03900" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_t2" type="sphere" size="0.001" pos="-0.01559 0.00900 0.03900" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_t3" type="sphere" size="0.001" pos="-0.01559 -0.00900 0.03900" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_t4" type="sphere" size="0.001" pos="-0.00000 -0.01800 0.03900" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+   <geom name="cyl_t5" type="sphere" size="0.001" pos="0.01559 -0.00900 0.03900" rgba="0.16 0.36 0.80 1" priority="1" solref="0.004 1" density="0" friction="1.0 0.02 0.005" condim="4" />
+  </body>
  </worldbody>
  <equality>
   <joint joint1="R_finger_joint1" joint2="R_finger_joint2" solimp="0.95 0.99 0.001" solref="0.005 1" />
@@ -701,6 +745,6 @@
  </visual>
  <statistic center="-0.2 -0.15 0.2" extent="1.6" />
  <keyframe>
-  <key name="home" qpos="0.0072909349 -0.77250832 -0.046521356 -2.3335857 -0.032464184 1.5616232 0.82501059 0.04 0.04 -0.025326094 -0.78385223 0.016312788 -2.39247 0.011525051 1.6086818 0.7708367 0.04 0.04 -0.0192 -0.0717 0.0005 0.88743321 0 0 -0.46093632 0 0.2392 -0.1243 0.0005 0.99033425 0 0 0.13870138 0 0.2722 0.0468 0.0005 0.99623091 0 0 0.086740857 0.041 0.121 0.0005 1 0 0 0 0.3943 0.0767 0.0005 0.6715112 0 0 0.74099441 0.1437 0.1312 0.0005 1 0 0 0 0.261 0.138 0.0005 1 0 0 0 0.1682 0.0333 0.0005 1 0 0 0 -0.1372 0.0966 0.0005 0.85066361 0 0 0.52571039 0.1894 0.3226 0.0005 -0.36836866 0 0 0.9296798 -0.21 -0.175 0.0005 1 0 0 0 0 0 3 3 -0.8645 1 0 0 0" ctrl="0.0072909349 -0.77250832 -0.046521356 -2.3335857 -0.032464184 1.5616232 0.82501059 0.04 -0.025326094 -0.78385223 0.016312788 -2.39247 0.011525051 1.6086818 0.7708367 0.04" />
+  <key name="home" qpos="0.0072909349 -0.77250832 -0.046521356 -2.3335857 -0.032464184 1.5616232 0.82501059 0.04 0.04 -0.025326094 -0.78385223 0.016312788 -2.39247 0.011525051 1.6086818 0.7708367 0.04 0.04 -0.0192 -0.0717 0.0005 0.88743321 0 0 -0.46093632 0 0.2392 -0.1243 0.0005 0.99033425 0 0 0.13870138 0 0.2722 0.0468 0.0005 0.99623091 0 0 0.086740857 0.041 0.121 0.0005 1 0 0 0 0.3943 0.0767 0.0005 0.6715112 0 0 0.74099441 0.1437 0.1312 0.0005 1 0 0 0 0.261 0.138 0.0005 1 0 0 0 0.1682 0.0333 0.0005 1 0 0 0 -0.1372 0.0966 0.0005 0.85066361 0 0 0.52571039 0.1894 0.3226 0.0005 -0.36836866 0 0 0.9296798 -0.21 -0.175 0.0005 1 0 0 0 0 0 3 3 -0.8645 1 0 0 0 0.3 0.3 0.0005 1 0 0 0 0.3 0.45 0.0005 1 0 0 0" ctrl="0.0072909349 -0.77250832 -0.046521356 -2.3335857 -0.032464184 1.5616232 0.82501059 0.04 -0.025326094 -0.78385223 0.016312788 -2.39247 0.011525051 1.6086818 0.7708367 0.04" />
  </keyframe>
 </mujoco>

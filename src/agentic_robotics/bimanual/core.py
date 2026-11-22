@@ -690,6 +690,29 @@ class BiCore:
                     cap_xyz_mm=[round(float(v) * 1000) for v in cp],
                     cap_held_by={SIDE[k]: sorted(v) for k, v in parts.items()})
 
+    def stick_top(self):
+        """TRUE state: the centre of the stick's top, the stick's axis."""
+        g = self.m.geom("stand_stick")
+        p, R = self.object_pose("stick_stand")
+        return p + R @ (g.pos + [0, 0, g.size[1]]), R[:, 2].copy()
+
+    def judge_insert(self):
+        """TRUE state: the stick passes through the cylinder's hole (the cylinder's middle is below the stick's top
+        and within 4 mm of its axis: the hole's wall leaves no other way), the robot does not touch the cylinder,
+        the stand is upright on the table."""
+        top, ax = self.stick_top()
+        sp, sR = self.object_pose("stick_stand"); cp, cR = self.object_pose("cylinder")
+        h = 2 * float(self.m.geom("cyl_w0").size[2])
+        v = cp + cR[:, 2] * h / 2 - top
+        below = -float(v @ ax); side = float(np.linalg.norm(v + below * ax))
+        parts, other = self.touching("cylinder")
+        on = bool(below > 0 and side < 0.004)
+        upright = bool(sR[2, 2] > 0.95 and abs(sp[2]) < 0.01)
+        return dict(ok=bool(on and not parts and upright), on_stick=on, released=not parts, stand_upright=upright,
+                    stick_through_mm=round(float(np.clip(below + h / 2, 0, h)) * 1000, 1) if side < 0.004 else 0.0, off_axis_mm=round(side * 1000, 1),
+                    cylinder_xyz_mm=[round(float(x) * 1000) for x in cp], stick_top_xyz_mm=[round(float(x) * 1000) for x in top],
+                    cylinder_touches=sorted(other), held_by={SIDE[k]: sorted(x) for k, x in parts.items()})
+
 
 # name -> {object: (x, y, yaw_deg)}; any dict of that form is a layout (docs/bimanual.md: the shared workspace)
 LAYOUTS = {

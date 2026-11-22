@@ -8,6 +8,7 @@ judge on the simulation's TRUE state, and the limits. The same tasks run in both
     open_bottle     one hand holds the bottle, the other unscrews its cap and takes it off        (needs both arms)
     move_across     a roll of white tape from the right arm's side of the table to the left arm's      (needs both arms)
     lift            pick a roll of white tape up and hold it                                        (one arm)
+    insert_cylinder put a cylinder on a vertical stick that its hole fits with 1 mm to spare all round   (one arm)
 """
 from __future__ import annotations
 
@@ -30,6 +31,12 @@ _BOTTLE = ("The bottle is a plastic bottle, half full (about 0.65 kg), about 30 
            "about one full turn in all, after which it lifts off. The thread has some friction: if nothing holds the bottle, it "
            "turns with the cap or tips over.")
 _ROLL = "The roll (0.06 kg) lies flat on the table: a ring 50 mm across and 27 mm high, with a 26 mm hole in its middle."
+
+_STICK = ("The cylinder (blue, wood, 0.02 kg) is 40 mm across and 40 mm tall and stands on the table with its hole upwards: "
+          "a round hole 20 mm across, along its axis, right through. The stand is a wooden board (120 x 120 mm, 22 mm thick, "
+          "about 0.2 kg, lying on the table, not fixed to it) with one vertical stick in its middle: the stick is 18 mm across "
+          "and its top is 100 mm above the board, 122 mm above the table; the top is flat, with a square edge. The hole is only "
+          "2 mm wider than the stick: the cylinder goes on only if its axis is within 1 mm of the stick's.")
 
 
 @dataclass(frozen=True)
@@ -66,6 +73,15 @@ def _roll_middle(seed):
     return {ROLL: (round(float(r.uniform(-0.38, -0.22)), 3), round(float(r.uniform(-0.12, 0.12)), 3), 0.0)}
 
 
+def _stick_layout(seed):
+    """Both where both arms reach, about 0.25 m apart. Seed 0: the reference spots."""
+    if seed == 0:
+        return {"stick_stand": (-0.25, -0.16, 0.0), "cylinder": (-0.30, 0.08, 0.0)}
+    r = _rng("insert_cylinder", seed)
+    return {"stick_stand": (round(float(r.uniform(-0.30, -0.20)), 3), round(float(r.uniform(-0.20, -0.10)), 3), round(float(r.uniform(-45, 45)), 1)),
+            "cylinder": (round(float(r.uniform(-0.36, -0.24)), 3), round(float(r.uniform(0.04, 0.14)), 3), round(float(r.uniform(0, 360)), 1))}
+
+
 def _judge_lift(S):
     p, R = S.object_pose(ROLL)
     parts, other = S.touching(ROLL)
@@ -98,6 +114,11 @@ TASKS = {t.name: t for t in (
          "Task: pick up the roll of white tape that lies on the table in front of the robot and hold it still, at least "
          "50 mm above the table, touching nothing but the robot; then call done() (or let the program return). " + _ROLL,
          _roll_middle, _judge_lift, 240.0, 40, 1),
+    Task("insert_cylinder",
+         "Task: put the cylinder on the stick. A cylinder with a hole and a stand with one vertical stick are on the table in "
+         "front of the robot. Thread the cylinder onto the stick, so that the stick passes through its hole, and let go of it: "
+         "at the end the cylinder must be on the stick, the robot not touching it, and the stand upright on the table. " + _STICK,
+         _stick_layout, lambda S: S.judge_insert(), 600.0, 80, 1),
 )}
 
 

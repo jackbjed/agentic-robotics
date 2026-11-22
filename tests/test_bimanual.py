@@ -65,7 +65,7 @@ def test_environment_cameras_and_state(env):
     rb.move("right", (-350, -300, 300), (0, 0, -1), (0, 1, 0) if env == GRIPPERS else (1, 0, 0))
     S.set_state(st)
     assert np.allclose(S.get_state()["qpos"], st["qpos"])
-    assert set(bimanual.ENVS) == {GRIPPERS, DEXTEROUS} and set(TASKS) == {"open_bottle", "move_across", "lift"}
+    assert set(bimanual.ENVS) == {GRIPPERS, DEXTEROUS} and set(TASKS) == {"open_bottle", "move_across", "lift", "insert_cylinder"}
 
 
 @pytest.mark.parametrize("env", ENVS)
@@ -78,7 +78,24 @@ def test_reference_solution(env, task):
     assert v["robot_s"] < ep.task.time_limit_s
 
 
-@pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle"])
+@pytest.mark.parametrize("offset_mm, ok", [((0.0, 0.0), True), ((0.6, 0.6), True), ((2.0, 0.0), False)])
+def test_insert_cylinder_needs_a_millimetre(offset_mm, ok):
+    """The hole is 2 mm wider than the stick: the reference (grippers; it reads the true poses) puts the cylinder on with
+    its axis within 1 mm of the stick's, not 2 mm off. The cylinder stays where the layout put it until it is grasped."""
+    from agentic_robotics.bimanual.scripted import insert_cylinder
+    ep = Episode(GRIPPERS, "insert_cylinder", seed=2, sensors="ideal")
+    S = ep.S
+    x, y, _ = ep.layout["cylinder"]
+    S.move("L", S.object_pose("cylinder")[0] + [0.1, 0, 0.17], S.fk("L", S.arms["L"].home)[1])
+    assert np.allclose(S.object_pose("cylinder")[0][:2], (x, y), atol=0.001)
+    insert_cylinder(S, log=lambda *a: None, offset=tuple(v / 1000 for v in offset_mm))
+    v = ep.finish()
+    assert v["ok"] == ok, v
+    assert v["released"] and v["stand_upright"]
+    assert (v["stick_through_mm"] > 35) == ok
+
+
+@pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])
 def test_untouched_scene_is_not_a_success(task):
     ep = Episode(GRIPPERS, task, seed=0, sensors="ideal")
     assert not ep.finish()["ok"]

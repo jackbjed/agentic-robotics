@@ -34,8 +34,10 @@ Both environments are the twin's own scene (`vendor/panda_twin/model/twin_6522_w
   along the fingers, turned 10° towards the palm (as in `panda_twin_dex`).
 - **Objects:** the twin's scanned objects (boxes, tape rolls, glue, screwdriver, cable, pad, block; the ruler is
   fixed to the table) and a bottle with a screw cap (0.65 kg, 30 cm tall; a hinge and a slide tied by the thread's
-  pitch, with friction; after one full turn the cap comes free). An episode's layout names the objects on the table;
-  the others are parked out of sight.
+  pitch, with friction; after one full turn the cap comes free), and a cylinder with its stick: a wooden cylinder
+  (40 mm across, 40 mm tall, 0.02 kg) with a 20 mm hole along its axis, and a stand (a free board, 120 x 120 x 22 mm,
+  with one vertical stick 18 mm across, its flat top 100 mm above the board). The hole is 24 flat faces, 10 mm from the
+  axis: 1 mm of play all round. An episode's layout names the objects on the table; the others are parked out of sight.
 - **Reach:** with the tool pointing down, the right arm covers about x −600..−50, y −700..+300 mm and the left arm
   y −200..+400 mm and beyond; both reach the strip y −200..+250, x −450..−50. The far half of the table (x > 0) is out
   of reach.
@@ -62,7 +64,7 @@ Rebuild the models (only after changing the builder; the Sharpa hands need the a
 
 ## Tasks
 
-`bimanual/tasks.py`. The same three tasks run in both environments. The seed sets the layout (and the sensor
+`bimanual/tasks.py`. The same tasks run in both environments. The seed sets the layout (and the sensor
 errors). The judge reads the simulation's true state after the scene has rested for 1 s.
 
 | task | arms | layout | success | limits |
@@ -70,8 +72,12 @@ errors). The judge reads the simulation's true state after the scene has rested 
 | `open_bottle` | 2 | the bottle in front of the robot (x −330..−210, y −240..−120 mm; seed 0: the reference spot) | the cap is off the bottle (held or on the table) and the bottle stands upright on the table | 600 s, 80 calls |
 | `move_across` | 2 | a roll of white tape on the right, where only the right arm reaches | the roll rests on the table beyond y = 400 mm, where only the left arm reaches, and the robot does not touch it | 400 s, 60 calls |
 | `lift` | 1 | the roll in front of the robot, where both arms reach | the roll is held at least 50 mm above the table, touching nothing but the robot | 240 s, 40 calls |
+| `insert_cylinder` | 1 | the stand on the right (x −300..−200, y −200..−100 mm, turned up to 45°), the cylinder standing on the left (x −360..−240, y 40..140 mm), both where both arms reach; seed 0: the reference spots | the cylinder is on the stick (its middle below the stick's top, within 4 mm of the stick's axis), the robot does not touch it, and the stand is upright on the table | 600 s, 80 calls |
 
-The roll is a ring 50 mm across and 27 mm high (0.06 kg). Limits are robot time and, for direct control, tool calls;
+The roll is a ring 50 mm across and 27 mm high (0.06 kg). `insert_cylinder` is the precision task: the cylinder goes
+on only when its axis is within about 1 mm of the stick's (the stick's top is flat, its edge square: nothing guides the
+cylinder in), while a point located from the cameras can be 20 mm off. The task's text gives the sizes and the 1 mm,
+not the positions. Limits are robot time and, for direct control, tool calls;
 the time limit is checked before each action.
 
 ```python
@@ -168,17 +174,47 @@ Reference solutions, `sensors="ideal"`:
 | grippers | 6/6 seeds, 15-18 s | 6/6, about 80 s | 16/16, about 72 s |
 | dexterous | 6/6, 17-19 s | 6/6, about 85 s | 11/11, about 71 s |
 
+`insert_cylinder` (grippers only: no reference solution with the Sharpa hands yet): 10/10 seeds, about 30 s. With
+the cylinder's axis put a given distance off the stick's: on at up to 1.3 mm, stopped on the stick's top at 1.5 mm and
+beyond (the contacts are soft and the free stand gives about 0.3 mm).
+
 The dexterous solutions use the three grasps of `--hints`. The roll lift also passes when given as tool calls
 (`sensors="d415"`, both environments), replayed, and driven from the shell, with the same result each way. The
-example program lifts the roll with realistic sensors in 5 of 6 seeds. The model loop is tested with a stub model
-only: **no model or agent has been evaluated here yet.**
+example program lifts the roll with realistic sensors in 5 of 6 seeds. The model loop is tested with a stub model.
+
+## First model results (2026-11-21)
+
+Direct control (`--model`), `sim_bimanual_grippers`, `sensors="d415"`, effort high, no hints, seeds 0-2. Three
+episodes per cell: a first look, not a benchmark.
+
+| task | model | success | tool calls | robot time | cost |
+|---|---|---|---|---|---|
+| `open_bottle` | gpt-6-astra | 3/3 | 28-31 | 59-67 s | $1.67 |
+| `open_bottle` | gpt-6.2-astra | 3/3 | 34-40 | 69-71 s | $2.53 |
+| `insert_cylinder` | gpt-6-astra | 3/3 | 22-30 | 49-85 s | $1.83 |
+
+Runs: `runs/bimanual/open_bottle_grippers_1121/`, `runs/bimanual/insert_cylinder_grippers_1121/` (not in git).
+
+How gpt-6-astra got the cylinder within a millimetre of the stick, when one located point can be several millimetres
+off (true offsets read by replaying each episode's calls):
+
+- seed 1: it grasped the cylinder with the left arm and located the stick's top with the *same* arm's wrist camera,
+  from above, while holding the cylinder: 1.4 mm off, on at the first try;
+- seed 0: it used the other arm's wrist camera for the stick: 2.3 mm off, stopped on the stick's top (guarded move);
+  two blind corrections missed; then it looked with the holding arm's camera: 0.7 mm off, on;
+- seed 2: no camera in the last step. It closed the right gripper on the stick twice, a quarter turn apart (which
+  slid the stand until the stick was centred on that tool point), put the cylinder down and grasped it again a
+  quarter turn round (centred both ways), then moved the left tool point to the right one's coordinates: 0.5 mm off.
+
+The third way leans on the simulated arms being exact relative to each other; on the rig the two bases' calibration
+would add to it.
 
 ## Not there yet
 
-- No agent results: no Astra episode, no coding-agent session.
+- No coding-agent session yet (direct control through `drive`, or writing programs); model results are three episodes per cell, grippers only.
 - Programs run in the runner's process, not in the platform's sandbox, and there is no learning loop
   (workspaces, practice, held-out suites) for these environments.
 - `--model` speaks the OpenAI Responses API only. A Claude model is tested through `drive` (in Claude Code) or needs
   a loop on the Anthropic API (the converters are there, the loop is not).
 - Colour is MuJoCo's rendering, not the splat; the right wrist camera's mount is assumed, not calibrated.
-- Three tasks. The layouts of `open_bottle` cover the area where both reference solutions work, not the whole table.
+- Four tasks; `insert_cylinder` has no reference solution with the Sharpa hands. The layouts of `open_bottle` cover the area where both reference solutions work, not the whole table.
