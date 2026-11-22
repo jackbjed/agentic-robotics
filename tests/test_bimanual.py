@@ -3,6 +3,7 @@ tasks; a program, replayed tool calls, a (stubbed) model and the shell drive mod
 and judge."""
 import json
 import math
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -202,3 +203,67 @@ def test_write_a_program_with_a_stub_model():
     assert "robot.segment(" not in W.instructions("dexterous", 600.0) and "robot.fingertips(" in W.instructions("dexterous", 600.0)
     assert W.extract_program("no code")[0] is None and W.extract_program("```python\nx = 1\n```")[0] is None
     assert W.extract_program("```python\ndef run(robot, task:\n```")[0] is None
+
+
+@pytest.mark.skipif(shutil.which("bwrap") is None, reason="bubblewrap is not installed")
+def test_development_session_with_a_stub_model(tmp_path):
+    """improve.py: the tools of a session (versions, sandboxed practice episodes, their output, trace and images),
+    the submitted result, and the budget's end."""
+    from agentic_robotics.bimanual import improve, practice
+
+    class Dev:
+        def __init__(self, calls, usd=0.01):
+            self.calls, self.seen, self.usd = list(calls), [], usd
+
+        def respond(self, input, images, **k):
+            self.seen.append(dict(input=input, n_images=len(images), **k))
+            n = len(self.seen)
+            out = [{"type": "message", "content": [{"type": "output_text", "text": f"step {n}"}]}]
+            if self.calls:
+                name, args = self.calls.pop(0)
+                out.append({"type": "function_call", "call_id": f"c{n}", "name": name, "arguments": json.dumps(args)})
+            usd = self.usd if self.usd is not None else k["max_output_tokens"] * 50e-6       # None: a reply of the full length
+            return dict(ok=True, id=f"r{n}", status="completed", output=out, usd=usd, wait_s=0.0,
+                        tokens=dict(input=1000 * n, cached=0, output=100, reasoning=0))
+
+        def results(self):
+            return ["\n".join(c["text"] for c in i.get("output", []) if c.get("type") == "input_text") for s in self.seen for i in s["input"]]
+
+    c = [round(float(x), 1) for x in scripted._roll_centre(Episode(GRIPPERS, "lift", seed=100, sensors="ideal").S) * 1000]
+    arm = "left" if c[1] > -175 else "right"
+    lift = (f"import numpy as np\n\ndef run(robot, task):\n    f = robot.look(['scene'])['scene']\n    robot.show('roll', f.rgb)\n"
+            f"    for z in (200, {c[2] + 6}):\n        robot.move('{arm}', ({c[0]}, {c[1]}, z), (0, 0, -1), (0, 1, 0))\n"
+            f"    print('closed to', robot.set_gripper('{arm}', 0))\n    robot.move('{arm}', ({c[0]}, {c[1]}, 140), (0, 0, -1), (0, 1, 0))\n"
+            "    print('lifting')\n")
+    start = tmp_path / "v0.py"
+    start.write_text("def run(robot, task):\n    print('nothing yet')\n")
+    dev = Dev([("run_episodes", dict(seeds=[100])), ("run_episodes", dict(seeds=[5])),
+               ("write_program", dict(code="import os\n" + lift, note="bad")), ("write_program", dict(code=lift, note="lift from a known pose")),
+               ("run_episodes", dict(seeds=[100])), ("read_output", dict(seed=100, contains="set_gripper")),
+               ("view_images", dict(seed=100, names=["final", "roll", "none"])),
+               ("edit_program", dict(edits=[dict(old="print('lifting')", new="print('up')"), dict(old="nowhere", new="x")], note="-")),
+               ("edit_program", dict(edits=[dict(old="print('lifting')", new="print('up')")], note="says up")),
+               ("read_program", dict(version=2, start_line=9)), ("submit", dict(version=1, final=True))])
+    s = improve.Session(tmp_path / "s", GRIPPERS, "lift", dev, budget_usd=5.0, start=start, log=lambda *a: None)
+    assert s.run() == "submitted"
+    res = dev.results()
+    first = dev.seen[0]
+    assert first["n_images"] == 3 and "nothing yet" in first["input"][0]["content"][0]["text"] and "robot.show(label, image)" in first["instructions"]
+    assert "v0 seed 100: FAILED" in res[1] and "nothing yet" in res[1] and "[budget: $0.01 of $5 spent" in res[1]
+    assert "practice episodes are the seeds 100 to 999" in res[2] and "NOT saved" in res[3] and "import of os" in res[3]
+    assert "saved as v1" in res[4] and "v1 seed 100: SUCCESS" in res[5] and "closed to" in res[5] and "TRUE positions" in res[5]
+    assert "set_gripper(" in res[6] and "tool (" in res[6] and dev.seen[7]["n_images"] == 2 and "no image 'none'" in res[7]
+    assert "NOT saved" in res[8] and "occurs 0 times" in res[8] and "saved as v2" in res[9] and "print('up')" in res[10]
+    out = json.loads((tmp_path / "s/result.json").read_text())
+    assert out["ended"] == "submitted" and out["result_version"] == 1 and len(out["versions"]) == 3 and out["versions"][2]["base"] == 1
+    assert (tmp_path / "s/program.py").read_text() == lift and "v1 seed 100: SUCCESS" in (tmp_path / "s/transcript.md").read_text()
+    assert practice.check_program("def run(robot, task):\n    getattr(robot, 'S')\n    robot.look()['scene']._o\n") != []
+
+    dev = Dev([("run_episodes", dict(seeds=[100]))] * 9, usd=None)                   # the budget ends the session: v0 is the result
+    s = improve.Session(tmp_path / "b", GRIPPERS, "lift", dev, budget_usd=4.0, start=start, log=lambda *a: None)
+    assert s.run() == "budget" and len(dev.seen) == 3 and 3.5 < s.spent() <= 4.0
+    assert json.loads((tmp_path / "b/result.json").read_text())["result_version"] == 0
+    assert 4000 <= dev.seen[2]["max_output_tokens"] < dev.seen[0]["max_output_tokens"] == 32000 and "Little is left" in dev.results()[-1]
+
+    s = improve.Session(tmp_path / "s", GRIPPERS, "lift", Dev([]), budget_usd=5.0, log=lambda *a: None)       # resumed: its state
+    assert s.state["ended"] == "submitted" and len(s.state["versions"]) == 3 and s.state["submitted"] == 1

@@ -58,7 +58,9 @@ of `robot` beyond what is listed here. What it prints goes to the episode's log.
 time (computing does not count); after that the next command raises an exception and the episode ends. The task is
 judged on the state of the world when run() returns or raises. The arm's safety stops a move if the net force on that
 arm exceeds about 40 N; anything in the way of an arm is pushed or knocked over.
+"""
 
+_ONCE = """
 The program is run exactly as you write it: you cannot test it, see its output or revise it. Write it so that it finds
 things with the cameras in each episode, checks what it measured, and recovers where it can.
 """
@@ -102,9 +104,9 @@ Reply with the whole program in one ```python code block (a short note before it
 The first look of one example episode (the arms at their start poses; the three cameras' colour images):"""
 
 
-def instructions(kind, time_s, segmenter=False):
+def instructions(kind, time_s, segmenter=False, closing=_ONCE):
     """The system text for writing a program: the robot's description of direct control, with the program's interface
-    in place of the tool calls."""
+    in place of the tool calls, and how the program is used (closing: one attempt; improve.py: a session)."""
     src = GRIPPERS if kind == "grippers" else DEXTEROUS
     tool = src[src.index("Each arm is a Franka Panda with ") + len("Each arm is a Franka Panda with "):src.index(".\nEach tool call")]
     body = src[src.index("Frame and units:"):src.index("In all moves the arm's safety")]
@@ -112,7 +114,7 @@ def instructions(kind, time_s, segmenter=False):
     body = body.replace("the result says where it stopped", "robot.state(arm) tells where it stopped")
     return (_HEAD.format(tool=tool) + body.rstrip() + "\n"
             + _API.replace("{state}", _STATE[kind]).replace("{commands}", _COMMANDS[kind])
-                  .replace("{segment}", _SEGMENT if segmenter else "").replace("{time_s}", f"{time_s:.0f}"))
+                  .replace("{segment}", _SEGMENT if segmenter else "").replace("{time_s}", f"{time_s:.0f}") + closing)
 
 
 def extract_program(reply):

@@ -14,8 +14,7 @@ They are for two kinds of test, on the same tasks and with the same judge:
 2. **writing code**: an agent writes a program `run(robot, task)` that does the task through the robot API.
 
 Code: `src/agentic_robotics/bimanual/`. Tests: `tests/test_bimanual.py`. They are plain MuJoCo simulations, separate
-from the single-arm platform (`sim/`, `bin/ar`): no splat rendering, no world server, no program sandbox (see
-"Not there yet").
+from the single-arm platform (`sim/`, `bin/ar`): no splat rendering, no world server (see "Not there yet").
 
 ## The scene
 
@@ -177,6 +176,34 @@ python -m agentic_robotics.bimanual.run --env sim_bimanual_grippers --task inser
        --program runs/bimanual/x/program.py --segmenter sam3 --video --out runs/bimanual/x/s0
 ```
 
+**A model develops the program in the simulator** (`bimanual/improve.py`, on `bimanual/practice.py`): a session of
+tool calls in which the model writes versions of the program, runs them on practice episodes, reads what happened,
+and submits the version that is its result. **This costs money**: `--budget-usd` caps the session (the cost of each
+turn is reserved at its worst case before the call; the session ends when a useful reply no longer fits).
+
+```bash
+python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task insert_cylinder --model astra --effort high \
+       --start runs/bimanual/x/program.py --segmenter sam3 --budget-usd 20 --out runs/bimanual/y/session   # [--resume]
+python -m agentic_robotics.bimanual.practice suite --env sim_bimanual_grippers --task insert_cylinder \
+       --program runs/bimanual/y/session/program.py --seeds 0-2,4-10 --segmenter sam3 --video --out runs/bimanual/y/eval
+```
+
+- The model's tools: `write_program`, `edit_program` (exact replacements in a version), `run_episodes` (up to 6
+  practice seeds at once, seeds 100-999; results are kept per version and seed), `read_output`, `view_images`,
+  `read_program`, `submit`. `--start` gives it a starting program as v0 (here the one-call program); without it the
+  model starts from nothing.
+- What practice tells the model that the program never gets: the judge's verdict and its measurements, the objects'
+  TRUE positions at the start and the end, and a trace of every robot command with the arm's true tool position and
+  the objects that moved. A program can also hand images to the model with `robot.show(label, image)`. So practice is
+  a simulator with full instrumentation, which a real robot would not give.
+- Each episode runs in the platform's program sandbox (`execution/sandbox.py`: no network, no files but its own
+  output directory; SAM3 is reached over a Unix socket), after a static check of the program (allowed imports, no
+  file or introspection functions). The evaluation runs the submitted program the same way, without the model, on
+  seeds the session never used.
+- `DIR` gets `program.py` (the result), `versions/vNN.py`, `runs/vNN/sSEED/`, `transcript.md` (everything the model
+  got and did, with each turn's cost), `result.json` (versions, their practice results, cost). A session that stops
+  on an error continues with `--resume`.
+
 ## What is verified (2026-11-21)
 
 Reference solutions, `sensors="ideal"`:
@@ -241,14 +268,48 @@ What happened (true offsets from an instrumented re-run): in both episodes the f
 alignment step. That left the first estimate of the stick's position, off by 5.0 mm (seed 0) and 10.7 mm (seed 1),
 and the spiral: 104 probes found the hole in seed 0; in seed 1 the robot time ran out before the spiral got that far.
 The grasps left the cylinder's axis 1.5 and 0.4 mm from the tool point. So the direct-control episodes (3/3, 49-85 s) corrected with a
-new look where the unrevised program could only search by touch; a program that the model may run and revise is the
-next thing to compare.
+new look where the unrevised program could only search by touch.
+
+**The three ways compared** (`insert_cylinder`, `sim_bimanual_grippers`, gpt-6-astra, effort high, `sensors="d415"`;
+2026-11-22). The program of the third row is the second row's after one development session (`improve.py`: 41 turns,
+15 minutes, **$3.89** of the $20 allowed; 8 versions, 96 practice episodes on seeds 100-999; the model ended the
+session itself). Both programs were then run, without the model, on the same 10 seeds (0-2, 4-10; seed 3 was the
+one-call program's example):
+
+| | success | robot time | model cost |
+|---|---|---|---|
+| direct control | 3/3 (seeds 0-2 only) | 49-85 s | $0.61 an episode, every episode |
+| program, one call | 4/10 | 222-469 s (successes); 532 s (failures) | $0.91 once |
+| program after the session | **10/10** | **37-44 s (mean 40.4)** | $0.91 + $3.89 once |
+
+Runs: `runs/bimanual/insert_cylinder_program_1121/astra/eval10/`,
+`runs/bimanual/insert_cylinder_improve_1121/{session,eval}/` (not in git). In the 10 evaluation episodes the final
+program left the cylinder 0.1-0.9 mm off the stick's axis before the drop, and got on at the first downward probe in
+7, the second in 2, the third in 1.
+
+What the model changed, in its order (practice: successes, mean robot time):
+
+| version | change | practice |
+|---|---|---|
+| v0 | the one-call program | 4/6, 184 s |
+| v1 | the free arm watches from the side, wrist tilted, instead of from above the stick: the holding arm's move to the stick is no longer refused, so the visual alignment of the held cylinder over the stick (both seen in ONE camera, which cancels the calibration error) happens at all | 6/6, 181 s |
+| v2, v3 | the stick's top found by colour (its bright end face) instead of the depth image, the held cylinder by its whole blue silhouette | v3: 24/24, 76 s |
+| v4 | the watching pose aimed so the stick's top stands clear of the board in the image (three slow cases gone) | v4: 18/18, 58 s |
+| v5-v7 | shorter descent and no retreat at the end; when the first probe lands on the stick's top, that contact gives the cylinder's true height in the hand and the alignment is refitted with it; alignment at one height | v7: 18/18, 40 s |
+| v8 | dead code removed | 6/6, 40 s |
+
+Of the 41 tool calls, 16 ran episodes, 8 edited the program (never a whole rewrite), 4 read a trace (the first two
+found that the alignment step never ran) and 4 looked at `robot.show` images. It used little of the budget: most turns were a
+tool call with almost no reasoning (replies of 30-1000 tokens), and the conversation stayed cached ($1 per Mtok).
+The result is specific to these objects (colour thresholds, the stick's height from the task text): other shapes or
+distractors are not tested.
 
 ## Not there yet
 
-- No coding-agent session yet (direct control through `drive`, or writing programs), and a model that writes a program cannot yet run and revise it; model results are two or three episodes per cell, grippers only.
-- Programs run in the runner's process, not in the platform's sandbox, and there is no learning loop
-  (workspaces, practice, held-out suites) for these environments.
+- No coding-agent session yet (direct control through `drive`, or writing programs); model results are 2 to 10 episodes per cell, one task for programs, grippers only.
+- `run --program` runs a program in the runner's process (`practice` and `improve` use the sandbox). The development
+  session is one conversation with one model: no workspaces, no certified held-out suites as on the single-arm
+  platform, and its practice shows the simulator's true state.
 - `--model` speaks the OpenAI Responses API only. A Claude model is tested through `drive` (in Claude Code) or needs
   a loop on the Anthropic API (the converters are there, the loop is not).
 - Colour is MuJoCo's rendering, not the splat; the right wrist camera's mount is assumed, not calibrated.

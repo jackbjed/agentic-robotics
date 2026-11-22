@@ -146,10 +146,11 @@ class VLM:
         return dict(ok=True, text=_text(j), usd=round(usd, 5), wait_s=round(wait, 2),
                     tokens=dict(input=pin, cached=cached, output=out, reasoning=reas), cache_hit=False)
 
-    def respond(self, input, images, instructions=None, tools=None, previous=None, effort=None, max_output_tokens=None):
+    def respond(self, input, images, instructions=None, tools=None, previous=None, effort=None, max_output_tokens=None, extra=None,
+                timeout_s=600):
         """One turn of a conversation. input: Responses API input items; an image is {"type": "input_image",
         "image": k} -> images[k] (RGB array) as a PNG. -> dict(ok, id, status, output (the reply's items), usd, wait_s,
-        tokens) or dict(ok=False, why)."""
+        tokens) or dict(ok=False, why). extra: more fields of the request's body; timeout_s: of one HTTP request."""
         if not self.cfg.get("converse"):
             return dict(ok=False, why="no multi-turn model calls in this run")
         if self.calls >= self.max_calls:
@@ -174,6 +175,7 @@ class VLM:
             body["tools"] = tools
         if previous:
             body["previous_response_id"] = str(previous)
+        body.update(extra or {})
         h = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
         self.calls += 1
         res = float(self.cfg.get("max_usd_per_call", min(self.ep_cap, 0.25)))
@@ -188,7 +190,7 @@ class VLM:
         t0 = time.time(); err = None; j = None
         for attempt in range(4):
             try:
-                r = requests.post("https://api.openai.com/v1/responses", json=body, timeout=600,
+                r = requests.post("https://api.openai.com/v1/responses", json=body, timeout=timeout_s,
                                   headers={"Authorization": f"Bearer {self.key()}"})
                 if r.status_code == 200:
                     j = r.json(); break

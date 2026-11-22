@@ -68,10 +68,13 @@ def hide_args(hide):
     return out
 
 
-def program_cmd(cmd, skills_dir, out_dir, sock_dir, extra_env=None, hide=None, rw=None):
+def program_cmd(cmd, skills_dir, out_dir, sock_dir, extra_env=None, hide=None, rw=None, devices=None):
     """Wrap a host command line in the program sandbox. hide: paths made invisible (real2sim: the scene's model files,
-    selfsim.hidden_paths); rw: more directories bound writable (real2sim's analysis scripts: sim/, analysis/)."""
+    selfsim.hidden_paths); rw: more directories bound writable (real2sim's analysis scripts: sim/, analysis/);
+    devices: device nodes passed through (bimanual/practice.py: the GPU's, the simulation renders in the sandbox)."""
     args = _base(net=False) + env_ro() + hide_args(hide)
+    for d in devices or ():
+        args += ["--dev-bind", str(d), str(d)]
     args += ["--ro-bind", str(skills_dir), str(skills_dir)]
     for d in rw or ():
         args += ["--bind", str(d), str(d)]
