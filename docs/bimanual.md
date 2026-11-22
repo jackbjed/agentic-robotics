@@ -364,6 +364,37 @@ height (the same 15 scenes; `practice.run_sandboxed(..., scene=...)`). Runs: `ru
   to contours), and finds none ("no hole") on 7 of the 12 patterned tables: both checkers, both stripes, 2 of 3 wood
   grains, 1 of 3 blotches; plain and speckled tables are fine.
 
+**A session asked for other tables** (2026-11-22; `improve --tables`, $13.35 of a $15 budget, 81 turns, 39 min, 23
+versions, v21 submitted). The session of "own scenes only" again (from nothing, no self-evaluation set, the same
+prompt), with one difference: the request also says "It should also be robust to variations in the height of the
+table with respect to the robot, and to changes in the table's appearance (i.e., its color and pattern)", and the
+model's scenes can have a table, within less than the evaluation's range: height within 25 mm of the usual one (the
+evaluation: 40 mm), 6 of the 10 colours, plain / checker / stripes / speckle (not wood, not blotches). The prompt says
+that 15 more evaluation episodes have another table, also beyond what can be set up. The model practised on 52 scenes
+of its own: 37 on another table (32 at another height, to +-25 mm; 14 with a pattern), 15 on the usual one.
+
+| cameras only, no model call | in distribution (2000-2014) | out of distribution (5000-5014) | another table (8100-8114) | usual table (5100-5114) | height only | look only |
+|---|---|---|---|---|---|---|
+| own scenes only (v19) | 15/15, 65 s | 14/15, 66 s | 11/15, 64 s | 15/15, 65 s | 11/15 | 15/15 |
+| with the self-evaluation set (v25) | 14/15, 68 s | 14/15, 90 s | 5/15, 62 s | 15/15, 60 s | 9/15 | 8/15 |
+| asked for other tables (v21) | 15/15, 92 s | 14/15, 105 s | 14/15, 98 s | 13/15, 76 s | 14/15 | 14/15 |
+
+(Successes, and the mean robot time of the successes.) Runs: `runs/bimanual/varied_tables_1122/` (the session),
+`runs/bimanual/varied_tables_eval_1122/` (the evaluation).
+- The table. The program measures the table's height in each close-up (a plane fitted to the table's depth points, taken at the object)
+  and works relative to it; the 6 tables beyond +-25 mm and the wood and blotch patterns it never saw cost it one
+  scene, 8100 (-31 mm, cylinder 18 mm high). There one absolute height is left: the grasp height is
+  `max(10.5, table + max(22, ...))`, a floor of 10.5 mm above the usual table, so that on this table the gripper
+  closes 17 mm too high, above the cylinder (the taller cylinders at -35.5 and -28.5 mm are grasped). The same scene
+  at the usual height on its wood-grain table fails another way (no circle found in the close-ups, the search over
+  the stick finds nothing).
+- The price. The program is slower (median 72-83 s against 63-66 s) and less reliable where the earlier ones were:
+  2 of the 15 control scenes fail (5103, 5111: grasped, then 3 rounds of a 64-point search over the stick's top that
+  all end in contact, 450-480 s), as does 5010; 4 successes take 270-290 s for the same reason (the search fails, the
+  program puts the cylinder down, looks again and grasps again). 5103 succeeds on its other table (8103, 287 s) and
+  5111 on its (8111, 64 s): what decides is the insertion, a few millimetres of the estimate of where the held
+  cylinder's hole is, not the table.
+
 ## Not there yet
 
 - No coding-agent session yet (direct control through `drive`, or writing programs); model results are 2 to 10 episodes per cell, one task for programs, grippers only.
