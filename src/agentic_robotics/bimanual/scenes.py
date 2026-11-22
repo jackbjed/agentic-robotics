@@ -8,17 +8,24 @@ A scene is a JSON-able dict (mm, degrees, kg/m3, colours by name):
      "stand": {"board_mm": [side, side, thickness], "stick_diameter_mm", "stick_height_mm", "color", "rgb",
                "stick_color", "stick_rgb", "density", "xy_mm", "yaw_deg"},
      "distractors": [{"shape", "size_mm", "color", "rgb", "density", "xy_mm", "yaw_deg"}, ...],
-     "ood": [...]}                                  (which of its aspects are outside the training limits)
+     "ood": [...],                                  (which of its aspects are outside the training limits)
+     "table": {"height_mm", "pattern", "color", "rgb", "color2", "rgb2", "size_mm", "angle_deg", "texture_seed"}}
+                                                    (only the scenes from TABLE_FROM on: another table, see below)
 
     build(spec, seed)    a scene from a partial one (what a model sets up in a session, improve.py: SceneSession): every
                          value within the TRAINING limits (TRAIN, COLOURS, SHAPES), the rest drawn at random there
     sample(seed)         the scene of episode `seed`: within the training limits below OOD_FROM, and from OOD_FROM on
-                         with some aspects outside them (sizes, colours, kinds and number of distractors, placements)
-    model_xml(file, scene), layout(scene)    the simulation's model and layout for a scene (core.BiCore)
+                         with some aspects outside them (sizes, colours, kinds and number of distractors, placements);
+                         from TABLE_FROM on, the scene of seed - TABLE_BACK on another table (sample_table)
+    model_xml(file, scene), layout(scene), paint(model, scene)    the simulation's model and layout for a scene (core.BiCore)
 
 The hole is the stick's diameter plus the clearance (2 mm in every sampled scene). Each object's reference point is
 the centre of its underside. The training limits are what a session can build and what its evaluation set is drawn
 from; nothing built with build() is outside them, so the OOD scenes are new to any session's result.
+
+Another table (scene["table"]): its top at height_mm in the robot's frame instead of 0 (the robot, its cameras and its
+frame stay; the table and what stands on it are higher or lower), in another colour, plain or with a pattern (a texture
+painted by table_texture). No session has seen a table other than the dark grey one at 0.
 """
 from __future__ import annotations
 
@@ -51,6 +58,15 @@ OOD_COLOURS = {"orange": (240, 130, 30), "purple": (130, 60, 170), "pink": (240,
 OOD_SHAPES = ("ball", "pill", "L", "steps")                    # [diameter] | [diameter, length] | [arm, width, height] | [length, width, height]
 OOD_PLACES = ("near", "far", "close", "crowded", "beyond_ruler")
 JITTER = 12                                                     # a colour's variation, per channel (of 255)
+# another table: sample(seed >= TABLE_FROM) = the scene of seed - TABLE_BACK on the table of sample_table(seed)
+TABLE_FROM, TABLE_BACK = 8000, 3000
+TABLE_H = (-40.0, 40.0)                                         # mm: the table top's height in the robot's frame
+TABLE_COLOURS = {"black": (20, 20, 22), "dark grey": (51, 51, 54), "light grey": (190, 190, 192), "white": (238, 238, 234),
+                 "light wood": (205, 165, 115), "dark wood": (100, 66, 40), "green": (40, 115, 75), "blue": (50, 90, 155),
+                 "beige": (218, 204, 172), "red brown": (140, 52, 38)}
+PATTERNS = ("plain", "checker", "stripes", "speckle", "wood", "blotches")
+TEX = 2048                                                      # px: the table's texture (0.6 mm a pixel)
+TABLE_TOP = (1221.0, 1224.0)                                    # mm: the table top's sides (models/*.xml: table_top)
 
 
 # ---------------------------------------------------------------------- scenes
@@ -325,9 +341,72 @@ def sample_ood(seed):
     return dict(seed=int(seed), cylinder=cyl, stand=stand, distractors=dis, ood=tags)
 
 
+def sample_table(seed):
+    """The table of scene `seed` (>= TABLE_FROM). Any run of consecutive seeds covers the heights evenly and takes the
+    patterns in turn; the colours are drawn at random."""
+    k = int(seed) - TABLE_FROM
+    rng = np.random.default_rng([7, int(seed)])
+    h = TABLE_H[0] + (TABLE_H[1] - TABLE_H[0]) * (((k + 0.5) * 0.6180339887) % 1.0)
+    names = list(TABLE_COLOURS)
+    c1 = str(rng.choice(names)); c2 = str(rng.choice([n for n in names if n != c1]))
+    jit = lambda n: [int(np.clip(c + rng.integers(-JITTER, JITTER + 1), 0, 255)) for c in TABLE_COLOURS[n]]
+    pat = PATTERNS[k % len(PATTERNS)]
+    size = dict(plain=0.0, checker=_u(rng, (25, 80), 1), stripes=_u(rng, (8, 50), 1), speckle=_u(rng, (1.5, 6)),
+                wood=_u(rng, (15, 45), 1), blotches=_u(rng, (30, 90), 1))[pat]
+    return dict(height_mm=round(h * 2) / 2, pattern=pat, color=c1, rgb=jit(c1), color2=c2, rgb2=jit(c2), size_mm=size,
+                angle_deg=_u(rng, (0, 180), 1), texture_seed=int(rng.integers(1 << 30)))
+
+
+def table_texture(t, n=TEX):
+    """The table top's picture, (n, n, 3) uint8 RGB, for a table of sample_table: size_mm is the checker's square, the
+    stripes' width, the speckles' radius, the wood's ring spacing, the blotches' size."""
+    import cv2
+    rng = np.random.default_rng(int(t["texture_seed"]))
+    a, b = np.array(t["rgb"], np.float32), np.array(t["rgb2"], np.float32)
+    mm = TABLE_TOP[0] / n
+    Y, X = np.mgrid[0:n, 0:n].astype(np.float32) * mm
+    th = math.radians(t["angle_deg"]); U = X * math.cos(th) + Y * math.sin(th); V = -X * math.sin(th) + Y * math.cos(th)
+    s, p = float(t["size_mm"]), t["pattern"]
+    smooth = lambda rows, cols: cv2.resize(rng.random((rows, cols), dtype=np.float32), (n, n), interpolation=cv2.INTER_CUBIC)
+    if p == "checker":
+        w = ((np.floor(U / s) + np.floor(V / s)) % 2).astype(np.float32)
+    elif p == "stripes":
+        w = (np.floor(U / s) % 2).astype(np.float32)
+    elif p == "speckle":                                            # dots of the second colour over about 12 % of the top
+        img = np.zeros((n, n), np.uint8)
+        count = int(0.12 * TABLE_TOP[0] * TABLE_TOP[1] / (math.pi * s * s))
+        for x, y, r in zip(rng.integers(0, n, count), rng.integers(0, n, count), rng.uniform(0.6, 1.4, count) * s / mm):
+            cv2.circle(img, (int(x), int(y)), max(int(round(r)), 1), 255, -1, cv2.LINE_AA)
+        w = img.astype(np.float32) / 255
+    elif p == "wood":                                               # rings bent by slow noise, and streaks along the grain
+        rings = 0.5 + 0.5 * np.sin(2 * math.pi * (Y / s + 2.0 * smooth(12, 12)))
+        w = 0.35 * rings + 0.3 * smooth(n // 4, 6)
+    elif p == "blotches":
+        k = max(int(round(TABLE_TOP[0] / s)), 2)
+        w = np.clip((smooth(k, k) - 0.5) * 5 + 0.5, 0, 1)
+    else:
+        raise ValueError(f"unknown table pattern {p!r}")
+    img = a + (b - a) * w[..., None] + rng.normal(0, 2.0, (n, n, 1)).astype(np.float32)
+    return np.clip(img, 0, 255).astype(np.uint8)
+
+
+def paint(m, sc):
+    """The table's pattern into the compiled model's texture (model_xml declares it flat, of the first colour)."""
+    t = sc.get("table")
+    if not t or t["pattern"] == "plain":
+        return
+    i = m.texture("table").id
+    n = int(m.tex_width[i])
+    a = int(m.tex_adr[i])
+    m.tex_rgb[a:a + n * n * 3] = table_texture(t, n).ravel()
+
+
 def sample(seed):
     """The scene of episode `seed` of insert_varied (the evaluation scenes; a session's own scenes come from build)."""
     seed = int(seed)
+    if seed >= TABLE_FROM:
+        sc = sample(seed - TABLE_BACK)
+        return dict(sc, seed=seed, table=sample_table(seed), ood=sc["ood"] + ["table"])
     if seed >= OOD_FROM:
         return sample_ood(seed)
     rng = np.random.default_rng([3, seed])
@@ -344,7 +423,12 @@ def describe(sc):
            f"{s['stick_height_mm']:g} above the board, {s['stick_color']}, {s['density']:g} kg/m3, at ({s['xy_mm'][0]:g}, {s['xy_mm'][1]:g}) turned {s['yaw_deg']:g} deg")
     for k, d in enumerate(sc["distractors"]):
         out += (f"; distractor_{k}: {d['color']} {d['shape']} {' x '.join(f'{v:g}' for v in d['size_mm'])} at ({d['xy_mm'][0]:g}, {d['xy_mm'][1]:g})")
-    return out + " (mm)"
+    out += " (mm)"
+    t = sc.get("table")
+    if t:
+        out += (f"; table: top at {t['height_mm']:g} mm in the robot's frame, {t['color']}"
+                + ("" if t["pattern"] == "plain" else f" with {t['color2']} {t['pattern']} ({t['size_mm']:g} mm)"))
+    return out
 
 
 # ---------------------------------------------------------------------- the simulation's model
@@ -436,6 +520,24 @@ def model_xml(path, sc):
         b = ET.SubElement(wb, "body", name=f"obj_distractor_{k}", pos=f"{0.30 + 0.15 * k:.2f} 0.10 0.0005")
         ET.SubElement(b, "freejoint", name=f"obj_distractor_{k}_free")
         _distractor_geoms(b, k, d)
+    t = sc.get("table")
+    if t:                                                           # another table: higher or lower, another colour or a pattern
+        h = t["height_mm"] / 1000
+        shift = lambda e, dz: e.set("pos", " ".join(f"{v + (dz if k == 2 else 0):.5f}" for k, v in enumerate(map(float, e.get("pos").split()))))
+        geoms = {g.get("name"): g for g in wb.findall("geom")}
+        top = geoms["table_top"]
+        shift(top, h); shift(bodies["obj_ruler"], h)
+        for k in range(4):                                          # the legs: from the floor to the top's underside
+            leg = geoms[f"table_leg{k}"]
+            x, y, z = map(float, leg.get("size").split())
+            leg.set("size", f"{x:.5f} {y:.5f} {z + h / 2:.5f}"); shift(leg, h / 2)
+        if t["pattern"] == "plain":
+            top.set("rgba", _rgba(t["rgb"]))
+        else:
+            asset = root.find("asset")
+            ET.SubElement(asset, "texture", name="table", type="2d", builtin="flat", rgb1=_rgba(t["rgb"])[:-2], width=str(TEX), height=str(TEX))
+            ET.SubElement(asset, "material", name="table", texture="table", specular="0.1", shininess="0.1")
+            del top.attrib["rgba"]; top.set("material", "table")
     key = root.find("keyframe").find("key")                         # (the new bodies are the last: their qpos too)
     key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * len(sc["distractors"]))
     return ET.tostring(root, encoding="unicode")

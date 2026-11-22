@@ -146,6 +146,42 @@ def test_varied_scenes():
     assert v["ok"] and v["off_axis_mm"] < 1.1 and v["stick_through_mm"] > 20, v
 
 
+def test_another_table():
+    """scenes.py: from TABLE_FROM on, the scene of seed - TABLE_BACK on a table at another height, in another colour,
+    with a pattern: the objects rest on that table, the cameras see its top at that height and its pattern, and the
+    judge and the reference follow it."""
+    from agentic_robotics.bimanual import scenes
+    a, b = scenes.sample(scenes.TABLE_FROM + 103), scenes.sample(scenes.TABLE_FROM + 103 - scenes.TABLE_BACK)
+    assert {k: v for k, v in a.items() if k not in ("table", "seed", "ood")} == {k: v for k, v in b.items() if k not in ("seed", "ood")}
+    assert a["ood"] == b["ood"] + ["table"] and "table: top at" in scenes.describe(a) and "table" not in scenes.describe(b)
+    tabs = [scenes.sample(scenes.TABLE_FROM + k)["table"] for k in range(12)]
+    h = sorted(t["height_mm"] for t in tabs)
+    assert scenes.TABLE_H[0] <= h[0] < -25 and 25 < h[-1] <= scenes.TABLE_H[1] and {t["pattern"] for t in tabs} == set(scenes.PATTERNS)
+    for t in tabs:
+        if t["pattern"] != "plain":
+            img = scenes.table_texture(t, 256)
+            assert img.shape == (256, 256, 3) and img.std() > 3
+
+    t = a["table"]
+    assert t["pattern"] == "checker" and abs(t["height_mm"]) > 20
+    ep = Episode(GRIPPERS, "insert_varied", seed=a["seed"], sensors="ideal")
+    S, hz = ep.S, t["height_mm"] / 1000
+    assert ep.scene == a and S.table_z == hz
+    for name in ep.layout:
+        assert abs(S.object_pose(name)[0][2] - hz) < 0.002, name
+    f = ep.robot.look(["scene"])["scene"]
+    P = f.points()[300:, 200:440].reshape(-1, 3)                    # (the table in front of the scene camera)
+    assert abs(np.nanmedian(P[:, 2]) - t["height_mm"]) < 3
+    rgb = f.rgb[300:, 200:440].reshape(-1, 3).astype(float)
+    d1, d2 = (np.abs(rgb - c).sum(1) for c in (t["rgb"], t["rgb2"]))
+    assert 0.2 < (d1 < d2).mean() < 0.8                             # both colours of the checker are there
+    assert not ep.finish()["ok"]
+    ep = Episode(GRIPPERS, "insert_varied", seed=a["seed"], sensors="ideal")
+    assert run.run_scripted(ep, log=lambda *a: None) == "returned"
+    v = ep.finish()
+    assert v["ok"] and v["stand_upright"], v
+
+
 @pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])
 def test_untouched_scene_is_not_a_success(task):
     ep = Episode(GRIPPERS, task, seed=0, sensors="ideal")

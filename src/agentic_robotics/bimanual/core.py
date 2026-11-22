@@ -106,7 +106,10 @@ class BiCore:
         else:
             from . import scenes
             self.m = m = mujoco.MjModel.from_xml_string(scenes.model_xml(f, scene))
+            scenes.paint(m, scene)
             layout = scenes.layout(scene)
+        # the table top's height in this frame (the robot's): 0 but for the scenes on another table (scenes.py)
+        self.table_z = float(scene["table"]["height_mm"]) / 1000 if scene and scene.get("table") else 0.0
         self.d = mujoco.MjData(m); self.dk = mujoco.MjData(m)
         self.sensors, self.out = sensors, (Path(out) if out else None)
         self.arms, self.part = {}, {}
@@ -175,7 +178,7 @@ class BiCore:
             a = m.jnt_qposadr[m.body_jntadr[b]]
             if n in layout:
                 x, y, yaw = (list(layout[n]) + [0.0])[:3]
-                d.qpos[a:a + 3] = [x, y, TABLE_Z]; d.qpos[a + 3:a + 7] = yaw_quat(yaw)
+                d.qpos[a:a + 3] = [x, y, self.table_z + TABLE_Z]; d.qpos[a + 3:a + 7] = yaw_quat(yaw)
                 m.body_gravcomp[self.obj_bodies[n]] = 0
             else:                                                   # parked: out of sight, no contacts, no weight
                 d.qpos[a:a + 3] = [PARK + 0.6 * i, PARK, FLOOR_Z + TABLE_Z]; d.qpos[a + 3:a + 7] = [1, 0, 0, 0]
@@ -238,9 +241,10 @@ class BiCore:
         self.rng.bit_generator.state = st["rng"]; self.frng.bit_generator.state = st["frng"]
         mujoco.mj_forward(m, d)
 
-    def place(self, name, x, y, yaw_deg=0.0, z=TABLE_Z):
+    def place(self, name, x, y, yaw_deg=0.0, z=None):
         """Object `name` (parked or not) on the table at (x, y), turned by yaw_deg, at rest."""
         m, d = self.m, self.d
+        z = self.table_z + TABLE_Z if z is None else z
         g = self.obj_geoms[name]
         if name == "bottle":
             g = np.array([i for i in g if i not in (self.thr_geoms if self.cap_free else [])], int)
@@ -680,7 +684,7 @@ class BiCore:
         """TRUE state: the object is clear of the table by dz and touches nothing but the robot."""
         p, _ = self.object_pose(name)
         parts, other = self.touching(name)
-        return bool(p[2] > TABLE_Z + dz and parts and not other)
+        return bool(p[2] > self.table_z + TABLE_Z + dz and parts and not other)
 
     def judge_open_bottle(self):
         """TRUE state: the cap off the bottle (free, at least 30 mm from where it sat on the neck, not resting on the
@@ -692,7 +696,7 @@ class BiCore:
         upright = bool(bR[2, 2] > 0.95)
         parts, other = self.touching(self.b_free) if self.cap_free else ({}, set())
         on_bottle = "obj_bottle" in other
-        ok = bool(self.cap_free and sep >= 0.03 and not on_bottle and upright and bp[2] > -0.02 and cp[2] > -0.05)
+        ok = bool(self.cap_free and sep >= 0.03 and not on_bottle and upright and bp[2] > self.table_z - 0.02 and cp[2] > self.table_z - 0.05)
         return dict(ok=ok, cap_free=self.cap_free, unscrewed_deg=round(self.cap_angle()), cap_from_neck_mm=round(sep * 1000),
                     cap_on_bottle=on_bottle, bottle_upright=upright, bottle_xyz_mm=[round(float(v) * 1000) for v in bp],
                     cap_xyz_mm=[round(float(v) * 1000) for v in cp],
@@ -715,7 +719,7 @@ class BiCore:
         below = -float(v @ ax); side = float(np.linalg.norm(v + below * ax))
         parts, other = self.touching("cylinder")
         on = bool(below > 0 and side < 0.004)
-        upright = bool(sR[2, 2] > 0.95 and abs(sp[2]) < 0.01)
+        upright = bool(sR[2, 2] > 0.95 and abs(sp[2] - self.table_z) < 0.01)
         return dict(ok=bool(on and not parts and upright), on_stick=on, released=not parts, stand_upright=upright,
                     stick_through_mm=round(float(np.clip(below + h / 2, 0, h)) * 1000, 1) if side < 0.004 else 0.0, off_axis_mm=round(side * 1000, 1),
                     cylinder_xyz_mm=[round(float(x) * 1000) for x in cp], stick_top_xyz_mm=[round(float(x) * 1000) for x in top],

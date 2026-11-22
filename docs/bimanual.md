@@ -72,7 +72,7 @@ errors). The judge reads the simulation's true state after the scene has rested 
 | `move_across` | 2 | a roll of white tape on the right, where only the right arm reaches | the roll rests on the table beyond y = 400 mm, where only the left arm reaches, and the robot does not touch it | 400 s, 60 calls |
 | `lift` | 1 | the roll in front of the robot, where both arms reach | the roll is held at least 50 mm above the table, touching nothing but the robot | 240 s, 40 calls |
 | `insert_cylinder` | 1 | the stand on the right (x −300..−200, y −200..−100 mm, turned up to 45°), the cylinder standing on the left (x −360..−240, y 40..140 mm), both where both arms reach; seed 0: the reference spots | the cylinder is on the stick (its middle below the stick's top, within 4 mm of the stick's axis), the robot does not touch it, and the stand is upright on the table | 600 s, 80 calls |
-| `insert_varied` | 1 | `scenes.py`: another cylinder and stand in every scene (sizes, colours, densities, places, the stand turned up to 45°) and up to 3 other objects; seeds from 5000 on: beyond those limits (the evaluation's out-of-distribution scenes) | as `insert_cylinder` (the hole 2 mm wider than the stick) | 600 s, 80 calls |
+| `insert_varied` | 1 | `scenes.py`: another cylinder and stand in every scene (sizes, colours, densities, places, the stand turned up to 45°) and up to 3 other objects; seeds from 5000 on: beyond those limits (the evaluation's out-of-distribution scenes); from 8000 on: the scene of seed - 3000 on another table (height, colour, pattern) | as `insert_cylinder` (the hole 2 mm wider than the stick) | 600 s, 80 calls |
 
 The roll is a ring 50 mm across and 27 mm high (0.06 kg). `insert_cylinder` is the precision task: the cylinder goes
 on only when its axis is within about 1 mm of the stick's (the stick's top is flat, its edge square: nothing guides the
@@ -338,6 +338,29 @@ plan: find the two objects in the overview (SAM3 prompts as proposals, checked b
 highest thin top), look down with the wrist camera at each, grasp, set the cylinder down and look again to calibrate
 the camera against the grasp, carry, lower with contact and search by touch; a table hand-off when the two objects
 need different arms. Assumed in all scenes: the cylinder stands hole-up, and the hole is 2 mm wider than the stick.
+
+**Another table** (2026-11-22; no model call). The two programs above, as submitted, on 15 more scenes in which the
+table is also new: seeds 8100-8114 are the out-of-distribution scenes 5100-5114 on another table (`scenes.py`: from
+seed 8000 on, the scene of seed - 3000 with a `table`). The table top is 40 mm below to 40 mm above its usual height
+in the robot's frame (the robots, their cameras and the frame stay; the table, the ruler and the objects move), in one
+of 10 colours, plain or with a pattern (checker, stripes, speckle, wood, blotches). Both sessions were told that the
+table top is z = 0 and never saw another table. Control: seeds 5100-5114, the same objects on the usual table.
+
+| | usual table (control) | another table | height only | look only |
+|---|---|---|---|---|
+| own scenes only (v19) | 15/15 | 11/15 | 11/15 | 15/15 |
+| with the self-evaluation set (v25) | 15/15 | 5/15 | 9/15 | 8/15 |
+| reference (reads the true state) | 15/15 | 15/15 | | |
+
+"Height only" is the usual dark table at the scene's height, "look only" the scene's colour and pattern at the usual
+height (the same 15 scenes; `practice.run_sandboxed(..., scene=...)`). Runs: `runs/bimanual/varied_table_1122/`.
+- Height. Both programs measure the cylinder's height above the table around it, then go to that height as an
+  absolute z (`gz = max(18, h - 12)`): on a table 28 mm or more below, the gripper closes above the cylinder (3 scenes,
+  both programs). At -12 mm both grasp the 54 mm cylinder and miss the stick. Tables above cost v19 nothing (8/8),
+  and v25 one scene (+37.5 mm); v25 also fails at -24 mm.
+- Look. v19 (SAM3 masks, checked by geometry) is not affected by any colour or pattern. v25 finds the hole in the close-up from edges (ellipses fitted
+  to contours), and finds none ("no hole") on 7 of the 12 patterned tables: both checkers, both stripes, 2 of 3 wood
+  grains, 1 of 3 blotches; plain and speckled tables are fine.
 
 ## Not there yet
 
