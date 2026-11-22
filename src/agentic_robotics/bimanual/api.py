@@ -1,0 +1,261 @@
+"""What a controller may use of a bimanual environment (docs/bimanual.md): the robot's own sensing and commands, in
+MILLIMETRES and DEGREES, table frame. A program written for these environments gets a Robot and nothing else; the
+model tools (tools.py) are the same calls as text. No true object state passes through here.
+
+    from agentic_robotics import bimanual
+    from agentic_robotics.bimanual.api import Robot
+    robot = Robot(bimanual.make("sim_bimanual_grippers", seed=0))
+    f = robot.look()["scene"]; f.rgb; f.depth; f.locate(320, 240)
+    robot.move("right", (-250, -180, 300), (0, 0, -1), (0, 1, 0)); robot.set_gripper("right", 0); robot.state("right")
+
+Arms: "right" | "left". Every motion command returns dict(done, moved, why, curved):
+    done   the target was reached
+    moved  False when the command was refused: nothing moved (why says why)
+    why    "" | "contact" (a stop_on_contact move stopped at a touch) | the safety stop's or the refusal's text
+    curved the move was made by turning the arm's joints (a curved path, not a line)
+"""
+from __future__ import annotations
+
+import math
+
+import numpy as np
+
+from .core import ARMS, CAMS, GUARD_N, MIN_Z, SAFETY_N, Stop
+
+TIP_NOISE = 0.1          # N: the Sharpa fingertips' tactile reading
+
+
+class TimeUp(Exception):
+    """The episode's robot time is spent: no further command runs."""
+
+
+class Frame:
+    """One camera frame. rgb (H, W, 3 uint8); depth (H, W) mm along the optical axis, nan = none; fx, fy, cx, cy;
+    eye (mm) and R (3x3, camera to table frame; camera axes x right, y down, z forward): the camera's pose as the robot
+    believes it (the calibration is off by a few mm and up to a degree, the same all episode)."""
+
+    def __init__(self, o):
+        self._o = o
+        self.camera, self.rgb, self.t = o["camera"], o["rgb"], o["t"]
+        self.depth = o["depth"] * 1000.0
+        self.width, self.height, self.fx, self.fy, self.cx, self.cy = o["K"]
+        self.eye, self.R = o["eye"] * 1000.0, o["R"]
+
+    def locate(self, u, v):
+        """The 3D point (mm, table frame) of the surface seen at pixel (u, v): the median depth in a 7x7 window; None
+        where there is no depth."""
+        from .core import BiCore
+        X = BiCore.unproject(self._o, float(u), float(v))
+        return None if X is None else X * 1000.0
+
+    def points(self):
+        """(H, W, 3) mm, table frame: every pixel's 3D point (nan where there is no depth)."""
+        v, u = np.mgrid[0:self.height, 0:self.width]
+        z = self.depth
+        C = np.dstack([(u - self.cx) / self.fx * z, (v - self.cy) / self.fy * z, z])
+        return self.eye + C @ self.R.T
+
+    def project(self, xyz):
+        """Pixels (N, 2) and depths (N, mm) of table-frame points (mm) in this frame."""
+        c = (np.atleast_2d(np.asarray(xyz, float)) - self.eye) @ self.R; z = c[:, 2]
+        return np.c_[self.fx * c[:, 0] / z + self.cx, self.fy * c[:, 1] / z + self.cy], z
+
+
+class Robot:
+    CAMERAS = tuple(CAMS)
+    ARMS = tuple(ARMS)
+    GUARD_N, SAFETY_N, MIN_DEPTH_MM = GUARD_N, SAFETY_N, MIN_Z * 1000
+
+    def __init__(self, S, time_limit_s=None, segmenter=None):
+        self.S, self.segmenter = S, segmenter                       # segmenter: perception.sam3 (or None: no service)
+        self.kind = S.HANDS                                         # "grippers" | "dexterous"
+        self.t0, self.limit = float(S.d.time), time_limit_s
+        self.frames = {}                                            # the latest frame of each camera
+
+    # ------------------------------------------------------------------ time
+    def time_s(self):
+        """Robot time since the episode's start (s)."""
+        return float(self.S.d.time) - self.t0
+
+    def _time(self):
+        if self.limit is not None and self.time_s() >= self.limit:
+            raise TimeUp(f"the episode's robot time ({self.limit:.0f} s) is spent")
+
+    def wait(self, seconds):
+        self._time()
+        self.S.run(float(np.clip(seconds, 0.0, 10.0)))
+
+    # ------------------------------------------------------------------ sensing
+    def look(self, cameras=None):
+        """Frames of the cameras ("scene", "right_wrist", "left_wrist"; all by default) -> {camera: Frame}."""
+        self._time()
+        out = {}
+        for c in (cameras or self.CAMERAS):
+            if c not in CAMS:
+                raise KeyError(f"camera must be one of {list(CAMS)}")
+            out[c] = self.frames[c] = Frame(self.S.observe(c))
+        return out
+
+    def segment(self, frame, phrase):
+        """SAM3 on a frame's colour image, prompted by text (docs/perception.md) -> [(mask, score)], best first, at
+        most 6. Only in episodes run with a segmenter."""
+        return self._seg().segment(frame.rgb, str(phrase))
+
+    def segment_points(self, frame, pixels, labels):
+        """SAM3 prompted by clicks at pixels [[u, v], ...] (labels 1 = on the thing, 0 = not) -> [(mask, score)]."""
+        return self._seg().segment_points(frame.rgb, pixels, labels)
+
+    def _seg(self):
+        if self.segmenter is None:
+            raise RuntimeError("no segmentation service in this episode")
+        return self.segmenter
+
+    def state(self, arm):
+        """What that arm and hand measure. Both kinds: force_n, the arm's estimate of the net external force on it
+        (table frame, noisy by about 0.5 N per axis).
+        grippers:  tcp_mm, approach_dir, closing_dir, opening_mm (measured), commanded_mm
+        dexterous: palm_mm, fingers_dir, palm_dir, thumb_side, fingertips_mm {finger: xyz}, joints_deg, targets_deg
+                   {joint: deg}, fingertip_force_n {finger: N} (the fingertips' tactile pads)."""
+        S, P = self.S, self._arm(arm)
+        p, R = S.tool_pose(P)
+        f = [round(float(v), 1) for v in S.force_estimate(P)]
+        if self.kind == "grippers":
+            return dict(tcp_mm=_mm(p), approach_dir=_dir(R[:, 2]), closing_dir=_dir(R[:, 1]),
+                        opening_mm=round(max(S.width(P), 0.0) * 1000, 1), commanded_mm=round(S.arms[P].g_cmd * 2000, 1), force_n=f)
+        from .dexterous import FINGERS, JOINTS
+        parts = S.contacts()[P][0]
+        tip = {fg: round(max(parts.get(fg + ":tip", 0.0) + float(S.frng.normal(0, TIP_NOISE)), 0.0), 1) for fg in FINGERS}
+        hq, hc = S.hand_q(P), S.arms[P].h_cmd
+        return dict(palm_mm=_mm(p), fingers_dir=_dir(R[:, 2]), palm_dir=_dir(R[:, 0]), thumb_side=_dir(R[:, 1] if P == "R" else -R[:, 1]),
+                    fingertips_mm={fg: _mm(X) for fg, X in S.tip_pos(P).items()},
+                    joints_deg={n: round(math.degrees(hq[i]), 1) for i, n in enumerate(JOINTS)},
+                    targets_deg={n: round(math.degrees(hc[i]), 1) for i, n in enumerate(JOINTS)},
+                    fingertip_force_n=tip, force_n=f)
+
+    # ------------------------------------------------------------------ the arms
+    def move(self, arm, xyz, dir_a, dir_b, stop_on_contact=False):
+        """The tool point of that arm along a straight line to xyz (mm) while the tool turns to the orientation given
+        by two directions: grippers: approach_dir (where the fingers point), closing_dir (the line they close along);
+        dexterous: fingers_dir (where the straight fingers point), palm_dir (where the palm faces). The tool point is
+        the gripper's TCP / the palm's centre. closing_dir's sign does not matter (the nearer of the two wrist angles
+        is taken). stop_on_contact: 4 cm/s, stops at about 4 N of new force on the arm."""
+        P = self._arm(arm)
+        xyz = np.asarray(xyz, float).reshape(3)
+        lo = 10.0 if self.kind == "grippers" else 5.0
+        if not np.all(np.isfinite(xyz)) or xyz[2] < lo:
+            return _refused(f"the tool point may not go below {lo:.0f} mm above the table")
+        try:
+            R = self._orient(dir_a, dir_b, self.S.tool_pose(P)[1])
+        except ValueError as e:
+            return _refused(str(e))
+        return self._motion(lambda: self.S.move(P, xyz / 1000.0, R, guarded=bool(stop_on_contact)))
+
+    def turn(self, arm, centre, axis, angle_deg):
+        """Rotate that arm's whole gripper / hand rigidly by angle_deg about the line through centre (mm) along axis
+        (right-hand rule: axis (0, 0, 1) and a positive angle = counter-clockwise seen from above)."""
+        P = self._arm(arm)
+        axis = np.asarray(axis, float).reshape(3); centre = np.asarray(centre, float).reshape(3)
+        if not np.linalg.norm(axis) > 1e-6 or not abs(float(angle_deg)) <= 360:
+            return _refused("give a non-zero axis and an angle within +-360 degrees")
+        return self._motion(lambda: self.S.turn(P, centre / 1000.0, axis, float(angle_deg)))
+
+    def home(self, arm):
+        """That arm back to its start pose by the joints (refused if it would hit something on the way)."""
+        P = self._arm(arm)
+        return self._motion(lambda: self.S.go_home(P))
+
+    # ------------------------------------------------------------------ grippers
+    def set_gripper(self, arm, width_mm):
+        """The opening between the two fingers' pads, 0..80 mm (0 = close and grip, up to about 70 N).
+        -> the opening measured afterwards (mm): the width of what is between the fingers."""
+        self._kind("grippers"); self._time()
+        return round(max(self.S.set_gripper(self._arm(arm), float(np.clip(width_mm, 0, 80)) / 1000.0), 0.0) * 1000, 1)
+
+    # ------------------------------------------------------------------ Sharpa hands
+    def set_joints(self, arm, joints, duration_s=0.8, stop_force_n=None):
+        """Joint targets of one hand, degrees ({"index_MCP_FE": 45, ...}; the others keep their targets), reached over
+        duration_s. stop_force_n: each finger stops where it is once the contact force on it exceeds that.
+        -> dict(stopped=[fingers stopped by a contact], clipped={joint: "lo..hi"}, unknown=[names])."""
+        self._kind("dexterous"); self._time()
+        from .dexterous import JOINTS
+        S, P = self.S, self._arm(arm)
+        tg, clipped, unknown = {}, {}, []
+        for k, v in (joints or {}).items():
+            k2 = str(k).removeprefix("right_").removeprefix("left_")
+            if k2 not in JOINTS or not np.isfinite(float(v)):
+                unknown.append(str(k)); continue
+            lo, hi = S.hand_range(P, k2); r = math.radians(float(v))
+            if not lo - 1e-6 <= r <= hi + 1e-6:
+                clipped[k2] = f"{math.degrees(lo):.0f}..{math.degrees(hi):.0f}"
+            tg[k2] = r
+        st = S.set_hand(P, tg, _dur(duration_s), guard_n=_guard(stop_force_n))
+        return dict(stopped=list(st), clipped=clipped, unknown=unknown)
+
+    def fingertips(self, arm, targets, duration_s=0.8, stop_force_n=None):
+        """Put fingertips of one hand ({"thumb" | "index" | "middle" | "ring" | "pinky": xyz mm}; the centre of the
+        fingertip's pad) at points, the arm staying where it is: the finger's joints by inverse kinematics.
+        -> dict(stopped=[fingers], miss_mm={finger: distance between the target and the nearest point it can reach})."""
+        self._kind("dexterous"); self._time()
+        from .dexterous import FINGERS
+        S, P = self.S, self._arm(arm)
+        tg, miss, unknown = {}, {}, []
+        h0 = S.arms[P].h_cmd.copy()
+        for f, X in (targets or {}).items():
+            if f not in FINGERS:
+                unknown.append(str(f)); continue
+            t, err = S.finger_ik(P, f, np.asarray(X, float).reshape(3) / 1000.0, h0=h0)
+            tg.update(t); miss[f] = round(err * 1000, 1)
+        st = S.set_hand(P, tg, _dur(duration_s), guard_n=_guard(stop_force_n))
+        return dict(stopped=list(st), miss_mm=miss, unknown=unknown)
+
+    # ------------------------------------------------------------------
+    def _arm(self, arm):
+        if arm not in ARMS:
+            raise KeyError('arm must be "right" or "left"')
+        return ARMS[arm]
+
+    def _kind(self, kind):
+        if self.kind != kind:
+            raise AttributeError(f"this robot has {self.kind}: that command is for {kind}")
+
+    def _orient(self, a, b, cur=None):
+        a = np.asarray(a, float).reshape(3); b = np.asarray(b, float).reshape(3)
+        if not (np.all(np.isfinite(a)) and np.all(np.isfinite(b)) and np.linalg.norm(a) > 1e-6):
+            raise ValueError("give two non-zero directions")
+        if self.kind == "grippers":
+            from .grippers import grip_R
+            R = grip_R(a, b)                                        # a closing line has no sign: take the half turn
+            if cur is not None and float(R[:, 1] @ cur[:, 1]) < 0:  # of the wrist nearer to where it is
+                R = grip_R(a, -np.asarray(b, float))
+            return R
+        from .dexterous import hand_R
+        return hand_R(a, b)
+
+    def _motion(self, fn):
+        self._time()
+        self.S.last_path = "line"
+        try:
+            r = fn()
+        except Stop as e:
+            return _refused(str(e))
+        return dict(done=r is None, moved=True, why=r or "", curved=self.S.last_path == "joint")
+
+
+def _refused(why):
+    return dict(done=False, moved=False, why=why, curved=False)
+
+
+def _mm(v):
+    return [round(float(c) * 1000, 1) for c in v]
+
+
+def _dir(v):
+    return [round(float(c), 3) for c in v]
+
+
+def _dur(s):
+    return float(np.clip(0.8 if s is None else s, 0.2, 5.0))
+
+
+def _guard(n):
+    return None if not n else float(np.clip(n, 0.3, 20.0))

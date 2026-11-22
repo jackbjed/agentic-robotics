@@ -3,6 +3,7 @@ roots:                       # asset roots named in assets/manifest.yaml
   deoxys: /path/to/deoxys
   panda_twin: /path/to/panda_twin
   panda_pick_rgbd: /path/to/panda_pick_rgbd
+  sharpa: /path/to/sharpa-urdf-usd-xml      # optional: the Sharpa Wave hands (sim_bimanual_dexterous)
 render:
   egl_device: 1              # MUJOCO_EGL_DEVICE_ID for the world server (NB: EGL ids may be swapped vs nvidia-smi)
   nvidia_index: null         # that GPU's nvidia-smi index (enables the free-memory guard)

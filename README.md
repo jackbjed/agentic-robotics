@@ -41,6 +41,7 @@ bin/ar learn evaluate --run-id r1                       # held-out: initial vs f
 | docs/evaluation.md | suites, held-out protection, records, parity |
 | docs/fidelity.md | conditions A / B / C (all implemented): what changes, the common held-out target |
 | docs/baselines.md | no-practice, VLM+skills, direct VLM; the $50 total budget |
+| docs/bimanual.md | the two bimanual environments (grippers, Sharpa hands): scene, tasks, robot API, tools, runners |
 | docs/limitations.md | the simulator and sensors |
 | docs/migration.md | where every part came from; what works and what is incomplete |
 

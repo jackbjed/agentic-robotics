@@ -2,6 +2,7 @@
 
     .venv/bin/python -I scripts/link_assets.py            # link / copy, then verify
     .venv/bin/python -I scripts/link_assets.py --check    # verify only (exit 1 on any missing or changed file)
+    .venv/bin/python -I scripts/link_assets.py --only sharpa_right sharpa_left   # these groups only
 Optional groups (optional: true) are skipped when their root is not configured."""
 from __future__ import annotations
 
@@ -26,10 +27,13 @@ def sha256(p):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--only", nargs="+", default=None, help="asset groups to place / verify (default: all)")
     a = ap.parse_args()
     man = paths.load_yaml("assets/manifest.yaml")
     bad = 0
     for name, g in man["assets"].items():
+        if a.only and name not in a.only:
+            continue
         try:
             src_root = paths.root_of(g["root"]) / g["src_dir"]
         except KeyError as e:
