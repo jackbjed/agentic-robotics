@@ -253,6 +253,67 @@ def test_picking_from_clutter():
     assert not v["ok"] and not v["held"]                                # dropped: no longer a success
 
 
+def test_clutter_heaps_of_ones_own():
+    """clutter.build: a level's own scene by its seed; a heap of given and drawn objects that meets its level's
+    conditions; an asset made of parts, named in the task's text; objects placed by hand; what is refused."""
+    from agentic_robotics.bimanual import clutter as C
+    assert C.build({"level": "hard", "seed": 7}) == C.sample("hard", 7)
+    spec = {"level": "hard", "seed": 3, "n_objects": 9, "target": {"shape": "cylinder", "size_mm": [40, 50], "color": "red", "density": 600},
+            "objects": [{"shape": "box", "size_mm": [110, 60, 15], "color": "blue", "role": "cover"}, {"shape": "ball"}]}
+    a = C.build(spec)
+    t = a["objects"][0]
+    assert a == C.build(spec) and a["own"] and not a["placed"] and a["ood"] == [] and len(a["objects"]) == 9 and a["target"] == 0
+    assert (t["shape"], t["size_mm"], t["color"], t["density"]) == ("cylinder", [40, 50], "red", 600) and "the red cylinder" in C.text(a)
+    assert any(o["shape"] == "box" and o["size_mm"] == [110, 60, 15] and o["color"] == "blue" for o in a["objects"][1:])
+    seen, cover = C.visibility(a)
+    assert all(lo <= seen[cam] <= hi for cam, (lo, hi) in C.SEEN["hard"].items()) and cover
+    u = {"shape": "custom", "name": "U-shaped block", "color": "purple", "rgb": [130, 60, 170], "density": 500,
+         "parts": [{"type": "box", "size_mm": [60, 20, 20], "pos_mm": [0, 0, 0]}, {"type": "box", "size_mm": [20, 20, 40], "pos_mm": [-20, 0, 30]},
+                   {"type": "capsule", "size_mm": [20, 40], "pos_mm": [20, 0, 30], "euler_deg": [0, 0, 0]}]}
+    b = C.build({"level": "medium", "seed": 5, "target": u})
+    assert C.TRAIN["n"]["medium"][0] <= len(b["objects"]) <= C.TRAIN["n"]["medium"][1] and "the purple U-shaped block" in C.text(b)
+    ep = Episode(GRIPPERS, "pick_clutter_medium", seed=5, sensors="ideal", scene=b)
+    p0 = {n: ep.S.object_pose(n)[0].copy() for n in C.names(b)}
+    ep.S.run(1.0)
+    assert max(float(np.linalg.norm(ep.S.object_pose(n)[0] - p0[n])) for n in p0) < 0.002 and ep.text == C.text(b)
+    assert not ep.finish()["ok"]
+    p = C.build({"level": "medium", "target": {"shape": "box", "size_mm": [40, 40, 40], "color": "red", "pos_mm": [-300, -80, 20]},
+                 "objects": [{"shape": "ball", "size_mm": [40], "color": "blue", "pos_mm": [-300, -35, 20]}]})
+    assert p["placed"] and len(p["objects"]) == 2 and np.allclose(p["objects"][0]["pos_mm"], [-300, -80, 20], atol=1.0)
+    for bad, why in (({"level": "medium", "seed": C.OOD_FROM}, "seed"), ({"level": "extra_hard", "n_objects": 5}, "extra_hard"),
+                     ({"level": "medium", "table": {}}, "unknown field"), ({"level": "hard", "target": {"shape": "pill"}}, "shape"),
+                     ({"level": "hard", "target": {"shape": "ball", "size_mm": [400]}}, "size_mm"),
+                     ({"level": "medium", "target": {"shape": "ball", "color": "red"}, "objects": [{"shape": "ball", "color": "red"}]}, "colour and shape"),
+                     ({"level": "medium", "target": {"shape": "ball", "pos_mm": [-300, 0, 30]}, "objects": [{"shape": "ball"}]}, "pos_mm")):
+        with pytest.raises(ValueError, match=why):
+            C.build(bad)
+    with pytest.raises(ValueError, match="level"):
+        C.build({"level": "extra_hard", "seed": 1}, levels=("medium", "hard"))
+
+
+def test_biolab_bench():
+    """biolab.py: a seed gives one bench (two racks, the tube in one, the pipette in a hole, the cup); seeds from
+    OOD_FROM on leave the training ranges; the bench is at rest; the truth of a practice; untouched, not a success.
+    (The reference solution, scripted.biolab_drops, takes minutes: python -m agentic_robotics.bimanual.run.)"""
+    from agentic_robotics.bimanual import biolab as B, practice
+    a = B.sample(2001)
+    assert a == B.sample(2001) and a != B.sample(2002) and a["ood"] == [] and len(a["racks"]) == 2 and a["tube"]["rack"] in (0, 1)
+    o = B.sample(B.OOD_FROM + 3)
+    assert o["ood"] and {x.split(":")[0] for x in o["ood"]} <= set(B.OOD_ASPECTS)
+    assert len({x.split(":")[0] for k in range(8) for x in B.sample(B.OOD_FROM + k)["ood"]}) >= 4
+    ep = Episode(GRIPPERS, "biolab_drops", seed=2001, sensors="ideal")
+    S = ep.S
+    assert ep.scene == a and ep.text == B.text(a) and "three drops" in ep.text and set(ep.layout) == set(B.names(a))
+    p0 = {n: S.object_pose(n)[0].copy() for n in B.names(a)}
+    S.run(1.0)
+    assert max(float(np.linalg.norm(S.object_pose(n)[0] - p0[n])) for n in p0) < 0.002
+    tr = practice.truth(ep)
+    assert tr["cap_on"] and tr["tube_in"][0] == tr["tube_started_in"] == B.NAMES[a["tube"]["rack"]] and tr["pipette_in"] is not None
+    assert tr["drops"] == dict(tube=0, cup=0, spilled=0) and tr["water_in_pipette_drops"] == 0 and len(tr["rack_a_holes"]) >= 2
+    v = ep.finish()
+    assert not v["ok"] and not v["moved"] and v["closed"] and v["drops_in_tube"] == 0 and v["cup_standing"] and v["released"]
+
+
 @pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])
 def test_untouched_scene_is_not_a_success(task):
     ep = Episode(GRIPPERS, task, seed=0, sensors="ideal")
@@ -506,3 +567,81 @@ def test_scene_session_with_a_stub_model(tmp_path, monkeypatch):
     assert "cylinder at [-300.0, 60.0, -20.0]" in res[3] and "cylinder at [-300.0, 60.0, -0.0]" in res[3]  # (the truth: on the lower table)
     with pytest.raises(ValueError, match="with other tables"):
         improve.SceneSession(tmp_path / "c", GRIPPERS, "insert_varied", Dev([]), budget_usd=5.0, log=lambda *a: None)
+
+
+def test_clutter_session_with_a_stub_model(tmp_path):
+    """improve.py's session on picking from clutter, two levels at once: scenes drawn from the environments (only the
+    seeds that the evaluation does not use) and scenes of the model's own, a program that asks a model (robot.ask
+    through the host's bridge: four calls an episode, their cost in the results), the totals by level."""
+    from agentic_robotics.bimanual import clutter as C, improve, practice
+
+    class Dev:
+        m = {"model": "stub-model"}
+
+        def __init__(self, calls):
+            self.calls, self.seen = list(calls), []
+
+        def respond(self, input, images, **k):
+            self.seen.append(dict(input=input, n_images=len(images), **k))
+            n = len(self.seen)
+            out = []
+            if self.calls:
+                name, args = self.calls.pop(0)
+                out.append({"type": "function_call", "call_id": f"c{n}", "name": name, "arguments": json.dumps(args)})
+            return dict(ok=True, id=f"r{n}", status="completed", output=out, usd=0.01, wait_s=0.0, tokens=dict(input=1000 * n, cached=0, output=100, reasoning=0))
+
+        def results(self):
+            return ["\n".join(c["text"] for c in i.get("output", []) if c.get("type") == "input_text") for s in self.seen for i in s["input"]]
+
+    asked = []
+
+    class Eye:                                                  # the episodes' model: perception.vlm.VLM's ask() and usage()
+        def __init__(self, label):
+            self.label, self.n = label, 0
+
+        def ask(self, question, images, effort=None, max_output_tokens=None):
+            self.n += 1
+            asked.append((self.label, question, [im.shape for im in images], effort, max_output_tokens))
+            return dict(ok=True, text=f"answer {self.n}", usd=0.01, wait_s=2.0)
+
+        def usage(self):
+            return dict(model_calls=self.n)
+
+    prog = ("def run(robot, task):\n    t = robot.truth()\n    f = robot.look(['scene'])['scene']\n    t0 = robot.time_s()\n"
+            "    a = [robot.ask('where is it?', [f, f.rgb[:100, :200]], effort='medium')] + [robot.ask(f'q{k}') for k in range(4)]\n"
+            "    print('target', t['target'], t['target_seen'], 'asked', [(x['ok'], x.get('text'), x['calls_left']) for x in a], 'waited', round(robot.time_s() - t0, 1))\n")
+    own = {"level": "medium", "target": {"shape": "box", "size_mm": [40, 40, 40], "color": "red", "pos_mm": [-300, -80, 20]},
+           "objects": [{"shape": "ball", "size_mm": [40], "color": "blue", "pos_mm": [-300, -35, 20]}]}
+    dev = Dev([("sample_scenes", dict(level="hard", first_seed=40, count=2)), ("sample_scenes", dict(level="medium", first_seed=1999, count=2)),
+               ("define_scenes", dict(scenes=[own, {"level": "medium", "seed": 2000}, {"level": "extra_hard", "seed": 1}])),
+               ("write_program", dict(code=prog, note="asks")), ("run_episodes", dict(scenes=["s3"])),
+               ("run_set", dict(scenes=["s1..s3", "example_medium"])), ("read_output", dict(scene="s3", contains="ask(")),
+               ("list_scenes", dict(names=["s1..s2"])), ("submit", dict(final=True))])
+    s = improve.ClutterSession(tmp_path / "a", GRIPPERS, ["medium", "hard"], dev, ask=Eye, budget_usd=5.0, n_eval=100, log=lambda *a: None)
+    assert s.run() == "submitted"
+    res, first = dev.results(), dev.seen[0]
+    assert [t["name"] for t in first["tools"]] == ["write_program", "edit_program", "sample_scenes", "define_scenes", "list_scenes", "run_episodes",
+                                                   "run_set", "read_output", "view_images", "read_program", "submit"]
+    t0 = "\n".join(c["text"] for c in first["input"][0]["content"] if c["type"] == "input_text")
+    assert first["n_images"] == 6 and improve.ASK_CLUTTER in t0 and C.text(C.sample("hard", improve.CLUTTER_EXAMPLE)) in t0
+    ins = first["instructions"]
+    assert "robot.ask(question" in ins and "(stub-model)" in ins and "At most 4 calls an episode" in ins and "600 s (medium) or 900 s (hard)" in ins
+    assert "robot.truth()" in ins and "sample_scenes" in ins and "a seed is 0..1999" in ins and '"shape": "custom"' in ins and "run_eval_set" not in ins
+    assert "s1 (seed 40): hard: " in res[1] and "s2 (seed 41): hard: " in res[1] and "bad call" in res[2] and "0 to 1999" in res[2]
+    assert "s3 (seed 3): medium: target item_0, the red block" in res[3] and res[3].count("REFUSED") == 2 and "saved as v0" in res[4]
+    assert "v0 scene s3 (medium): FAILED" in res[5] and "4 model calls ($0.040; 8 s of the robot time waiting for them)" in res[5]
+    assert "(True, 'answer 4', 0), (False, None, 0)] waited 8.0" in res[5] and "target item_0 {'scene'" in res[5]
+    assert res[6].count("v0 scene ") == 4 and "v0 scene s1 (hard): FAILED" in res[6] and "4 model calls; the program returned; judge: " in res[6]
+    assert "by level: medium 0/2 (4.0 calls), hard 0/2 (4.0 calls); their model calls cost $0.160." in res[6]
+    assert "ask('where is it?', 2 images, effort=medium) -> waited 2.0 s, $0.010: 'answer 1'" in res[7]
+    assert res[8].count("hard: ") == 2 and "seen 0." in res[8]
+    assert len(asked) == 16 and {a[0] for a in asked} == {"v0_s1", "v0_s2", "v0_s3", "v0_example_medium"}
+    q = [a for a in asked if a[0] == "v0_s3"][0]
+    assert q[1:] == ("where is it?", [(480, 640, 3), (100, 200, 3)], "medium", practice.ASK["tokens"])
+    assert s.state["scenes"]["s1"] == C.sample("hard", 40) and s.state["versions"][0]["runs"]["s3"] == [False, 8.0, 4, 0.04]
+    assert json.loads((tmp_path / "a/runs/v00/s3/result.json").read_text())["model_calls"] == 4 and s.asker is None
+
+    v = practice.suite(GRIPPERS, "pick_clutter_hard", [C.OOD_FROM + 1], tmp_path / "a/program.py", tmp_path / "eval", ask=Eye, log=lambda *a: None)
+    r = v["results"][0]                                         # an evaluation: the model, and no truth
+    assert not r["ok"] and "TypeError" in r["ended"] and r["scene"] == C.sample("hard", C.OOD_FROM + 1)
+    assert r["model_calls"] == 4 and v["model_calls"] == 4 and v["model_usd"] == 0.04 and asked[-1][0] == f"s{C.OOD_FROM + 1}"

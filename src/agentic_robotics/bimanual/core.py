@@ -90,10 +90,11 @@ class Arm:
 
 
 def scene_module(scene):
-    """The module of a scene's kind: scenes.py (the varied cylinder-and-stick scenes), or clutter.py. It gives the
-    scene's model_xml(), paint() and layout(), and for some kinds the task's text(), judge() and truth()."""
-    from . import clutter, scenes
-    return {clutter.KIND: clutter}.get(scene.get("kind"), scenes)
+    """The module of a scene's kind: scenes.py (the varied cylinder-and-stick scenes), clutter.py or biolab.py. It gives
+    the scene's model_xml(), paint() and layout(), and for some kinds the task's text(), judge() and truth(), and
+    mechanisms() (an object with reset(), step(), get_state(), set_state() and labels: BiCore.mech)."""
+    from . import biolab, clutter, scenes
+    return {clutter.KIND: clutter, biolab.KIND: biolab}.get(scene.get("kind"), scenes)
 
 
 class BiCore:
@@ -154,6 +155,8 @@ class BiCore:
         self.rec_cam = mujoco.MjvCamera(); self.rec_cam.type = mujoco.mjtCamera.mjCAMERA_FREE
         self.rec_cam.lookat[:] = [-0.30, -0.175, 0.17]; self.rec_cam.distance = 1.25; self.rec_cam.azimuth = 160; self.rec_cam.elevation = -22
         self.last_path = "line"
+        self.mech = mod.mechanisms(self) if scene is not None and hasattr(mod, "mechanisms") else None
+        self.guard, self.glitches = bool(scene is not None and getattr(mod, "GUARD", False)), 0
         self.reset(layout, seed)
 
     # ------------------------------------------------------------------ per hand type (grippers.py, dexterous.py)
@@ -176,6 +179,7 @@ class BiCore:
         if unknown:
             raise KeyError(f"unknown objects {unknown}: this scene has {sorted(self.objects)}")
         m.geom_contype[:], m.geom_conaffinity[:], m.geom_rgba[:] = self.geom0
+        self.glitches = 0
         for g in self.free_geoms:                                   # the free cap: parked, no contacts, until the swap
             m.geom_contype[g] = 0; m.geom_conaffinity[g] = 0
         for c, (p0, q0) in self._cam0.items():
@@ -204,6 +208,8 @@ class BiCore:
             self._reset_hand(A)
         self.layout = layout
         self.cap_free = False; self.t_free = None
+        if self.mech:
+            self.mech.reset()
         self.frames, self.t_rec = [], -1.0
         self.seed = seed
         self.rng = np.random.default_rng(seed)                      # (IK restarts)
@@ -234,7 +240,8 @@ class BiCore:
                     layout=dict(self.layout), park=self.park.copy(),
                     arms={P: {k: (v.copy() if isinstance(v, np.ndarray) else v) for k, v in vars(A).items()
                               if k in ("q_cmd", "bias", "g_cmd", "h_cmd")} for P, A in self.arms.items()},
-                    rng=self.rng.bit_generator.state, frng=self.frng.bit_generator.state)
+                    rng=self.rng.bit_generator.state, frng=self.frng.bit_generator.state,
+                    mech=self.mech.get_state() if self.mech else None)
 
     def set_state(self, st):
         m, d = self.m, self.d
@@ -249,6 +256,8 @@ class BiCore:
             for k, v in a.items():
                 setattr(self.arms[P], k, v.copy() if isinstance(v, np.ndarray) else v)
         self.rng.bit_generator.state = st["rng"]; self.frng.bit_generator.state = st["frng"]
+        if self.mech:
+            self.mech.set_state(st["mech"])
         mujoco.mj_forward(m, d)
 
     def place(self, name, x, y, yaw_deg=0.0, z=None):
@@ -340,15 +349,48 @@ class BiCore:
                 other.add(m.body(o).name or "world")
         return parts, other
 
+    def _false_contacts(self):
+        """The smaller geoms of the contacts that cannot be: deeper than 30 mm, or 10 mm outside that geom's bounding
+        sphere. (MuJoCo's box-box collision makes such a contact now and then for a small box that lies flat on a large
+        one, here the table: half a metre away from the box and a metre deep, and the object is thrown off.)"""
+        m, d = self.m, self.d
+        if not d.ncon:
+            return []
+        c = d.contact
+        g1, g2 = c.geom1, c.geom2
+        r1, r2 = m.geom_rbound[g1], m.geom_rbound[g2]
+        g = np.where((r1 <= r2) & (r1 > 0) | (r2 <= 0), g1, g2)
+        bad = (c.dist < -0.03) | (np.linalg.norm(c.pos - d.geom_xpos[g], axis=1) > m.geom_rbound[g] + 0.01 + np.abs(c.dist))
+        return np.unique(g[bad]) if bad.any() else []
+
+    def _advance(self):
+        """One physics step; with the guard (a scene kind's GUARD), without the contacts that cannot be (_false_contacts:
+        their smaller geom does not collide during this step; counted in self.glitches)."""
+        m, d = self.m, self.d
+        if not self.guard:
+            mujoco.mj_step(m, d)
+            return
+        mujoco.mj_step1(m, d)
+        bad = self._false_contacts()
+        if len(bad):
+            keep = m.geom_contype[bad].copy(), m.geom_conaffinity[bad].copy()
+            m.geom_contype[bad] = 0; m.geom_conaffinity[bad] = 0
+            mujoco.mj_step1(m, d)
+            m.geom_contype[bad], m.geom_conaffinity[bad] = keep
+            self.glitches += 1
+        mujoco.mj_step2(m, d)
+
     def step(self, n=1):
         for _ in range(n):
-            mujoco.mj_step(self.m, self.d)
+            self._advance()
             if not self.cap_free:
                 if self.cap_angle() >= UNSCREW_DEG:
                     self._release_cap()
                 else:
                     a = self.m.jnt_qposadr[self.j_capfree]; va = self.m.jnt_dofadr[self.j_capfree]
                     self.d.qpos[a:a + 7] = self.park; self.d.qvel[va:va + 6] = 0
+            if self.mech:
+                self.mech.step()
             if self.record and self.d.time - self.t_rec >= 1.0 / REC_FPS - 1e-9:
                 self.t_rec = self.d.time; self.frames.append(self.render_rec())
 
@@ -532,6 +574,9 @@ class BiCore:
             return "the table or the arms' frame"
         if n.startswith("bottle_cap"):
             return "the bottle's cap"
+        for prefix, label in (self.mech.labels.items() if self.mech else ()):
+            if n.startswith(prefix):
+                return label
         return "the " + n.removeprefix("obj_").replace("_", " ")
 
     def collides(self, P, q, ignore=()):

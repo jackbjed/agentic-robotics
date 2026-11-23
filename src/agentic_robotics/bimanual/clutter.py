@@ -20,6 +20,9 @@ A scene is a JSON-able dict (mm, kg/m3, colours by name):
     model_xml(file, scene), layout(scene), paint(model, scene)    the simulation's model and layout (core.BiCore)
     text(scene), judge(S), truth(ep)                              the task's text, verdict and true state (tasks.py)
     visibility(scene, poses=None)                                 how much of the target is seen, in a scene's state
+    build(spec, seed)      a scene set up by hand (a development session's own, clutter_session.py): the level's heap of
+                           objects that are given, drawn, or assets of the session's own ("custom": made of parts), or
+                           objects set at given poses
 
 A heap is made by simulating it (a model of the table, the bin and the objects, without the robot): the target and a
 ring of objects are set on the table and pulled together, then the others are dropped on them one by one, and the
@@ -102,7 +105,7 @@ def _size(rng, shape, role="any", scale=1.0):
 
 def radius(o):
     """The radius (mm) of the sphere about an object's centre that holds it."""
-    s, z = o["shape"], o["size_mm"]
+    s, z = o["shape"], o.get("size_mm")
     if s in ("box", "steps"):
         return math.sqrt(z[0] ** 2 + z[1] ** 2 + z[2] ** 2) / 2
     if s == "cylinder":
@@ -119,19 +122,40 @@ def radius(o):
         return math.sqrt(2 * z[0] ** 2 + z[2] ** 2) / 2
     if s == "hexagon":
         return math.hypot(z[0] / math.sqrt(3), z[1] / 2)
+    if s == "custom":
+        return max(float(np.linalg.norm(p["pos_mm"])) + _part_radius(p) for p in o["parts"])
     raise ValueError(f"unknown shape {s!r}")
+
+
+def _part_radius(p):
+    z = p["size_mm"]
+    return {"box": lambda: math.sqrt(z[0] ** 2 + z[1] ** 2 + z[2] ** 2) / 2, "cylinder": lambda: math.hypot(z[0], z[1]) / 2,
+            "ball": lambda: z[0] / 2, "capsule": lambda: z[1] / 2}[p["type"]]()
+
+
+def _euler_quat(e):
+    """[rx, ry, rz] (degrees: turns about the fixed x, then y, then z axis) -> (w, x, y, z)."""
+    from scipy.spatial.transform import Rotation
+    x, y, z, w = Rotation.from_euler("xyz", [float(v) for v in e], degrees=True).as_quat()
+    return [float(w), float(x), float(y), float(z)]
+
+
+def _qmul(a, b):
+    w1, x1, y1, z1 = a; w2, x2, y2, z2 = b
+    return [w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2, w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2, w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2]
 
 
 def _thin_axis(o):
     """The body axis (0, 1, 2) along which the object is thinnest: up, it lies flat."""
-    s, z = o["shape"], o["size_mm"]
+    s, z = o["shape"], o.get("size_mm")
     if s == "box":
         return int(np.argmin(z))
     if s == "cylinder":
         return 2 if z[1] <= z[0] else 0
     if s in ("L", "T", "steps", "cross", "hexagon"):
         return 2
-    return 2 if s == "ball" else 1 if s == "pill" else 2
+    return 2 if s == "ball" else 1 if s == "pill" else 2                # (custom: its own z)
 
 
 def _rgba(rgb):
@@ -147,7 +171,7 @@ def _geom(body, name, kind, rgb, density, group, size=None, pos=(0, 0, 0), **kw)
 
 def _object_geoms(body, asset, name, o, group=0):
     """The object's geoms about its centre (group: of the geoms that are seen; those that only collide: group 3)."""
-    z, rgb, den, s = [v / 1000 for v in o["size_mm"]], o["rgb"], o["density"], o["shape"]
+    z, rgb, den, s = [v / 1000 for v in o.get("size_mm") or []], o["rgb"], o["density"], o["shape"]
     g = lambda part, kind, size, pos=(0, 0, 0), c=FLAT, **kw: _geom(body, name + part, kind, rgb, den, group, size, pos, **{**c, **kw})
     if s == "box":
         g("", "box", (z[0] / 2, z[1] / 2, z[2] / 2))
@@ -183,6 +207,23 @@ def _object_geoms(body, asset, name, o, group=0):
         for k in range(3):
             _geom(body, f"{name}_{'abc'[k]}", "box", rgb, den / 2, group, (f / 2, f / (2 * math.sqrt(3)), h / 2),
                   euler=f"0 0 {k * math.pi / 3:.5f}", **FLAT)
+    elif s == "custom":                                             # an asset of parts (build()): each at its own pose
+        for i, p in enumerate(o["parts"]):
+            pz, pos, q = [v / 1000 for v in p["size_mm"]], [v / 1000 for v in p["pos_mm"]], _euler_quat(p["euler_deg"])
+            qs = lambda q: " ".join(f"{v:.6f}" for v in q)
+            if p["type"] == "box":
+                g(f"_p{i}", "box", (pz[0] / 2, pz[1] / 2, pz[2] / 2), pos, quat=qs(q))
+            elif p["type"] == "cylinder":                           # (seen as a cylinder, collides as a prism: as above)
+                r, h, N = pz[0] / 2, pz[1] / 2, FACETS
+                _geom(body, f"{name}_p{i}", "cylinder", rgb, den, group, (r, h), pos, quat=qs(q), contype="0", conaffinity="0")
+                for k in range(N):
+                    a = k * math.pi / N / 2
+                    _geom(body, f"{name}_p{i}_c{k}", "box", rgb, 0, 3, (r * math.cos(math.pi / (2 * N)), r * math.sin(math.pi / (2 * N)), h),
+                          pos, quat=qs(_qmul(q, [math.cos(a), 0, 0, math.sin(a)])), **FLAT)
+            elif p["type"] == "ball":
+                g(f"_p{i}", "sphere", (pz[0] / 2,), pos, c=ROUND)
+            else:                                                   # a capsule along the part's z
+                g(f"_p{i}", "capsule", (pz[0] / 2, (pz[1] - pz[0]) / 2), pos, c=ROUND, quat=qs(q))
     else:
         raise ValueError(f"unknown shape {s!r}")
 
@@ -589,7 +630,18 @@ def sample(level, seed):
 def target_name(sc):
     """The target as the task's text names it: its colour and shape."""
     o = sc["objects"][sc["target"]]
-    return f"{o['color']} {NOUN[o['shape']]}"
+    return f"{o['color']} {noun(o)}"
+
+
+def noun(o):
+    return o["name"] if o["shape"] == "custom" else NOUN[o["shape"]]
+
+
+def _what(o):
+    """An object in a line of describe()."""
+    if o["shape"] == "custom":
+        return f"{o['color']} {o['name']} (custom: " + " + ".join(f"{p['type']} {' x '.join(f'{v:g}' for v in p['size_mm'])}" for p in o["parts"]) + ")"
+    return f"{o['color']} {o['shape']} {' x '.join(f'{v:g}' for v in o['size_mm'])}"
 
 
 def describe(sc):
@@ -598,12 +650,246 @@ def describe(sc):
     out = (f"{sc['level']}: target item_{t}, the {target_name(sc)}, seen {sc['visible']['scene']:.2f} from the scene camera and "
            f"{sc['visible']['top']:.2f} from above, touches {['item_%d' % k for k in sc['touching']]}, under {['item_%d' % k for k in sc['covered_by']]}")
     for k, o in enumerate(sc["objects"]):
-        out += f"; item_{k}: {o['color']} {o['shape']} {' x '.join(f'{v:g}' for v in o['size_mm'])} at ({o['pos_mm'][0]:.0f}, {o['pos_mm'][1]:.0f}, {o['pos_mm'][2]:.0f})"
+        out += f"; item_{k}: {_what(o)}, {o['density']:g} kg/m3, at ({o['pos_mm'][0]:.0f}, {o['pos_mm'][1]:.0f}, {o['pos_mm'][2]:.0f})"
     b = sc.get("bin")
     if b:
         out += (f"; bin: {b['color']}, inside {b['inner_mm'][0]:g} x {b['inner_mm'][1]:g} x {b['height_mm']:g}, {b['mass_kg']:g} kg, at "
                 f"({b['pos_mm'][0]:.0f}, {b['pos_mm'][1]:.0f}) turned {b['yaw_deg']:g} deg")
     return out + " (mm)" + (f"; out of distribution: {', '.join(sc['ood'])}" if sc["ood"] else "")
+
+
+def brief(sc):
+    """A shorter line than describe(): the target, how much of it is seen, how many objects."""
+    t = sc["target"]
+    return (f"{sc['level']}{', placed by hand' if sc.get('placed') else ''}: {len(sc['objects'])} objects; target item_{t}, the {target_name(sc)} "
+            f"({_what(sc['objects'][t])}) at ({sc['objects'][t]['pos_mm'][0]:.0f}, {sc['objects'][t]['pos_mm'][1]:.0f}, {sc['objects'][t]['pos_mm'][2]:.0f}), "
+            f"seen {sc['visible']['scene']:.2f} from the scene camera and {sc['visible']['top']:.2f} from above, touches "
+            f"{len(sc['touching'])} objects, under {['item_%d' % k for k in sc['covered_by']]}")
+
+
+# ---------------------------------------------------------------------- scenes set up by hand (a session's own)
+LIMITS = dict(n=(2, 16), size=(8.0, 160.0), density=(50.0, 5000.0), x=(-480.0, -100.0), y=(-360.0, 330.0), parts=8, part_pos=120.0)
+PARTS = dict(box=3, cylinder=2, ball=1, capsule=2)              # a custom asset's parts: how many sizes each has
+ROLES = ("neighbour", "cover", "other")
+BUILD_TRIES = 30
+_SPEC_KEYS = {"level", "seed", "n_objects", "centre_mm", "target", "objects"}
+_OBJECT_KEYS = {"shape", "size_mm", "color", "rgb", "density", "role", "name", "parts", "pos_mm", "euler_deg"}
+
+
+def _num(v, lo, hi, what):
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+        raise ValueError(f"{what}: a number from {lo:g} to {hi:g}")
+    return float(v)
+
+
+def _vec(v, n, lo, hi, what):
+    if not isinstance(v, (list, tuple)) or len(v) != n:
+        raise ValueError(f"{what}: {n} number{'s' if n > 1 else ''}")
+    return [_num(x, lo, hi, what) for x in v]
+
+
+def _check_object(o, what):
+    """An object's spec, checked -> the fields it gives (shape, size_mm, color, rgb, density, role, name, parts, pos_mm,
+    euler_deg)."""
+    if not isinstance(o, dict):
+        raise ValueError(f"{what}: a JSON object")
+    if set(o) - _OBJECT_KEYS:
+        raise ValueError(f"{what}: unknown field(s) {', '.join(sorted(set(o) - _OBJECT_KEYS))}")
+    out, s = {}, o.get("shape")
+    if "parts" in o and s is None:
+        s = "custom"
+    if s is not None:
+        if s not in SHAPES + ("custom",):
+            raise ValueError(f"{what}: shape is one of {', '.join(SHAPES)}, or custom (with name and parts)")
+        out["shape"] = s
+    if s == "custom":
+        name, parts = o.get("name"), o.get("parts")
+        if not isinstance(name, str) or not 2 <= len(name) <= 40 or not all(c.isalnum() or c in " -" for c in name):
+            raise ValueError(f"{what}: a custom object needs a name (2 to 40 letters, digits, spaces, hyphens), e.g. \"U-shaped block\"")
+        if not isinstance(parts, list) or not 1 <= len(parts) <= LIMITS["parts"]:
+            raise ValueError(f"{what}: parts is a list of 1 to {LIMITS['parts']} parts")
+        out["name"], out["parts"] = name.strip(), []
+        for i, p in enumerate(parts):
+            w = f"{what}.parts[{i}]"
+            if not isinstance(p, dict) or p.get("type") not in PARTS or set(p) - {"type", "size_mm", "pos_mm", "euler_deg"}:
+                raise ValueError(f"{w}: {{type: {' | '.join(PARTS)}, size_mm, pos_mm, euler_deg}}")
+            z = _vec(p.get("size_mm"), PARTS[p["type"]], 4.0, LIMITS["size"][1], f"{w}.size_mm")
+            if p["type"] == "capsule" and z[1] < z[0] + 2:
+                raise ValueError(f"{w}: a capsule's length (the whole of it) is more than its diameter")
+            out["parts"].append(dict(type=p["type"], size_mm=z, pos_mm=_vec(p.get("pos_mm", [0, 0, 0]), 3, -LIMITS["part_pos"], LIMITS["part_pos"], f"{w}.pos_mm"),
+                                     euler_deg=_vec(p.get("euler_deg", [0, 0, 0]), 3, -360.0, 360.0, f"{w}.euler_deg")))
+        if "size_mm" in o:
+            raise ValueError(f"{what}: a custom object's sizes are its parts'")
+        vol = [dict(box=lambda z: z[0] * z[1] * z[2], cylinder=lambda z: math.pi / 4 * z[0] ** 2 * z[1], ball=lambda z: math.pi / 6 * z[0] ** 3,
+                    capsule=lambda z: math.pi / 4 * z[0] ** 2 * (z[1] - z[0] / 3))[p["type"]](p["size_mm"]) for p in out["parts"]]
+        c = np.average([p["pos_mm"] for p in out["parts"]], axis=0, weights=vol)        # the object's centre: its parts' (by volume)
+        for p in out["parts"]:
+            p["pos_mm"] = [round(float(v), 2) for v in np.array(p["pos_mm"]) - c]
+    elif "name" in o or "parts" in o:
+        raise ValueError(f"{what}: name and parts are a custom object's")
+    elif "size_mm" in o:
+        if s is None:
+            raise ValueError(f"{what}: size_mm needs shape")
+        out["size_mm"] = _vec(o["size_mm"], dict(box=3, cylinder=2, ball=1)[s], *LIMITS["size"], f"{what}.size_mm")
+    if "rgb" in o:
+        out["rgb"] = [int(v) for v in _vec(o["rgb"], 3, 0, 255, f"{what}.rgb")]
+    if "color" in o or "rgb" in o:
+        c = o.get("color")
+        if not isinstance(c, str) or not 2 <= len(c) <= 20 or not c.replace(" ", "").replace("-", "").isalpha():
+            raise ValueError(f"{what}: color is a colour's name (rgb needs one too: the task's text names the object by it)")
+        if c not in COLOURS and "rgb" not in o:
+            raise ValueError(f"{what}: color is one of {', '.join(COLOURS)}, or any name together with rgb")
+        out["color"] = c
+    if "density" in o:
+        out["density"] = _num(o["density"], *LIMITS["density"], f"{what}.density")
+    if "role" in o:
+        if o["role"] not in ROLES:
+            raise ValueError(f"{what}: role is one of {', '.join(ROLES)}")
+        out["role"] = o["role"]
+    if "pos_mm" in o:
+        p = _vec(o["pos_mm"], 3, -600.0, 600.0, f"{what}.pos_mm")
+        out["pos_mm"] = [_num(p[0], *LIMITS["x"], f"{what}.pos_mm x"), _num(p[1], *LIMITS["y"], f"{what}.pos_mm y"), _num(p[2], 0.0, 400.0, f"{what}.pos_mm z")]
+        out["euler_deg"] = _vec(o.get("euler_deg", [0, 0, 0]), 3, -360.0, 360.0, f"{what}.euler_deg")
+    elif "euler_deg" in o:
+        raise ValueError(f"{what}: euler_deg goes with pos_mm")
+    return out
+
+
+def _fill(rng, given, role):
+    """An object: what its spec gives, the rest drawn within the training limits (role: _size's)."""
+    o = {k: v for k, v in given.items() if k not in ("role", "pos_mm", "euler_deg")}
+    if "shape" not in o:
+        o["shape"] = "box" if role == "cover" else str(rng.choice(SHAPES))
+    if o["shape"] != "custom" and "size_mm" not in o:
+        o["size_mm"] = _size(rng, o["shape"], role)
+    if "color" not in o:
+        o["color"] = str(rng.choice(list(COLOURS)))
+    if "density" not in o:
+        o["density"] = round(float(rng.uniform(*TRAIN["density"])), -1)
+    if "rgb" not in o:
+        o["rgb"] = _jit(rng, COLOURS[o["color"]])
+    return o
+
+
+def _place(sc, rng, poses):
+    """The objects set at the given poses [(pos mm, euler deg)], one after another, each left to fall for 0.5 s -> why
+    this is not a scene ("" if it is); the poses at rest go into the scene. (No condition of the level is checked.)"""
+    H = _Heap(sc, rng); d = H.d
+    for k, (p, e) in enumerate(poses):
+        H.put(k, [v / 1000 for v in p], _euler_quat(e))
+        H.run(0.5)
+    if not H.rest():
+        return "the objects do not come to rest"
+    P, r = np.array([d.xpos[b] for b in H.body]), np.array(H.r)
+    if np.any(P[:, 2] < 0) or not (-0.585 < float(np.min(P[:, 0] - r)) and float(np.max(P[:, 0] + r)) < 0.0 and float(np.min(P[:, 1] - r)) > -0.585
+                                   and float(np.max(P[:, 1] + r)) < 0.585):
+        return "an object ends off the table, or too near its edge or the robots' side (x > 0)"
+    if np.any((P[:, 1] + r > RULER[0] / 1000 - 0.005) & (P[:, 1] - r < RULER[1] / 1000 + 0.005)):
+        return "an object ends on the ruler"
+    touch, _ = H.touching(0)
+    seen, cover = _seen(H.m, d, sc)
+    for k, o in enumerate(sc["objects"]):
+        o["pos_mm"] = [round(float(v) * 1000, 2) for v in P[k]]
+        o["quat"] = [round(float(v), 6) for v in d.xquat[H.body[k]]]
+    sc.update(visible=seen, touching=touch, covered_by=cover)
+    return ""
+
+
+def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES):
+    """A scene set up by hand -> the scene; ValueError with the reason if it cannot be. spec: {"level", "seed"} alone is
+    sample(level, seed) (a seed below OOD_FROM). With more, a heap of its own (not in a bin):
+
+        n_objects    how many objects, the target included (default: as many as the level's heaps have, and no fewer
+                     than the target and the objects given; of objects placed by pos_mm: those given)
+        centre_mm    [x, y]: where the heap is (about where the target lies)
+        target       an object: the target
+        objects      objects: others of the heap
+        an object    {"shape": "box" | "cylinder" | "ball", "size_mm", "color", "rgb", "density", "role"}, or an asset of
+                     its own {"shape": "custom", "name", "parts": [{"type": "box" | "cylinder" | "ball" | "capsule",
+                     "size_mm", "pos_mm", "euler_deg"}], "color", ...}; role: "neighbour" (set next to the target), "cover"
+                     (dropped flat on it) or "other" (dropped on the heap; medium: around the target)
+
+    Every field can be left out and is then drawn within the training limits, by the seed. The heap is made as
+    sample()'s, and meets its level's conditions. If the target and every object has pos_mm ([x, y, z], its centre;
+    with euler_deg), they are instead set at these poses one after another and left to come to rest: such a scene
+    ("placed") need not meet its level's conditions."""
+    if not isinstance(spec, dict):
+        raise ValueError("a scene is a JSON object")
+    if set(spec) - _SPEC_KEYS:
+        raise ValueError(f"scene: unknown field(s) {', '.join(sorted(set(spec) - _SPEC_KEYS))}")
+    level, seed = spec.get("level"), spec.get("seed", seed)
+    if level not in levels:
+        raise ValueError(f"level: one of {', '.join(levels)}")
+    if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < OOD_FROM:
+        raise ValueError(f"seed: a whole number from 0 to {OOD_FROM - 1}")
+    if not set(spec) - {"level", "seed"}:
+        return sample(level, seed)
+    if level == "extra_hard":
+        raise ValueError("extra_hard: only by level and seed")
+    if not isinstance(spec.get("objects", []), list):
+        raise ValueError("objects: a list of objects")
+    tgt = _check_object(spec.get("target", {}), "target")
+    others = [_check_object(o, f"objects[{i}]") for i, o in enumerate(spec.get("objects", []))]
+    if "role" in tgt:
+        raise ValueError("target: the target has no role")
+    n_given = None if spec.get("n_objects") is None else int(_num(spec["n_objects"], *LIMITS["n"], "n_objects"))
+    if not 1 + len(others) <= (1 + len(others) if n_given is None else n_given) <= LIMITS["n"][1]:
+        raise ValueError(f"n_objects: from {LIMITS['n'][0]} to {LIMITS['n'][1]}, and no fewer than the target and the objects given")
+    with_pose = ["pos_mm" in o for o in [tgt] + others]
+    placed = all(with_pose) and n_given in (None, 1 + len(others))
+    if any(with_pose) and not placed:
+        raise ValueError("pos_mm: either on the target and on every object (and no object drawn at random), or on none")
+    name_of = lambda o: (o.get("color"), o.get("name") if o.get("shape") == "custom" else o.get("shape"))
+    if None not in name_of(tgt) and any(name_of(o) == name_of(tgt) for o in others):
+        raise ValueError("objects: another object has the target's colour and shape (the task's text could not name the target)")
+    centre = [_num(spec["centre_mm"][0], *LIMITS["x"], "centre_mm x"), _num(spec["centre_mm"][1], *LIMITS["y"], "centre_mm y")] \
+        if isinstance(spec.get("centre_mm"), (list, tuple)) and len(spec["centre_mm"]) == 2 else None
+    if "centre_mm" in spec and centre is None:
+        raise ValueError("centre_mm: [x, y]")
+    if placed and centre is not None:
+        raise ValueError("centre_mm: not with objects placed by pos_mm")
+    why = []
+    for attempt in range(1 if placed else tries):
+        rng = np.random.default_rng([17, LEVELS.index(level), int(seed), attempt])
+        n = n_given if n_given is not None else 1 + len(others) if placed else \
+            max(1 + len(others), int(rng.integers(TRAIN["n"][level][0], TRAIN["n"][level][1] + 1)))
+        c = centre or [round(float(rng.uniform(*TRAIN["x"])), 1), round(float(rng.uniform(*TRAIN["y"])), 1)]
+        covers = 0 if level == "medium" else int(rng.integers(1, 3))
+        ring = int(rng.integers(3, 6))
+        R = {r: [o for o in others if o.get("role") == r] for r in ROLES}
+        free = [o for o in others if "role" not in o]
+        covers = max(len(R["cover"]), min(covers, n - 1 - len(R["neighbour"]) - len(R["other"])))
+        ring = max(len(R["neighbour"]), min(ring, n - 1 - covers - len(R["other"])))
+        if placed:
+            order = [(o, "any") for o in others]
+        else:
+            while free and len(R["neighbour"]) < ring:
+                R["neighbour"].append(free.pop(0))
+            while free and len(R["cover"]) < covers:
+                R["cover"].append(free.pop(0))
+            R["other"] += free
+            ring, covers = len(R["neighbour"]) + max(0, ring - len(R["neighbour"])), len(R["cover"]) + max(0, covers - len(R["cover"]))
+            order = ([(o, "any") for o in R["neighbour"]] + [({}, "any")] * (ring - len(R["neighbour"]))
+                     + [(o, "cover") for o in R["cover"]] + [({}, "cover")] * (covers - len(R["cover"])) + [(o, "any") for o in R["other"]])
+            order += [({}, "any")] * (n - 1 - len(order))
+        objs = [_fill(rng, tgt, "target")]
+        for given, role in order:
+            for _ in range(50):                                     # (no other object of the target's colour and shape)
+                o = _fill(rng, given, role)
+                if (o["color"], noun(o)) != (objs[0]["color"], noun(objs[0])):
+                    break
+            else:
+                raise ValueError("objects: another object has the target's colour and shape")
+            objs.append(o)
+        sc = dict(kind=KIND, level=level, seed=int(seed), objects=objs, target=0, bin=None, centre_mm=c, _ring=ring, _covers=covers, ood=[],
+                  own=True, placed=bool(placed))
+        w = _place(sc, rng, [(o["pos_mm"], o["euler_deg"]) for o in [tgt] + others]) if placed else _make(sc, rng)
+        if not w:
+            sc = {k: v for k, v in sc.items() if not k.startswith("_")}
+            sc["attempts"] = attempt + 1
+            return sc
+        why.append(w)
+    raise ValueError((f"no {level} heap of these objects in {tries} tries: " if not placed else "placed by hand: ") + "; ".join(sorted(set(why))))
 
 
 # ---------------------------------------------------------------------- the task

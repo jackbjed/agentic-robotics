@@ -48,13 +48,13 @@ robot.look(cameras=None) -> {name: Frame} of "scene", "right_wrist", "left_wrist
 {commands}
 robot.home(arm)              that arm back to its start pose by turning its joints (refused if it would hit something)
 robot.wait(seconds)          let robot time pass (at most 10 s a call);  robot.time_s() -> robot time since the start
-{segment}
+{segment}{ask}
 The motion commands (move, turn, home) return a dict: done (the target was reached), moved (False: the command was
 refused and nothing moved), why ("" | "contact": a stop_on_contact move stopped at a touch | the refusal's or the
 safety stop's text), curved (the move was made by turning the joints). They do not raise for a refused move.
 
 The program: Python 3.11 with numpy, scipy, cv2 (OpenCV) and the standard library. No files, no network, and nothing
-of `robot` beyond what is listed here. What it prints goes to the episode's log. An episode has {time_s} s of robot
+of `robot` beyond what is listed here. What it prints goes to the episode's log. An episode has {time_s} of robot
 time (computing does not count); after that the next command raises an exception and the episode ends. The task is
 judged on the state of the world when run() returns or raises. The arm's safety stops a move if the net force on that
 arm exceeds about 40 N; anything in the way of an arm is pushed or knocked over.
@@ -85,6 +85,19 @@ _SEGMENT = """robot.segment(frame, phrase) -> [(mask, score), ...]: an open-voca
                              first; it can miss the thing, return part of it, or another thing. About 1 s a call.
 """
 
+_ASKER = """robot.ask(question, images=(), effort="low") -> dict: a question to a vision-language model ({model}), with up to
+                             {images} images: Frames, or arrays (H x W x 3 uint8 RGB, or H x W), such as a crop or a frame
+                             with marks drawn on it (cv2); an image whose longer side is over {side} px is scaled
+                             down to that. The dict: ok, text (the answer: ask for a form the program can parse, such
+                             as JSON; pixels are those of the image as sent), wait_s, usd, calls_left; or ok False
+                             with why. At most {calls} calls an episode (further ones: ok False). The model knows
+                             nothing but the question and its images: not the task, the robot or earlier calls. The
+                             robot stands still while the answer comes, and that wait is robot time (a few seconds
+                             at effort "low"; "medium" and "high" let the model reason longer: slower, dearer). A
+                             call costs model usage: about $0.01 with one or two images at "low", more with more
+                             images, a long answer or more effort.
+"""
+
 # how much the layout changes from one episode to the next, as told to the model (tasks.py: the layouts)
 VARIES = {
     "open_bottle": "the bottle stands anywhere within about 12 cm of where it is in the example",
@@ -101,6 +114,8 @@ VARIES = {
     "pick_clutter_extra_hard": "another heap of other objects (other shapes, sizes, colours and numbers) lies in another open box "
                                "(other size, colour, place and turn), and the task names another object of it, which lies under "
                                "other objects, hidden or nearly",
+    "biolab_drops": "other racks (other numbers of holes, colours and heights) stand elsewhere, turned otherwise, the tube and the "
+                    "pipette stand in other holes, and another cup (other size and colour) stands elsewhere",
 }
 
 _ASK = """
@@ -113,9 +128,14 @@ Reply with the whole program in one ```python code block (a short note before it
 The first look of one example episode (the arms at their start poses; the three cameras' colour images):"""
 
 
-def instructions(kind, time_s, segmenter=False, closing=_ONCE):
+def instructions(kind, time_s, segmenter=False, closing=_ONCE, asker=None):
     """The system text for writing a program: the robot's description of direct control, with the program's interface
-    in place of the tool calls, and how the program is used (closing: one attempt; improve.py: a session)."""
+    in place of the tool calls, and how the program is used (closing: one attempt; improve.py: a session). time_s: the
+    episode's robot time (a number, or text). asker: the name of the model behind robot.ask, if programs have it
+    (practice.py: ASK, AskBridge)."""
+    from .practice import ASK
+    ask = _ASKER.format(model=asker, images=ASK["images"], side=ASK["side"], calls=ASK["calls"]) if asker else ""
+    time_s = time_s if isinstance(time_s, str) else f"{time_s:.0f} s"
     src = GRIPPERS if kind == "grippers" else DEXTEROUS
     tool = src[src.index("Each arm is a Franka Panda with ") + len("Each arm is a Franka Panda with "):src.index(".\nEach tool call")]
     body = src[src.index("Frame and units:"):src.index("In all moves the arm's safety")]
@@ -123,7 +143,7 @@ def instructions(kind, time_s, segmenter=False, closing=_ONCE):
     body = body.replace("the result says where it stopped", "robot.state(arm) tells where it stopped")
     return (_HEAD.format(tool=tool) + body.rstrip() + "\n"
             + _API.replace("{state}", _STATE[kind]).replace("{commands}", _COMMANDS[kind])
-                  .replace("{segment}", _SEGMENT if segmenter else "").replace("{time_s}", f"{time_s:.0f}") + closing)
+                  .replace("{segment}", _SEGMENT if segmenter else "").replace("{ask}", ask).replace("{time_s}", time_s) + closing)
 
 
 def extract_program(reply):

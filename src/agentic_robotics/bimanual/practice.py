@@ -10,7 +10,9 @@ Each episode is one process in the sandbox (execution/sandbox.py: no network, no
 only, one writable directory); the GPU's device nodes are passed through, because the simulation renders in that
 process. There the program gets a ProgramRobot: the documented calls of api.Robot and show(), nothing else, and it
 is refused if it breaks the rules of check_program (imports, file access, private attributes). robot.segment reaches
-SAM3 through a Unix socket served by the host (SegmenterBridge).
+SAM3 through a Unix socket served by the host (SegmenterBridge); robot.ask, where an episode has it, reaches a
+vision-language model the same way (AskBridge: the host holds the key, counts the episode's calls and books their
+cost; the robot stands still for as long as the answer takes, which is robot time).
 
 An episode's directory gets result.json (the judge's verdict on the TRUE final state, how the program ended, the
 objects' true positions at the start and the end), output.txt (what the program printed, its traceback; with
@@ -66,8 +68,15 @@ POINTS = {"insert_cylinder": ": cylinder is the centre of the cylinder's bottom 
                              "stick_stand the centre of the board's underside",
           "insert_varied": ": cylinder is the centre of the cylinder's bottom face, stick_top the centre of the stick's top face, "
                            "stick_stand the centre of the board's underside, distractor_k the centre of that object's underside",
-          "open_bottle": ": bottle is the centre of the bottle's bottom, cap the cap's centre"}
+          "open_bottle": ": bottle is the centre of the bottle's bottom, cap the cap's centre",
+          **{f"pick_clutter_{level}": ": item_k is the centre of that object; target names the target's item, target_seen is the part "
+                                      "of the target (0..1) that is seen from the scene camera and from straight above, "
+                                      "target_covered_by the items that hide it from above" for level in ("medium", "hard", "extra_hard")}}
 SHOWN = 12                                                      # images of robot.show kept per episode
+# robot.ask: calls an episode, images a call, an image's longest side (px), the question's length, the efforts a
+# program can ask for, the answer's limit (tokens, reasoning included), the $ reserved for a call (vlm.py: above its
+# worst case), the longest wait that passes as robot time (s)
+ASK = dict(calls=4, images=4, side=1024, chars=6000, efforts=("low", "medium", "high"), tokens=3000, reserve_usd=0.25, wait_s=240.0)
 WALL_S = 1500.0                                                 # an episode's process is stopped after this
 SLOTS = 14                                                      # sandboxed episodes at the same time on this machine (each renders
                                                                 # with EGL: beyond about 16 at once, framebuffers fail)
@@ -123,9 +132,22 @@ def _plain(v):
     return json.loads(json.dumps(v))
 
 
+def _differs(v, w, tol=0.5):
+    """Has a value of truth() changed (points: by more than tol mm; parts of 1, in a dict: by more than 0.05)?"""
+    if isinstance(v, dict):
+        return not isinstance(w, dict) or v.keys() != w.keys() or any(_differs(v[k], w[k], 0.05) for k in v)
+    try:
+        a, b = np.asarray(v, float), np.asarray(w, float)
+    except (TypeError, ValueError):
+        return v != w
+    return a.shape != b.shape or bool(a.size and np.abs(a - b).max() > tol)
+
+
 def _fmt(v):
     if isinstance(v, str):
         return repr(v)
+    if isinstance(v, dict):
+        return "{" + ", ".join(f"{k} {_fmt(x)}" for k, x in v.items()) + "}"
     if isinstance(v, (bool, np.bool_)) or v is None:
         return str(v)
     if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) for x in v):
@@ -160,17 +182,16 @@ class ProgramRobot:
     traced episode is the untraced one). practice: truth() and judge() give the simulation's TRUE state (a session's
     practice; in an evaluation they give None)."""
 
-    def __init__(self, ep, out, trace=None, practice=False):
+    def __init__(self, ep, out, trace=None, practice=False, asker=None):
         robot, S = ep.robot, ep.S
         names = ["look", "state", "move", "turn", "home", "wait", "time_s"]
         names += ["set_gripper"] if robot.kind == "grippers" else ["set_joints", "fingertips"]
         names += ["segment"] if robot.segmenter is not None else []
-        counts = dict(commands=0, shown=0)
+        counts = dict(commands=0, shown=0, asks=0, ask_usd=0.0, ask_wait_s=0.0)
         last = {}
 
         def moved():
-            now = {n: v for n, v in truth(ep).items()
-                   if n not in last or np.abs(np.atleast_1d(v) - np.atleast_1d(last[n])).max() > 0.5}
+            now = {n: v for n, v in truth(ep).items() if n not in last or _differs(v, last[n])}
             last.update(now)
             return " ".join(f"{n} {_fmt(v)}" for n, v in now.items())
         if trace is not None:
@@ -205,17 +226,7 @@ class ProgramRobot:
             import cv2
             if counts["shown"] >= SHOWN:
                 return False
-            im = np.asarray(image)
-            if im.dtype == bool:
-                im = im.astype(np.uint8) * 255
-            im = np.clip(np.nan_to_num(im.astype(float)), 0, 255).astype(np.uint8)
-            if im.ndim == 2:
-                im = np.dstack([im] * 3)
-            if im.ndim != 3 or im.shape[2] != 3 or min(im.shape[:2]) < 2:
-                raise ValueError("show(label, image): image must be H x W x 3 (RGB) or H x W")
-            sc = 960 / max(im.shape[:2])
-            if sc < 1:
-                im = cv2.resize(im, None, fx=sc, fy=sc, interpolation=cv2.INTER_AREA)
+            im = _rgb8(image, "show(label, image)", 960)
             d = Path(out) / "shown"; d.mkdir(exist_ok=True)
             tag = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(label))[:40]
             cv2.imwrite(str(d / f"{counts['shown']:02d}_{tag}.png"), im[..., ::-1])
@@ -224,8 +235,39 @@ class ProgramRobot:
                 trace.write(f"# t={robot.time_s():6.1f} show({str(label)[:40]!r})\n")
             return True
 
+        def ask(question, images=(), effort="low"):
+            """A question to the vision-language model, with images -> dict(ok, text, wait_s, usd, calls_left), or
+            dict(ok=False, why, calls_left). The robot stands still while the answer comes: the wait is robot time."""
+            robot._time()
+            if effort not in ASK["efforts"]:
+                raise ValueError(f"ask: effort is one of {', '.join(ASK['efforts'])}")
+            if hasattr(images, "rgb") or isinstance(images, np.ndarray):
+                images = [images]
+            images = list(images)
+            if len(images) > ASK["images"]:
+                raise ValueError(f"ask: at most {ASK['images']} images a call")
+            ims = [_rgb8(getattr(im, "rgb", im), "ask(question, images)", ASK["side"]) for im in images]
+            if counts["asks"] >= ASK["calls"]:
+                return dict(ok=False, why=f"at most {ASK['calls']} model calls an episode", calls_left=0)
+            counts["asks"] += 1
+            r = asker.ask(str(question)[:ASK["chars"]], ims, effort)
+            wait = float(np.clip(r.get("wait_s") or 0.0, 0.0, ASK["wait_s"]))
+            counts["ask_usd"] += float(r.get("usd") or 0.0); counts["ask_wait_s"] += wait
+            t0 = robot.time_s()
+            if wait > 0:
+                S.run(wait)
+            out = dict(ok=bool(r.get("ok")), calls_left=ASK["calls"] - counts["asks"], wait_s=round(wait, 1), usd=round(float(r.get("usd") or 0.0), 4))
+            out.update(text=str(r.get("text") or "")) if out["ok"] else out.update(why=str(r.get("why") or "no answer"))
+            if trace is not None:
+                said = out["text"] if out["ok"] else "FAILED: " + out["why"]
+                trace.write(f"# t={t0:6.1f} ask({str(question)[:80]!r}, {len(ims)} images, effort={effort}) -> waited {wait:.1f} s, "
+                            f"${out['usd']:.3f}: {' '.join(said.split())[:200]!r}\n")
+            return out
+
         for n in names:
             object.__setattr__(self, n, wrap(n))
+        if asker is not None:
+            object.__setattr__(self, "ask", ask)
         object.__setattr__(self, "show", show)
         object.__setattr__(self, "truth", lambda: truth(ep) if practice else None)
         object.__setattr__(self, "judge", lambda: _plain(ep.task.judge(S)) if practice else None)
@@ -233,6 +275,42 @@ class ProgramRobot:
 
     def __setattr__(self, k, v):
         raise AttributeError("robot has no settable attributes")
+
+
+def _rgb8(image, what, side):
+    """An image a program hands over -> H x W x 3 uint8, its longest side at most `side` px."""
+    import cv2
+    im = np.asarray(image)
+    if im.dtype == bool:
+        im = im.astype(np.uint8) * 255
+    im = np.clip(np.nan_to_num(im.astype(float)), 0, 255).astype(np.uint8)
+    if im.ndim == 2:
+        im = np.dstack([im] * 3)
+    if im.ndim != 3 or im.shape[2] != 3 or min(im.shape[:2]) < 2:
+        raise ValueError(f"{what}: image must be H x W x 3 (RGB) or H x W")
+    sc = side / max(im.shape[:2])
+    if sc < 1:
+        im = cv2.resize(im, None, fx=sc, fy=sc, interpolation=cv2.INTER_AREA)
+    return np.ascontiguousarray(im)
+
+
+class SocketAsker:
+    """The vision-language model from inside the sandbox: requests over the host's Unix socket (AskBridge), with this
+    episode's token."""
+
+    def __init__(self, path, token):
+        self.path, self.token = str(path), str(token)
+
+    def ask(self, question, images, effort):
+        buf = io.BytesIO()
+        np.savez(buf, token=self.token, question=str(question), effort=str(effort), n=len(images), **{f"image_{k}": im for k, im in enumerate(images)})
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.settimeout(900); s.connect(self.path)
+                s.sendall(struct.pack(">Q", buf.getbuffer().nbytes) + buf.getvalue())
+                return json.loads(_recv(s, struct.unpack(">Q", _recv(s, 8))[0]).decode())
+        except (OSError, ValueError) as e:
+            return dict(ok=False, why=f"model service: {type(e).__name__}: {str(e)[:200]}")
 
 
 class SocketSegmenter:
@@ -269,9 +347,10 @@ def _recv(s, n):
 
 
 def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_socket=None, video=False, time_limit_s=None,
-            scene=None, practice=False):
+            scene=None, practice=False, ask_socket=None, ask_token=None):
     """One episode of the program, in this process -> the result (also out/result.json). scene: a scene (scenes.py) or
-    its JSON file, in place of the task's own for the seed."""
+    its JSON file, in place of the task's own for the seed. ask_socket, ask_token: the program has robot.ask
+    (AskBridge); the result then also has model_calls, model_usd and model_wait_s (robot time spent waiting)."""
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     code = Path(program).read_text()
     t0 = time.time()
@@ -282,7 +361,8 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
     start = truth(ep)
     bad = check_program(code)
     with open(out / "output.txt", "w", buffering=1) as log:
-        robot = ProgramRobot(ep, out, log if trace else None, practice=practice)
+        robot = ProgramRobot(ep, out, log if trace else None, practice=practice,
+                             asker=SocketAsker(ask_socket, ask_token) if ask_socket else None)
         if bad:
             how = "refused: " + "; ".join(bad)
         else:
@@ -301,6 +381,8 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
     c = robot.counts()
     v = dict(ep.finish(), mode="program", ended=how, sensors=sensors, commands=c["commands"], shown=c["shown"],
              true_start_mm=start, true_end_mm=truth(ep), wall_s=round(time.time() - t0, 1))
+    if ask_socket:
+        v.update(model_calls=c["asks"], model_usd=round(c["ask_usd"], 4), model_wait_s=round(c["ask_wait_s"], 1))
     if ep.scene is not None:
         v["scene"] = ep.scene
     import cv2
@@ -347,6 +429,66 @@ class SegmenterBridge:
         shutil.rmtree(self.dir, ignore_errors=True)
 
 
+class AskBridge:
+    """A vision-language model (perception/vlm.py) for sandboxed episodes' robot.ask: a Unix socket served by the
+    host, which holds the key and books every call in the spending ledger. An episode asks with its token (open()):
+    make_vlm(label) -> the episode's own VLM (its limit of calls, its ledger tag, its spending caps). dir: the
+    directory of another bridge (SegmenterBridge.dir), to share the one directory that is bound into a sandbox."""
+
+    def __init__(self, make_vlm, dir=None):
+        import secrets
+        self.own = dir is None
+        self.dir = Path(tempfile.mkdtemp(prefix="ar-")) if dir is None else Path(dir)
+        self.path = self.dir / "ask.sock"
+        self.make, self.eps, self._token = make_vlm, {}, lambda: secrets.token_hex(12)
+        bridge = self
+
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(self):
+                try:
+                    n = struct.unpack(">Q", _recv(self.request, 8))[0]
+                    if n > 64 << 20:
+                        raise ValueError("request too large")
+                    z = np.load(io.BytesIO(_recv(self.request, n)))
+                    vlm = bridge.eps.get(str(z["token"]))
+                    images = [np.asarray(z[f"image_{k}"]) for k in range(int(z["n"]))]
+                    if vlm is None:
+                        raise ValueError("no such episode")
+                    if (len(images) > ASK["images"] or str(z["effort"]) not in ASK["efforts"] or len(str(z["question"])) > ASK["chars"]
+                            or any(im.ndim != 3 or im.shape[2] != 3 or im.dtype != np.uint8 or max(im.shape) > ASK["side"] for im in images)):
+                        raise ValueError("bad request")
+                    r = vlm.ask(str(z["question"]), images, effort=str(z["effort"]), max_output_tokens=ASK["tokens"])
+                    rep = dict(ok=bool(r.get("ok")), text=r.get("text"), why=r.get("why"), wait_s=r.get("wait_s", 0.0), usd=r.get("usd", 0.0))
+                except Exception as e:                              # a bad request, a fault of the service
+                    rep = dict(ok=False, why=f"model service: {type(e).__name__}: {str(e)[:200]}")
+                b = json.dumps(rep).encode()
+                with contextlib.suppress(OSError):
+                    self.request.sendall(struct.pack(">Q", len(b)) + b)
+
+        class Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+            daemon_threads = True
+        self.server = Server(str(self.path), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def open(self, label):
+        """-> the token of a new episode (label: for its ledger tag)."""
+        t = self._token()
+        self.eps[t] = self.make(str(label))
+        return t
+
+    def end(self, token):
+        """The episode is over: its token no longer works -> its VLM's usage()."""
+        v = self.eps.pop(token, None)
+        return v.usage() if v is not None else {}
+
+    def close(self):
+        self.server.shutdown(); self.server.server_close()
+        if self.own:
+            shutil.rmtree(self.dir, ignore_errors=True)
+        else:
+            self.path.unlink(missing_ok=True)
+
+
 @contextlib.contextmanager
 def _slot():
     """One of the machine's SLOTS for a rendering episode (file locks, so that it holds across processes): waits for one."""
@@ -371,9 +513,10 @@ def _slot():
 
 
 def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, bridge=None, video=False, time_limit_s=None,
-                  wall_s=WALL_S, scene=None, practice=False):
+                  wall_s=WALL_S, scene=None, practice=False, asker=None, ask_label=None):
     """One episode of the program in the sandbox -> its result (dict(ok=False, ended=...) if the process gave none).
-    scene: a scene dict (kept as out/scene.json) in place of the task's own; practice: see the module's text."""
+    scene: a scene dict (kept as out/scene.json) in place of the task's own; practice: see the module's text;
+    asker: an AskBridge (the program has robot.ask; with a SegmenterBridge too, in its directory)."""
     from .. import paths
     from ..execution import sandbox
     program, out = Path(program).resolve(), Path(out).resolve()
@@ -384,11 +527,18 @@ def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, br
     cmd += ["--time-limit", str(time_limit_s)] if time_limit_s else []
     cmd += ["--segmenter-socket", str(bridge.path)] if bridge is not None else []
     cmd += ["--practice"] if practice else []
+    token = None
+    if asker is not None:
+        if bridge is not None and Path(bridge.dir) != Path(asker.dir):
+            raise ValueError("the two bridges must share one directory (AskBridge(dir=bridge.dir))")
+        token = asker.open(ask_label or out.name)
+        cmd += ["--ask-socket", str(asker.path), "--ask-token", token]
     if scene is not None:
         (out / "scene.json").write_text(json.dumps(scene) + "\n")
         cmd += ["--scene", str(out / "scene.json")]
     devices = [d for d in sorted(glob.glob("/dev/nvidia*")) + ["/dev/dri"] if Path(d).exists()]
-    full = sandbox.program_cmd(cmd, program.parent, out, bridge.dir if bridge is not None else out, devices=devices,
+    sock_dir = bridge.dir if bridge is not None else asker.dir if asker is not None else out
+    full = sandbox.program_cmd(cmd, program.parent, out, sock_dir, devices=devices,
                                extra_env={"MUJOCO_GL": "egl", "PYOPENGL_PLATFORM": "egl", "PYTHONPATH": str(paths.ROOT / "src")})
     why = ""
     try:
@@ -398,21 +548,27 @@ def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, br
             why = f"the episode's process failed ({r.returncode}): {r.stderr.strip()[-400:]}"
     except subprocess.TimeoutExpired:
         why = f"stopped after {wall_s:.0f} s of wall time (a loop without robot commands?)"
+    finally:
+        if token is not None:
+            asker.end(token)
     if (out / "result.json").exists():
         return json.loads((out / "result.json").read_text())
     return dict(ok=False, task=task, env=env, seed=int(seed), ended=why or "no result", robot_s=None)
 
 
-def suite(env, task, seeds, program, out, jobs=5, segmenter=False, log=print, **kw):
-    """The program on several episodes (jobs at a time) -> dict(successes, episodes, robot_s..., results)."""
+def suite(env, task, seeds, program, out, jobs=5, segmenter=False, log=print, ask=None, **kw):
+    """The program on several episodes (jobs at a time) -> dict(successes, episodes, robot_s..., results).
+    ask: label -> an episode's VLM (AskBridge), for programs that call robot.ask."""
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     bridge = SegmenterBridge() if segmenter else None
+    asker = AskBridge(ask, dir=bridge.dir if bridge is not None else None) if ask is not None else None
     try:
         with ThreadPoolExecutor(max(1, int(jobs))) as ex:
-            res = list(ex.map(lambda s: run_sandboxed(env, task, s, program, out / f"s{s}", bridge=bridge, **kw), seeds))
+            res = list(ex.map(lambda s: run_sandboxed(env, task, s, program, out / f"s{s}", bridge=bridge, asker=asker, **kw), seeds))
     finally:
-        if bridge is not None:
-            bridge.close()
+        for b in (asker, bridge):
+            if b is not None:
+                b.close()
     for r in res:
         log(f"seed {r['seed']:4d}  {'ok  ' if r['ok'] else 'FAIL'}  {r['robot_s'] if r['robot_s'] is not None else '-':>6} s  {str(r['ended'])[:100]}")
     t = [r["robot_s"] for r in res if r["robot_s"] is not None]
@@ -420,6 +576,8 @@ def suite(env, task, seeds, program, out, jobs=5, segmenter=False, log=print, **
     v = dict(task=task, env=env, program=str(program), seeds=list(seeds), successes=sum(bool(r["ok"]) for r in res), episodes=len(res),
              robot_s_mean=round(float(np.mean(t)), 1) if t else None, robot_s_mean_successes=round(float(np.mean(ts)), 1) if ts else None,
              results=res)
+    if ask is not None:
+        v.update(model_calls=sum(r.get("model_calls", 0) for r in res), model_usd=round(sum(r.get("model_usd", 0.0) for r in res), 4))
     (out / "summary.json").write_text(json.dumps(v, indent=1) + "\n")
     return v
 
@@ -449,6 +607,8 @@ def main(argv=None):
         if name == "episode":
             p.add_argument("--seed", type=int, required=True)
             p.add_argument("--segmenter-socket")
+            p.add_argument("--ask-socket", help="robot.ask() through the host's AskBridge")
+            p.add_argument("--ask-token")
             p.add_argument("--scene", help="a scene's JSON file (scenes.py), in place of the task's own for the seed")
             p.add_argument("--practice", action="store_true", help="robot.truth() and robot.judge() give the TRUE state")
         else:
@@ -458,7 +618,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.cmd == "episode":
         v = episode(a.env, a.task, a.seed, a.program, a.out, sensors=a.sensors, trace=a.trace, seg_socket=a.segmenter_socket,
-                    video=a.video, time_limit_s=a.time_limit, scene=a.scene, practice=a.practice)
+                    video=a.video, time_limit_s=a.time_limit, scene=a.scene, practice=a.practice, ask_socket=a.ask_socket,
+                    ask_token=a.ask_token)
         print(json.dumps({k: v[k] for k in ("ok", "seed", "robot_s", "ended")}))
         return 0
     v = suite(a.env, a.task, parse_seeds(a.seeds), a.program, a.out, jobs=a.jobs, segmenter=bool(a.segmenter), sensors=a.sensors,

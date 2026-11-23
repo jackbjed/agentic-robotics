@@ -18,6 +18,20 @@ The budget is hard: before each model call its worst case (the whole conversatio
 is reserved against the session's cap in the spending ledger (perception/vlm.py), and the reply's length is cut to
 what is left; when a useful reply no longer fits, the session ends and the last submitted version is the result.
 
+A task with varied scenes (insert_varied: SceneSession) is practised on scenes of the model's own (define_scenes,
+within the training limits), with the simulation's truth and judge open to the practising program (robot.truth,
+robot.judge: not in an evaluation), with or without a self-evaluation set.
+
+Picking from clutter (--task pick_clutter --levels medium hard: ClutterSession) is one program for several levels:
+the model draws scenes from the levels' environments (sample_scenes: the seeds below CLUTTER_SEEDS, the evaluation's
+are not among them) or makes its own (define_scenes: heaps of given and drawn objects, assets made of parts, objects
+placed by hand; clutter.build), runs a version on up to SET_N of them at once (run_set), and its program may ask
+the model itself (robot.ask, practice.ASK: at most four calls an episode, their latency is robot time, their cost is
+part of the session's budget).
+
+    python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task pick_clutter --levels medium hard \\
+           --model astra --segmenter sam3 --budget-usd 40 --eval-episodes 100 --out runs/bimanual/z            (PAID)
+
 --out DIR gets versions/vNN.py, runs/vNN/sSEED/ (each practice episode: practice.py's files), transcript.md (what
 the model said, called and got), session.jsonl (the same, as data, with every turn's cost), state.json + pending.pkl
 (to resume), result.json and program.py (the submitted version).
@@ -33,7 +47,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import practice, scenes
+from . import clutter, practice, scenes
 from .tasks import TASKS, Episode
 from .tools import Toolbox, openai_items, openai_tools, text
 from .write import VARIES, instructions
@@ -194,6 +208,138 @@ There is no program yet.
 The first look of the practice scene "example" (drawn at random; the arms at their start poses; the three cameras'
 colour images):"""
 
+ASK_CLUTTER = ("You should write one skill (one program, for both levels) that extracts the named object from the clutter. Maximize "
+               "the success rate at both levels; then make it as fast as possible (robot time); and use as few model calls "
+               "inside the episodes (robot.ask) as possible.")
+
+_CLUTTER = """
+You develop this program (the skill) in a session with a simulator of the robot to practise in. There is no program
+yet. The practice is yours to set up: you draw scenes from the two environments, build scenes and objects of your
+own, put together your own evaluation sets, and in practice the simulator's TRUE state is open to you, to test and
+to measure with. The tools:
+
+write_program, edit_program   save a new version of the program (v0, v1, ...). Any version can be run, so a
+                              version can also be an experiment (a program that only looks and reports).
+sample_scenes                 draw scenes at random from a level's environment -> their names (s1, s2, ...), a line each
+define_scenes                 set up scenes of your own (see below) -> their names and what is in each
+list_scenes                   what is in scenes: every object's shape, sizes, colour, density and place
+run_episodes                  run a version on up to {at_once} scenes, one episode a scene. You get, for each episode: the
+                              judge's verdict (the simulator's success check, on the TRUE state at the end), how the
+                              program ended, the robot time, its model calls (how many, their cost, the robot time
+                              spent waiting for them), what the program printed, and the objects' TRUE positions at
+                              the start and at the end{points}.
+run_set                       run a version on many scenes (up to {set_n}: for instance an evaluation set of your own):
+                              one line per episode, then the successes, the mean robot time and the model calls by
+                              level. A large set of hard scenes takes up to half an hour.
+read_output                   more of an episode's output: what the program printed and, on lines starting with "#",
+                              a trace of every robot command: robot time, the command, its result, that arm's TRUE
+                              tool position (and opening), and after NOW the TRUE position of each object that
+                              moved; every robot.ask with its answer. Compare what the program measured with the
+                              truth there.
+view_images                   the overview camera's picture of the end of an episode, and the images the program
+                              handed over with robot.show
+read_program                  a version's text, with line numbers
+submit                        name the version that is your result
+
+Where a tool takes scenes, "s10..s49" stands for the scenes s10 to s49.
+
+The environments. In every episode a heap of objects lies on the table, and the episode's task text (the program's
+`task`) names one of them, the target, by its colour and its shape: "the red cylinder", "the wood block", "the grey
+ball". Which object it is, is random. No other object of the heap has both the target's colour and its shape (others
+can have its colour, or its shape). The task text also tells the episode's level, in the words of the two task
+texts of the first message (medium: "it can be seen"; hard: "It lies under other objects").
+
+  medium   {n_medium} objects. The target rests on the table and touches at least two neighbours. At the start at least
+           {m_scene:.0%} of it is seen from the scene camera and at least {m_top:.0%} from straight above. {t_medium:.0f} s of robot time.
+  hard     {n_hard} objects. One or two flat blocks ({cover}) lie on the target, and
+           more objects on and around them. At the start at most {h_scene:.0%} of the target is seen from the scene camera and
+           at most {h_top:.0%} from straight above: often nothing of it. {t_hard:.0f} s of robot time.
+
+A heap is made like this: the target is put on the table, on any of its sides, at a random place within x {x},
+y {y}; 3 to 5 other objects are set around it and pulled against it; at the hard level the flat blocks are dropped
+onto it; the remaining objects are dropped onto the heap (medium: next to the target, not on it); then everything
+comes to rest (heaps that do not meet the level's conditions above are drawn again). Every object ends within 220 mm
+of the target, and nothing lies on the ruler that is fixed to the table (y {ruler}). The objects are blocks,
+cylinders and balls, of {density} kg/m3 (the weight follows from the size), in the colours {colours}
+(the shade differs a little from object to object). Sizes in mm: the target is a block with sides of {tb} each, a
+cylinder of diameter {tcd} and height {tch}, or a ball of diameter {tball}; the others are blocks of {ob}, cylinders
+of diameter {ocd} and height {och}, balls of diameter {oball}.
+
+sample_scenes draws such scenes: level, the first seed and how many (a seed is 0..{seed_hi}; a level's seed is always the
+same scene). The seed also fixes the episode's sensor noise and calibration error.
+
+Scenes of your own. define_scenes takes scenes as JSON objects. {{"level": "hard", "seed": 12}} alone is the scene
+sample_scenes draws. With more fields it is a heap of your own, made in the way described above:
+
+  {{"level": "hard", "seed": 3, "n_objects": 9, "centre_mm": [x, y],
+   "target": {{"shape": "cylinder", "size_mm": [40, 50], "color": "red", "density": 600}},
+   "objects": [{{"shape": "box", "size_mm": [110, 60, 15], "color": "blue", "role": "cover"}}, {{"shape": "ball"}}, ...]}}
+
+Every field but level can be left out; what is left out is drawn at random within the environment's ranges, by the
+seed (n_objects too, and the objects beyond those given, up to n_objects). size_mm is [a, b, c] for a box, [diameter, height] for a
+cylinder, [diameter] for a ball, each {size} mm; density {dens} kg/m3; n_objects {n_own} (the target included);
+centre_mm within x {own_x}, y {own_y} (the arms do not reach all of that). color is one of the colours above, or any
+colour's name together with "rgb": [r, g, b] (0..255): the task text names the target by that name. role says how an
+object of "objects" goes into the heap: "neighbour" (set against the target), "cover" (dropped flat onto it) or
+"other" (dropped onto the heap). An object can also be an asset of your own, made of up to {parts} parts fixed together:
+
+  {{"shape": "custom", "name": "U-shaped block", "color": "purple", "rgb": [130, 60, 170], "density": 500,
+   "parts": [{{"type": "box", "size_mm": [60, 20, 20], "pos_mm": [0, 0, 0], "euler_deg": [0, 0, 0]}}, ...]}}
+
+A part's type is box, cylinder, ball or capsule ([diameter, whole length]; a cylinder's and a capsule's axis is the
+part's z), pos_mm and euler_deg place it in the object's frame (rotations about x, then y, then z). As a target such
+an object is named by its colour and name ("the purple U-shaped block"). A heap of your own must meet its level's
+conditions (how much of the target is seen, what it touches): one that does not after {tries} draws is refused, with the
+reasons. Alternatively, give the target and every object "pos_mm": [x, y, z] (its centre) and, if wanted,
+"euler_deg": the objects are then set at these poses one after another, each left to fall for 0.5 s, and no
+condition is checked (the level then only sets the task text and the time limit): that is how to build one
+particular arrangement. A scene that cannot be made is refused, with the reason.
+
+In a program, robot.show(label, image) hands an image to you (H x W x 3 uint8 RGB, or H x W; at most {shown} an episode;
+no robot time): for instance a camera frame with what the program detected drawn on it (cv2). In practice episodes a
+program can also read the simulator: robot.truth() -> the TRUE state now (the names and points of run_episodes'
+results, lengths in mm), and robot.judge() -> the judge's verdict on the state as it is now (a dict; "ok": success).
+Both cost no robot time, and both return None in the final evaluation: they are for measuring and checking (how far
+is a measurement from the truth? did a step do what it should?), not for doing the task. {rules}
+
+robot.ask's model is the model you are. It is there because the task can need visual reasoning (where is the named
+object? is it visible at all? what lies on it?), but each call takes robot time and costs money, and the fewer calls
+a program needs for the same success, the better it is. A program's model calls in practice episodes are paid from
+this session's budget, and each episode's result reports them. Their answers are not exactly repeatable, so a version
+that asks the model can end differently on the same scene from one run to the next (run_episodes keeps the first
+result; without model calls a version on a scene gives the same result every time).
+
+Your result is the version you submitted last. After the session it is run, without you, on the final evaluation:
+{n_eval} episodes at each of the two levels with new scenes, in which the program has the cameras and robot.ask and
+nothing of the simulator's state. It is judged by how many episodes succeed at each level, then by the robot time it
+takes, then by how few model calls it makes. Half of those scenes are drawn from the two environments as sample_scenes
+draws them (none of the seeds open to you). The other half go beyond them: objects of other shapes (the task text
+then names the target by that shape's name) and of other colours, smaller and bigger objects, more objects in a heap,
+lighter and heavier ones, and heaps elsewhere on the table within the arms' reach. With scenes and objects of your
+own you can practise on such things. So make the program reliable over many different scenes first, without leaning
+on what only happens to hold in the scenes you tried; then fast; then sparing with model calls.
+
+The session's budget is ${budget:.0f} of model usage. What costs: your replies (the thinking included), the conversation so
+far, which is read again at every turn, and the model calls that programs make in practice episodes; simulation is
+free. Every tool result ends with what is spent. So run several scenes at once, read outputs selectively, and prefer
+edit_program to writing the whole program again. Submit a version as soon as it is better than the one submitted
+before: when the budget runs out the session ends without warning and the last submitted version counts (nothing if
+none); near the end of the budget, programs' model calls are refused (ok False). When you are satisfied, call submit
+with final = true.
+"""
+
+_FIRST_CLUTTER = """
+
+There is no program yet.
+
+The first looks of two practice scenes drawn at random, "example_medium" and "example_hard" (the arms at their start
+poses; the three cameras' colour images):"""
+
+CLUTTER_SEEDS = 2000                                            # sample_scenes: the seeds below this (the evaluation's are others)
+CLUTTER_EXAMPLE = 900                                           # the two scenes of the first look: clutter.sample of this seed
+SET_N = 60                                                      # scenes of one run_set call
+ASK_KEEP = 1.0                                                  # $ of the budget that programs' model calls leave to the session's own turns
+
 EVAL_SET = (1000, 30)                                           # a session's self-evaluation set: scenes.sample of these seeds
 EXAMPLE = 900                                                   # the scene of the first look: scenes.sample of this seed
 AT_ONCE_SCENES = 8                                              # new episodes of one run_episodes call (the set: all at once)
@@ -252,7 +398,7 @@ class Session:
         self.max_hours, self.compact_tokens, self.example_seed = float(max_hours), int(compact_tokens), int(example_seed)
         self.P = (getattr(vlm, "m", None) or {}).get("price_per_mtok") or PRICES
         self._spent = spent
-        self.bridge = None
+        self.bridge = self.asker = None
         kind = "grippers" if env == "sim_bimanual_grippers" else "dexterous"
         self.n_eval = int(n_eval)
         self.specs = self._specs()
@@ -273,12 +419,15 @@ class Session:
             self.inp, self.images = self._first()
             self._keep()
             self._md("## The first message\n\n" + self.inp[0]["content"][0]["text"] + f"\n\n[{len(self.images)} images, with the arms' states]")
-        self.instr = instructions(kind, self.task.time_limit_s, self.segmenter, closing=self._closing())
+        self.instr = self._instructions(kind)
         (self.dir / "instructions.md").write_text(self.instr)
 
     # ------------------------------------------------------------------ what a kind of session sets (SceneSession)
     def _specs(self):
         return TOOLS
+
+    def _instructions(self, kind):
+        return instructions(kind, self.task.time_limit_s, self.segmenter, closing=self._closing())
 
     def _closing(self):
         return _SESSION.format(
@@ -291,6 +440,7 @@ class Session:
         return self.task.text + "\n\nIn each episode the layout is new: " + VARIES.get(self.task.name, "the objects are elsewhere") + "."
 
     _EP = "seed"                                                # what an episode is named by, in texts
+    _WALL = 900.0                                               # an episode's process is stopped after this (s)
 
     # ------------------------------------------------------------------ state
     def _keep(self):
@@ -400,11 +550,11 @@ class Session:
         for s in keys:
             d = self._run_dir(v, s)
             if not (d / "result.json").exists():                # the process gave no result: not kept, it can be run again
-                items.append(text(f"v{v} {self._EP} {s}: NO RESULT: the episode's process was stopped (15 min of computing: a loop without "
-                                  "robot commands?) or crashed" + ("" if brief else _printed(d))))
+                items.append(text(f"v{v} {self._EP} {s}: NO RESULT: the episode's process was stopped ({self._WALL / 60:.0f} min of computing: a loop "
+                                  "without robot commands?) or crashed" + ("" if brief else _printed(d))))
                 continue
             r = json.loads((d / "result.json").read_text())
-            runs[str(s)] = [bool(r["ok"]), r["robot_s"]]
+            runs[str(s)] = [bool(r["ok"]), r["robot_s"]] + ([r["model_calls"], r["model_usd"]] if "model_calls" in r else [])
             failed += [] if r["ok"] else [(s, d)]
             items.append(text(_episode_line(v, s, r, d, self._EP) if brief else _episode_text(v, s, r, d, self._EP)))
         if brief:
@@ -527,8 +677,7 @@ class Session:
         st["prev"], st["last"] = None, None
         st["compactions"] += 1
         vs = "\n".join(f"v{v} ({m['lines']} lines{', from v' + str(m['base']) if m['base'] is not None else ''}): {m['note']} | practice: "
-                       + (", ".join(f"{self._EP} {s} {'ok' if r[0] else 'FAIL'} {r[1]} s" for s, r in m["runs"].items()) or "not run")
-                       for v, m in enumerate(st["versions"]))
+                       + (self._practice(m["runs"]) or "not run") for v, m in enumerate(st["versions"]))
         newest = len(st["versions"]) - 1
         t = (self._intro() + "\n\n"
              "This session started earlier; the conversation so far was cut to save budget. You keep your notes, the versions "
@@ -578,10 +727,16 @@ class Session:
                 self._keep()
         finally:
             st["wall_s"] = round(st["wall_s"] + time.time() - t0, 1)
+            if self.asker is not None:
+                self.asker.close(); self.asker = None
             if self.bridge is not None:
                 self.bridge.close(); self.bridge = None
             self._keep()
         return self._finish()
+
+    def _practice(self, runs):
+        """A version's practice results, for the text of a new conversation."""
+        return ", ".join(f"{self._EP} {s} {'ok' if r[0] else 'FAIL'} {r[1]} s" for s, r in runs.items())
 
     def _budget_note(self):
         left, st = self.left(), self.state
@@ -851,6 +1006,237 @@ class SceneSession(Session):
         return v, n, d
 
 
+_PART = _obj(type={"type": "string", "enum": list(clutter.PARTS)}, size_mm={"type": "array", "items": _N},
+             pos_mm={"type": "array", "items": _N}, euler_deg={"type": "array", "items": _N})
+_CLUTTER_OBJECT = _obj(
+    "an object (the instructions: Scenes of your own); every field can be left out",
+    shape={"type": "string", "enum": list(clutter.SHAPES) + ["custom"]}, size_mm={"type": "array", "items": _N},
+    color={"type": "string"}, rgb={"type": "array", "items": {"type": "integer"}, "minItems": 3, "maxItems": 3}, density=_N,
+    role={"type": "string", "enum": list(clutter.ROLES), "description": "not for the target"},
+    name={"type": "string", "description": "a custom object's name"}, parts={"type": "array", "items": _PART},
+    pos_mm={"type": "array", "items": _N, "minItems": 3, "maxItems": 3}, euler_deg={"type": "array", "items": _N, "minItems": 3, "maxItems": 3})
+_NAMES = {"type": "array", "items": {"type": "string", "description": "a scene's name, or a range such as s10..s49"}}
+
+
+def _clutter_tools(levels):
+    keep = {s["name"]: s for s in TOOLS}
+    lv = {"type": "string", "enum": list(levels)}
+    scene = _obj("a scene (the instructions: Scenes of your own)", level=lv, seed={"type": "integer"}, n_objects={"type": "integer"},
+                 centre_mm=_XY, target=_CLUTTER_OBJECT, objects={"type": "array", "items": _CLUTTER_OBJECT})
+    scene["required"] = ["level"]
+    out = [keep["write_program"], keep["edit_program"],
+           _spec("sample_scenes", "Draw scenes at random from a level's environment -> their names, one line each.",
+                 {"level": lv, "first_seed": {"type": "integer", "description": f"0 to {CLUTTER_SEEDS - 1}"},
+                  "count": {"type": "integer", "description": "how many (the seeds first_seed, first_seed + 1, ...): at most 60"}},
+                 ["level", "first_seed", "count"]),
+           _spec("define_scenes", "Set up scenes of your own -> their names and what is in each.",
+                 {"scenes": {"type": "array", "items": scene}}, ["scenes"]),
+           _spec("list_scenes", "What is in scenes: every object's shape, sizes, colour, density and place (without names, or for more "
+                                "than 12 scenes: one line a scene).", {"names": _NAMES}),
+           _spec("run_episodes", f"Run a version on scenes, one episode each, with the whole result of each (at most {AT_ONCE_SCENES} new "
+                                 "ones a call, run at the same time; some minutes).", {"scenes": _NAMES, "version": _VER}, ["scenes"]),
+           _spec("run_set", f"Run a version on many scenes (at most {SET_N} a call): one line per episode, and the totals by level.",
+                 {"scenes": _NAMES, "version": _VER}, ["scenes"])]
+    for name in ("read_output", "view_images"):
+        p = keep[name]["parameters"]
+        props = {("scene" if k == "seed" else k): (_NAME if k == "seed" else x) for k, x in p["properties"].items()}
+        out.append(_spec(name, keep[name]["description"], props, ["scene" if k == "seed" else k for k in p["required"]]))
+    return out + [keep["read_program"], keep["submit"]]
+
+
+class ClutterSession(SceneSession):
+    """A session on picking from clutter (clutter.py), several levels at once: one program for all of them. The model
+    starts from nothing; it draws scenes from the levels' environments (sample_scenes: the seeds below CLUTTER_SEEDS,
+    which the evaluation does not use), builds heaps and objects of its own (define_scenes: clutter.build), and runs
+    versions on any of them, also on many at once (run_set: its own evaluation sets). Practice episodes run with
+    the simulation's truth, and programs have robot.ask (practice.AskBridge): ask(label) -> the model client of one
+    episode, whose calls are booked on the session's budget."""
+
+    _WALL = practice.WALL_S
+
+    def __init__(self, out, env, levels, vlm, ask=None, **k):
+        self.levels, self.ask = tuple(levels), ask
+        if not self.levels or any(l not in ("medium", "hard") for l in self.levels):
+            raise ValueError("levels: medium, hard")
+        super().__init__(out, env, f"pick_clutter_{self.levels[0]}", vlm, **k)
+        if tuple(self.state.get("levels", self.levels)) != self.levels:
+            raise ValueError(f"this session was started with the levels {', '.join(self.state['levels'])}")
+
+    def _specs(self):
+        return _clutter_tools(self.levels)
+
+    def _eval_names(self):
+        return []
+
+    def _limit(self, level):
+        return TASKS[f"pick_clutter_{level}"].time_limit_s
+
+    def _instructions(self, kind):
+        model = (getattr(self.vlm, "m", None) or {}).get("model", "the model you are")
+        return instructions(kind, " or ".join(f"{self._limit(l):.0f} s ({l})" for l in self.levels), self.segmenter,
+                            closing=self._closing(), asker=model if self.ask is not None else None)
+
+    def _closing(self):
+        T, S, L = clutter.TRAIN, clutter.SEEN, clutter.LIMITS
+        r = lambda v: f"{v[0]:g}..{v[1]:g}"
+        return _CLUTTER.format(
+            at_once=AT_ONCE_SCENES, set_n=SET_N, points=practice.POINTS["pick_clutter_medium"], shown=practice.SHOWN,
+            rules="\n" + practice.RULES, n_eval=self.n_eval, budget=self.budget, seed_hi=CLUTTER_SEEDS - 1,
+            n_medium=f"{T['n']['medium'][0]} to {T['n']['medium'][1]}", n_hard=f"{T['n']['hard'][0]} to {T['n']['hard'][1]}",
+            m_scene=S["medium"]["scene"][0], m_top=S["medium"]["top"][0], h_scene=S["hard"]["scene"][1], h_top=S["hard"]["top"][1],
+            t_medium=self._limit("medium"), t_hard=self._limit("hard"), cover="90..130 x 55..75 x 10..25 mm",
+            x=r(T["x"]), y=r(T["y"]), ruler=r(clutter.RULER), density=r(T["density"]), colours=", ".join(clutter.COLOURS),
+            tb="28..58", tcd="28..58", tch="28..65", tball="32..58", ob="25..80 x 25..80 x 20..80", ocd="25..75", och="20..90", oball="28..65",
+            size=r(L["size"]), dens=r(L["density"]), n_own=r(L["n"]), own_x=r(L["x"]), own_y=r(L["y"]), parts=L["parts"],
+            tries=clutter.BUILD_TRIES)
+
+    def _intro(self):
+        t = "\n\n".join(f"The {l} level. {clutter.TEXT[l]}" for l in self.levels)
+        return "Picking from clutter, at two levels.\n\n" + t + "\n\n" + ASK_CLUTTER
+
+    def _first(self):
+        st = self.state
+        st["eval_set"], st["tables"], st["levels"] = False, False, list(self.levels)
+        st["scenes"] = {f"example_{l}": clutter.sample(l, CLUTTER_EXAMPLE) for l in self.levels}
+        st["n_scenes"] = 0
+        images, content = [], [{"type": "input_text", "text": self._intro() + _FIRST_CLUTTER}]
+        for n, sc in st["scenes"].items():
+            ep = Episode(self.env, f"pick_clutter_{sc['level']}", seed=sc["seed"], sensors=self.sensors, scene=sc)
+            content.append({"type": "input_text", "text": f"\n{n}. Its task text: {ep.text}"})
+            content += openai_items(Toolbox(ep.robot).call("look", {}, free=True), images)
+        return [{"role": "user", "content": content}], images
+
+    def _level(self, name):
+        return self.state["scenes"][str(name)]["level"]
+
+    def _by_level(self, runs):
+        """runs {scene: [ok, robot_s, model calls, $]} -> text: by level, successes/episodes (mean robot time of the
+        successes, mean model calls an episode)."""
+        parts = []
+        for l in self.levels:
+            rs = [r for s, r in runs.items() if s in self.state["scenes"] and self._level(s) == l]
+            if rs:
+                ok = [r[1] for r in rs if r[0]]
+                calls = [r[2] for r in rs if len(r) > 2]
+                parts.append(f"{l} {len(ok)}/{len(rs)}" + (f" ({sum(ok) / len(ok):.0f} s" if ok else " (")
+                             + (f"{', ' if ok else ''}{sum(calls) / len(calls):.1f} calls)" if calls else ")" if ok else ""))
+        return ", ".join(p.replace(" ()", "") for p in parts)
+
+    def results_line(self):
+        out = [f"v{v} " + self._by_level(m["runs"]) for v, m in enumerate(self.state["versions"]) if m["runs"]]
+        sub = self.state["submitted"]
+        return ("Practice so far, by level (successes/episodes; mean robot time of the successes, mean model calls an episode): "
+                + ("; ".join(out) or "nothing run") + f". Submitted: {'v' + str(sub) if sub is not None else 'nothing'}.")
+
+    def _practice(self, runs):
+        if len(runs) <= 12:
+            return super()._practice(runs)
+        bad = [s for s, r in runs.items() if not r[0]]
+        return self._by_level(runs) + (f"; failed on {', '.join(bad[:40])}{' ...' if len(bad) > 40 else ''}" if bad else "")
+
+    # ------------------------------------------------------------------ the tools
+    def _add(self, spec, out, full):
+        st = self.state
+        n = st["n_scenes"] + 1
+        try:
+            if not isinstance(spec, dict):
+                raise ValueError("a scene is a JSON object")
+            seed = spec.get("seed", n % CLUTTER_SEEDS)
+            drawn = not set(spec) - {"level", "seed"}
+            if drawn and (isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < CLUTTER_SEEDS):
+                raise ValueError(f"seed: a scene drawn from an environment has a seed from 0 to {CLUTTER_SEEDS - 1}")
+            sc = clutter.build(spec, seed=seed, levels=self.levels)
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
+            out.append(f"REFUSED ({json.dumps(spec)[:200]}): {str(e) or type(e).__name__}")
+            return
+        st["n_scenes"] = n
+        st["scenes"][f"s{n}"] = sc
+        out.append(f"s{n} (seed {sc['seed']}): " + (clutter.describe(sc) if full else clutter.brief(sc)))
+
+    def _t_sample_scenes(self, a):
+        level, first, count = a["level"], int(a["first_seed"]), int(a["count"])
+        if level not in self.levels:
+            raise ValueError(f"level: one of {', '.join(self.levels)}")
+        if not 1 <= count <= 60 or not 0 <= first or first + count > CLUTTER_SEEDS:
+            raise ValueError(f"count: 1 to 60; the seeds first_seed to first_seed + count - 1 must be within 0 to {CLUTTER_SEEDS - 1}")
+        out = []
+        with ThreadPoolExecutor(16) as ex:                          # (clutter.sample keeps them)
+            list(ex.map(lambda seed: clutter.sample(level, seed), range(first, first + count)))
+        for seed in range(first, first + count):
+            self._add({"level": level, "seed": seed}, out, False)
+        return [text("\n".join(out))]
+
+    def _t_define_scenes(self, a):
+        specs, out = a["scenes"], []
+        if not isinstance(specs, list) or not specs or len(specs) > 12:
+            raise ValueError("scenes: a list of 1 to 12 scene objects")
+        for spec in specs:
+            self._add(spec, out, isinstance(spec, dict) and bool(set(spec) - {"level", "seed"}))
+        return [text("\n".join(out))]
+
+    def _names(self, names):
+        out = []
+        for n in names:
+            n = str(n).strip()
+            if ".." in n:                                       # s10..s49
+                a, b = (x.strip() for x in n.split("..", 1))
+                if not (a[:1] == "s" and b[:1] == "s" and a[1:].isdigit() and b[1:].isdigit() and int(a[1:]) <= int(b[1:])):
+                    raise ValueError(f"{n}: a range is sA..sB with A <= B")
+                out += [f"s{k}" for k in range(int(a[1:]), int(b[1:]) + 1)]
+            else:
+                out.append(n)
+        return super()._names(out)
+
+    def _scene_names(self):
+        k = self.state["n_scenes"]
+        return (", ".join(f"example_{l}" for l in self.levels) + (f", s1 to s{k}" if k > 1 else ", s1" if k else "")
+                + " (sample_scenes and define_scenes make more)")
+
+    def _t_list_scenes(self, a):
+        sc = self.state["scenes"]
+        names = self._names(a.get("names") or list(sc))
+        full = bool(a.get("names")) and len(names) <= 12
+        return [text("\n".join(f"{n} (seed {sc[n]['seed']}): " + (clutter.describe(sc[n]) if full else clutter.brief(sc[n])) for n in names))]
+
+    def _run(self, v, names):
+        new = [n for n in names if not (self._run_dir(v, n) / "result.json").exists()]
+        if not new:
+            return
+        if self.segmenter and self.bridge is None:
+            self.bridge = practice.SegmenterBridge()
+        if self.ask is not None and self.asker is None:
+            self.asker = practice.AskBridge(self.ask, dir=self.bridge.dir if self.bridge is not None else None)
+        sc = self.state["scenes"]
+        with ThreadPoolExecutor(len(new)) as ex:                    # (practice.SLOTS bounds how many run at the same time)
+            list(ex.map(lambda n: practice.run_sandboxed(
+                self.env, f"pick_clutter_{sc[n]['level']}", sc[n]["seed"], self._path(v), self._run_dir(v, n), sensors=self.sensors,
+                trace=True, bridge=self.bridge, wall_s=self._WALL, scene=sc[n], practice=True, asker=self.asker,
+                ask_label=f"v{v}_{n}"), new))
+
+    def _totals(self, v, names):
+        runs = self.state["versions"][v]["runs"]
+        usd = sum(r[3] for n in names if len(r := runs.get(n, [])) > 3)
+        return text(f"v{v} on these {len(names)} scenes, by level: " + (self._by_level({n: runs[n] for n in names if n in runs}) or "no result")
+                    + f"; their model calls cost ${usd:.3f}.")
+
+    def _t_run_episodes(self, a):
+        v, names = self._version(a), self._names(a["scenes"])
+        if not names:
+            raise ValueError(f"scenes: which? There are {self._scene_names()}")
+        if sum(not (self._run_dir(v, n) / "result.json").exists() for n in names) > AT_ONCE_SCENES:
+            raise ValueError(f"at most {AT_ONCE_SCENES} new episodes a call (run_set runs many, with one line per episode)")
+        self._run(v, names)
+        return self._results(v, names)
+
+    def _t_run_set(self, a):
+        v, names = self._version(a), self._names(a["scenes"])
+        if not 1 <= len(names) <= SET_N:
+            raise ValueError(f"scenes: 1 to {SET_N} scenes a call")
+        self._run(v, names)
+        items = self._results(v, names, brief=True)
+        return items[:-1] + [self._totals(v, names), items[-1]]
+
+
 def _said(r):
     return "\n".join(c.get("text", "") for o in r["output"] if o.get("type") == "message"
                      for c in o.get("content") or [] if c.get("type") == "output_text").strip()
@@ -895,13 +1281,25 @@ def _printed(d, head=12, tail=25):
 
 
 _BOOK = ("ok", "task", "env", "seed", "robot_s", "mode", "ended", "sensors", "commands", "shown", "true_start_mm", "true_end_mm", "wall_s",
-         "scene")
+         "scene", "model_calls", "model_usd", "model_wait_s")
+
+
+def _asked(r, brief=False):
+    """The episode's model calls (robot.ask), if it could make any."""
+    if "model_calls" not in r:
+        return ""
+    if brief:
+        return f", {r['model_calls']} model call{'' if r['model_calls'] == 1 else 's'}"
+    return (f", {r['model_calls']} model call{'' if r['model_calls'] == 1 else 's'}"
+            + (f" (${r['model_usd']:.3f}; {r['model_wait_s']:.0f} s of the robot time waiting for them)" if r["model_calls"] else ""))
 
 
 def _episode_line(v, s, r, d, ep="seed"):
     """An episode's result in one line (a whole evaluation set at once)."""
-    j = {k: x for k, x in r.items() if k in ("on_stick", "released", "stand_upright", "off_axis_mm", "stick_through_mm")}
-    return (f"v{v} {ep} {s}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s; the program "
+    j = {k: x for k, x in r.items() if k in ("on_stick", "released", "stand_upright", "off_axis_mm", "stick_through_mm",
+                                             "held", "height_mm", "held_by", "touches", "fallen")}
+    level = f" ({r['task'][len('pick_clutter_'):]})" if str(r.get("task", "")).startswith("pick_clutter_") else ""
+    return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s{_asked(r, True)}; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])[:160]}" + ("" if r["ok"] else f"; judge: {json.dumps(j)}"))
 
 
@@ -909,7 +1307,9 @@ def _episode_text(v, s, r, d, ep="seed"):
     pos = lambda t: "; ".join(f"{n} {tuple(p) if isinstance(p, list) else p}" for n, p in t.items())
     shown = sorted(p.name for p in (Path(d) / "shown").glob("*.png")) if (Path(d) / "shown").exists() else []
     n_lines = len((Path(d) / "output.txt").read_text(errors="replace").splitlines())
-    return (f"v{v} {ep} {s}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s of robot time, {r['commands']} robot commands; the program "
+    level = f" ({r['task'][len('pick_clutter_'):]})" if str(r.get("task", "")).startswith("pick_clutter_") else ""
+    return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s of robot time, {r['commands']} robot commands"
+            f"{_asked(r)}; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])}\n"
             f"  judge: {json.dumps({k: x for k, x in r.items() if k not in _BOOK})}\n"
             f"  TRUE positions (mm) at the start: {pos(r['true_start_mm'])}\n  TRUE positions at the end: {pos(r['true_end_mm'])}"
@@ -919,7 +1319,10 @@ def _episode_text(v, s, r, d, ep="seed"):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--env", required=True, choices=["sim_bimanual_grippers", "sim_bimanual_dexterous"])
-    ap.add_argument("--task", required=True, choices=list(TASKS))
+    ap.add_argument("--task", required=True, choices=list(TASKS) + ["pick_clutter"],
+                    help="pick_clutter: one program for several levels of picking from clutter (--levels), from nothing, with "
+                         "scenes of the model's own and model calls inside the episodes (robot.ask)")
+    ap.add_argument("--levels", nargs="+", default=["medium", "hard"], choices=["medium", "hard"], help="pick_clutter: its levels")
     ap.add_argument("--model", required=True, help="a model of configs/models.yaml")
     ap.add_argument("--start", help="the starting program (v0); none: the model starts from nothing")
     ap.add_argument("--eval-set", action="store_true",
@@ -947,7 +1350,13 @@ def main(argv=None):
                      max_usd_per_call=a.budget_usd), tag=f"{tag}:{a.env}:{a.task}")
     kw = dict(budget_usd=a.budget_usd, sensors=a.sensors, segmenter=bool(a.segmenter), effort=a.effort, max_output_tokens=a.max_output_tokens,
               n_eval=a.eval_episodes, max_hours=a.max_hours, spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
-    if TASKS[a.task].scene:
+    if a.task == "pick_clutter":
+        if a.start or a.eval_set or a.tables:
+            ap.error("--start, --eval-set, --tables: not for pick_clutter")
+        ask = lambda label: V.VLM(dict(model=a.model, max_calls_per_episode=practice.ASK["calls"], max_usd_per_episode=practice.ASK["reserve_usd"],
+                                       run_usd=a.budget_usd - ASK_KEEP), tag=f"{tag}:ask:{label}")
+        s = ClutterSession(out, a.env, a.levels, vlm, ask=ask, **kw)
+    elif TASKS[a.task].scene:
         if a.start:
             ap.error("--start: a session on a task with varied scenes starts from nothing")
         s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, tables=a.tables, **kw)

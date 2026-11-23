@@ -14,8 +14,10 @@ judge on the simulation's TRUE state, and the limits. The same tasks run in both
     pick_clutter_medium | _hard | _extra_hard    take the object the text names (its colour and shape) out of a heap of
                     objects and hold it up: it lies among the others and can be seen | it lies under others | the
                     same in an open bin (clutter.py)                                                 (one arm or both)
+    biolab_drops    a bio-lab bench: move a 50 mL tube to the other rack, unscrew its cap, draw water from a cup with a
+                    pipette, put three drops into the tube, screw the cap back on (biolab.py)          (needs both arms)
 
-A task with varied scenes (insert_varied, pick_clutter_*) has a scene for each seed: below 5000 within the limits a
+A task with varied scenes (insert_varied, pick_clutter_*, biolab_drops) has a scene for each seed: below 5000 within the limits a
 controller may be prepared on, from 5000 on outside them (other sizes, colours, shapes, numbers, places).
 """
 from __future__ import annotations
@@ -25,7 +27,7 @@ from typing import Callable
 
 import numpy as np
 
-from . import clutter, make, scenes
+from . import biolab, clutter, make, scenes
 from .api import Robot
 from .core import BOTTLE_XY, scene_module
 
@@ -137,7 +139,9 @@ TASKS = {t.name: t for t in (
 ) + tuple(
     Task(f"pick_clutter_{level}", clutter.TEXT[level], lambda seed, level=level: clutter.layout(clutter.sample(level, seed)),
          clutter.judge, limit, calls, 2, lambda seed, level=level: clutter.sample(level, seed))
-    for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120), ("extra_hard", 900.0, 120)))}
+    for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120), ("extra_hard", 900.0, 120))) + (
+    Task("biolab_drops", biolab.TEXT, lambda seed: biolab.layout(biolab.sample(seed)), biolab.judge, 1200.0, 200, 2, biolab.sample),
+)}
 
 
 class Episode:

@@ -88,12 +88,13 @@ class VLM:
             raise RuntimeError("configs/local.yaml secrets.openai_key_file is not set")
         return Path(f).expanduser().read_text().strip()
 
-    def ask(self, prompt, images, detail="high"):
-        """-> dict(ok, text, usd, wait_s, tokens, cache_hit) or dict(ok=False, why)."""
+    def ask(self, prompt, images, detail="high", effort=None, max_output_tokens=None):
+        """-> dict(ok, text, usd, wait_s, tokens, cache_hit) or dict(ok=False, why). effort, max_output_tokens: the
+        reasoning effort and the reply's limit, reasoning included (default: the model's in configs/models.yaml)."""
         if self.calls >= self.max_calls:
             return dict(ok=False, why=f"at most {self.max_calls} model call(s) per episode")
-        body = {"model": self.m["model"], "reasoning": {"effort": self.m.get("effort", "medium")},
-                "max_output_tokens": int(self.m.get("max_output_tokens", 6000)),
+        body = {"model": self.m["model"], "reasoning": {"effort": effort or self.m.get("effort", "medium")},
+                "max_output_tokens": int(max_output_tokens or self.m.get("max_output_tokens", 6000)),
                 "input": [{"role": "user", "content": [{"type": "input_text", "text": str(prompt)}] +
                            [png_item(im, detail) for im in images]}]}
         h = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
