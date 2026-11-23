@@ -14,6 +14,8 @@ judge on the simulation's TRUE state, and the limits. The same tasks run in both
     pick_clutter_medium | _hard | _extra_hard    take the object the text names (its colour and shape) out of a heap of
                     objects and hold it up: it lies among the others and can be seen | it lies under others | the
                     same in an open bin (clutter.py)                                                 (one arm or both)
+    pick_clutter_one_arm_medium | _hard    the same with the left arm alone, within the real single-arm rig's limits; the
+                    heaps where that arm reaches (clutter.py: ONE_ARM, clutter_one_arm.py)            (the left arm)
     biolab_open     a bio-lab bench: move a 50 mL tube to the other rack and unscrew its cap (biolab.py)      (needs both arms)
     biolab_drops    the same bench, the whole procedure: move the tube to the other rack, unscrew its cap, draw water from a cup with a
                     pipette, put three drops into the tube, screw the cap back on (biolab.py)          (needs both arms)
@@ -141,7 +143,11 @@ TASKS = {t.name: t for t in (
 ) + tuple(
     Task(f"pick_clutter_{level}", clutter.TEXT[level], lambda seed, level=level: clutter.layout(clutter.sample(level, seed)),
          clutter.judge, limit, calls, 2, lambda seed, level=level: clutter.sample(level, seed))
-    for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120), ("extra_hard", 900.0, 120))) + (
+    for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120), ("extra_hard", 900.0, 120))) + tuple(
+    Task(f"pick_clutter_one_arm_{level}", clutter.TEXT_ONE_ARM[level],
+         lambda seed, level=level: clutter.layout(clutter.sample(level, seed, "left")),
+         clutter.judge, limit, calls, 1, lambda seed, level=level: clutter.sample(level, seed, "left"))
+    for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120))) + (
     Task("biolab_open", biolab.TEXT_OPEN, lambda seed: biolab.layout(biolab.sample(seed)), biolab.judge_open, 600.0, 120, 2, biolab.sample,
          biolab.text_open),
     Task("biolab_drops", biolab.TEXT, lambda seed: biolab.layout(biolab.sample(seed)), biolab.judge, 1200.0, 200, 2, biolab.sample),

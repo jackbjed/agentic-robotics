@@ -130,7 +130,55 @@ Reply with the whole program in one ```python code block (a short note before it
 The first look of one example episode (the arms at their start poses; the three cameras' colour images):"""
 
 
-def instructions(kind, time_s, segmenter=False, closing=_ONCE, asker=None):
+_ONE_ARM_FRAME = """The robot works with one arm, its left one, whose base is at (x, y) = (-790, 40), just
+below table height. Its other arm (the right one, base at (-800, -390)) stays parked at its start pose for the whole
+episode, its gripper at about (-490, -390, 350): it is not in the interface, and it is solid. The arm keeps the
+safety limits of the real robot it stands for; a move that would break one is refused, with the limit named (there in
+m and rad), and nothing moves:
+- the TCP stays within x -720..100, y -420..600, z 0..800;
+- the fingertips' ends go at most 4 mm below z = 0, and every other part of the gripper, the wrist camera and the arm
+  stays at least 50 mm above the table. So near the table the gripper points down or nearly so: it can lean from the
+  vertical by about 30 degrees with the TCP at z = 20, 40 at z = 40, 50 at z = 70 and 65 at z = 110 (less in some
+  directions and places), and lie horizontal only from about z = 160 up, and not in every direction;
+- no part of the gripper or the arm enters the space around the parked arm: x < -420 together with y < -280 (up to
+  z = 800);
+- the joints' ranges are a little narrower than a Franka Panda's.
+Pointing straight down with the TCP at z = 20, the gripper reaches x from about -480 to -90 for y between -210 and
+120 (as far as y = -390 where x > -330), and x from about -600 to -150 for y between 270 and 600 (the far half of the
+table is out of reach); nothing farther than about 800 mm from the arm's base. A move the arm cannot make is refused
+and nothing moves."""
+
+# the two-armed text -> the one-armed robot's (arm="left": the real single-arm rig's arm and limits, core.BiCore.only)
+_ONE_ARM = (
+    ("controls a two-armed robot:", "controls a robot arm:"),
+    ("(both arms at their start poses, open)", "(the arm at its start pose, the gripper open)"),
+    ("the cameras and the arms' own measurements. Each arm is a Franka Panda with",
+     "the cameras and the arm's own measurements. The arm is a Franka Panda with"),
+    ("The grippers. A gripper's pose is its TCP", "The gripper. Its pose is its TCP"),
+    ("Cameras (look()), all RealSense D415 colour + depth cameras, 640x480:", "Cameras (look()), two RealSense D415 colour + depth cameras, 640x480:"),
+    ("the robot's right arm is on the left of that image.", "the parked right arm is on the left of that image."),
+    ("2. the right arm's wrist camera and 3. the left arm's wrist camera: each sits on its gripper's body",
+     "2. the arm's wrist camera (\"left_wrist\"): it sits on the gripper's body"),
+    ("At the start (grippers pointing straight down)", "At the start (the gripper pointing straight down)"),
+    ('arm is "right" or "left";', 'arm is always "left";'),
+    ('of "scene", "right_wrist", "left_wrist" (all three by default)', 'of "scene", "left_wrist" (both by default)'),
+)
+
+
+def one_arm(text):
+    """The two-armed instructions -> the one-armed robot's (every piece replaced must be there exactly once)."""
+    a, b = "The right arm's base is at", "the other arm is refused."
+    if text.count(a) != 1 or text.count(b) != 1:
+        raise ValueError("the frame paragraph of the two-armed text is not there")
+    text = text[:text.index(a)] + _ONE_ARM_FRAME + text[text.index(b) + len(b):]
+    for old, new in _ONE_ARM:
+        if text.count(old) != 1:
+            raise ValueError(f"the two-armed text has {text.count(old)} of {old!r}")
+        text = text.replace(old, new)
+    return text
+
+
+def instructions(kind, time_s, segmenter=False, closing=_ONCE, asker=None, arm=None):
     """The system text for writing a program: the robot's description of direct control, with the program's interface
     in place of the tool calls, and how the program is used (closing: one attempt; improve.py: a session). time_s: the
     episode's robot time (a number, or text). asker: the name of the model behind robot.ask, if programs have it
@@ -143,9 +191,14 @@ def instructions(kind, time_s, segmenter=False, closing=_ONCE, asker=None):
     body = src[src.index("Frame and units:"):src.index("In all moves the arm's safety")]
     body = body.replace("every result reports, for each arm, the arm's estimate", "robot.state(arm) gives, as force_n, the arm's estimate")
     body = body.replace("the result says where it stopped", "robot.state(arm) tells where it stopped")
-    return (_HEAD.format(tool=tool) + body.rstrip() + "\n"
-            + _API.replace("{state}", _STATE[kind]).replace("{commands}", _COMMANDS[kind])
-                  .replace("{segment}", _SEGMENT if segmenter else "").replace("{ask}", ask).replace("{time_s}", time_s) + closing)
+    out = (_HEAD.format(tool=tool) + body.rstrip() + "\n"
+           + _API.replace("{state}", _STATE[kind]).replace("{commands}", _COMMANDS[kind])
+           .replace("{segment}", _SEGMENT if segmenter else "").replace("{ask}", ask).replace("{time_s}", time_s))
+    if arm is not None:
+        if arm != "left" or kind != "grippers":
+            raise ValueError('arm: "left" (the one-armed robot, with grippers) or none')
+        out = one_arm(out)
+    return out + closing
 
 
 def extract_program(reply):

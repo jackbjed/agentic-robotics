@@ -299,7 +299,7 @@ class Toolbox:
                 + f". Fingertip touch: {touch}; {force}.")
 
     def state_text(self):
-        return "\n".join(self.arm_text(a) for a in ("right", "left"))
+        return "\n".join(self.arm_text(a) for a in ("right", "left") if a in self.robot.ARMS)
 
     # ---------------------------------------------------------------- the tools
     def call(self, name, args, free=False):
@@ -353,7 +353,7 @@ class Toolbox:
             return [text("episode ended")]
         arm = a.get("arm", a.get("hand"))
         if arm not in rb.ARMS:
-            return [text(f'give {"arm" if self.kind == "grippers" else "hand"} = "right" or "left"')]
+            return [text(f'give {"arm" if self.kind == "grippers" else "hand"} = ' + " or ".join(f'"{x}"' for x in rb.ARMS))]
         if name in ("move_gripper", "move_hand"):
             d1, d2 = ("approach_dir", "closing_dir") if name == "move_gripper" else ("fingers_dir", "palm_dir")
             r = rb.move(arm, [float(a["x"]), float(a["y"]), float(a["z"])], a[d1], a[d2], bool(a.get("stop_on_contact", True)))

@@ -71,7 +71,8 @@ POINTS = {"insert_cylinder": ": cylinder is the centre of the cylinder's bottom 
           "open_bottle": ": bottle is the centre of the bottle's bottom, cap the cap's centre",
           **{f"pick_clutter_{level}": ": item_k is the centre of that object; target names the target's item, target_seen is the part "
                                       "of the target (0..1) that is seen from the scene camera and from straight above, "
-                                      "target_covered_by the items that hide it from above" for level in ("medium", "hard", "extra_hard")}}
+                                      "target_covered_by the items that hide it from above"
+             for level in ("medium", "hard", "extra_hard", "one_arm_medium", "one_arm_hard")}}
 SHOWN = 12                                                      # images of robot.show kept per episode
 # robot.ask: calls an episode, images a call, an image's longest side (px), the question's length, the efforts a
 # program can ask for, the answer's limit (tokens, reasoning included), the $ reserved for a call (vlm.py: above its

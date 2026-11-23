@@ -458,13 +458,54 @@ episodes per cell, $4.90 of model calls, no call refused). Reference: `scripted.
 The practice score (136/136) overstated the result on new heaps, most of all on out-of-distribution objects, where
 colours and shapes close to the target's are the main cause.
 
+## Picking from clutter with one arm (2026-11-23)
+
+The real rig has one arm (the left Panda, the one with the green gripper), so the clutter tasks exist for that arm
+alone: `pick_clutter_one_arm_medium` and `pick_clutter_one_arm_hard` (`bimanual/clutter_one_arm.py`; the levels, time
+limits, model calls and judge of the two-armed tasks).
+
+- The robot: the right arm stays parked at its start pose and is not in the interface (`arm` is always `"left"`, the
+  cameras are `scene` and `left_wrist`); it is still a solid obstacle. The left arm keeps the real rig's safety limits
+  (`core.rig_limits()`, from the vendored `panda_fk.py` and `rig.json`): the joints' ranges, the TCP box
+  (x -720..100, y -420..600, z 0..800 mm), fingertips at most 4 mm below the table and every other link 50 mm above
+  it (which limits how far the gripper can tilt near the table), and a keep-out box around the parked arm. A move
+  that would break one is refused with the limit named.
+- The heaps (`clutter.ONE_ARM`): practice seeds within x -360..-220, y -120..30 (two-armed: x -360..-230,
+  y -200..30); the out-of-distribution places are near, far, to the side and beyond the ruler, all within that arm's
+  reach. A scene carries `arm = "left"`.
+- The reference with true poses (`scripted.pick_clutter`, one arm; free): medium ID 48/50, OOD 46/50; hard ID 48/50,
+  OOD 47/50. No failure is a refused reach.
+
+```bash
+python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task pick_clutter_one_arm --levels medium hard \
+    --model astra --segmenter sam3 --budget-usd 40 --eval-episodes 100 --max-hours 14 --out runs/bimanual/clutter_one_arm_astra_1123
+python scripts/session_progress.py runs/bimanual/clutter_one_arm_astra_1123      # the versions: when saved, practice results
+python scripts/eval_bimanual_ask.py --program runs/bimanual/clutter_one_arm_astra_1123/program.py --model astra \
+    --tasks pick_clutter_one_arm_medium pick_clutter_one_arm_hard --seeds 2000-2049,5000-5049 --run-usd 12 \
+    --out runs/bimanual/clutter_one_arm_astra_1123_eval
+```
+
+The session is the two-armed one's (same budget, tools, practice truth, `robot.ask`), with the instructions rewritten
+for one arm (`write.one_arm`). Two changes apply to every clutter session from here on:
+- `define_scenes` takes a field given as null, `""` or `[]` as left out. In the two-armed session all 9 calls with
+  objects of the model's own were refused, because the model filled in every field of the schema (`"name": ""` on a
+  ball, `"size_mm": []` on a custom object).
+- Each version records when it was saved (`state.json`: `versions[i].at` = turn, dollars, tokens, minutes; the copies
+  are `versions/vNN.py`), and `scripts/session_progress.py` prints the table of versions with their practice results.
+
 ## On the real arm (2026-11-23)
 
 `src/agentic_robotics/bimanual/real.py` answers the program API on the real rig, which moves the left Panda only:
 `real/run program --program runs/bimanual/<session>/program.py` (real/README.md, "A bimanual session's program on the
 real arm"). The insertion program (`insert_varied`) runs there; the clutter tasks need both arms and are refused.
 `--backend sim` rehearses the whole path with this simulation as the robot: the insertion program v21 succeeds on 29
-of 31 seeds, the two failures being scenes on the right arm's side. Nothing has run on the real arm yet.
+of 31 seeds, the two failures being scenes on the right arm's side.
+
+First live run (2026-11-23, the insertion program, run by the user): it failed. The guarded descents (5 mm/s)
+stopped on "contact" in free air (joint stiction; `--guard-dz 0.01` raises the threshold), and `set_gripper(0)`
+returned widths read in the middle of the closing (21.4 and 37.8 mm), since the gripper's state comes only every
+0.2-0.33 s. `RealRobot.set_gripper` now waits on the real arm until the opening has stood still for 0.8 s (at most
+5 s). Not yet run again on the arm.
 
 ## Not there yet
 

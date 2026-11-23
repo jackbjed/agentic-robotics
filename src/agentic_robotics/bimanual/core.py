@@ -89,6 +89,18 @@ class Arm:
     pass
 
 
+def rig_limits():
+    """The real single-arm rig's safety limits (the vendored panda_fk.Limits, as the real arm's server checks them):
+    joint ranges, the tool point's box, the hand and the links over the table, the keep-out box of the parked right
+    arm. Loaded by file (numpy only), not through the twin."""
+    import importlib.util
+    f = paths.VENDOR / "panda_twin" / "code" / "real" / "panda_fk.py"
+    spec = importlib.util.spec_from_file_location("_rig_panda_fk", f)
+    fk = importlib.util.module_from_spec(spec); spec.loader.exec_module(fk)
+    rig = fk.load_rig()
+    return fk.Limits(rig, fk.Kin(rig, {}))
+
+
 def scene_module(scene):
     """The module of a scene's kind: scenes.py (the varied cylinder-and-stick scenes), clutter.py or biolab.py. It gives
     the scene's model_xml(), paint() and layout(), and for some kinds the task's text(), judge() and truth(), and
@@ -121,6 +133,12 @@ class BiCore:
         self.d = mujoco.MjData(m); self.dk = mujoco.MjData(m)
         self.sensors, self.out = sensors, (Path(out) if out else None)
         self.arms, self.part = {}, {}
+        # a one-armed scene (scene["arm"]: "left"): only that arm moves, within the real rig's limits; the other
+        # stays at its start pose, where the real rig's second arm is parked
+        self.only = ARMS[scene["arm"]] if scene and scene.get("arm") else None
+        self.rig = rig_limits() if self.only else None
+        if self.only not in (None, "L"):
+            raise ValueError('a one-armed scene uses the left arm (the real rig\'s): "arm": "left"')
         for P in SIDE:
             A = Arm(); A.P = P; A.side = SIDE[P]
             A.arm_j = [m.joint(f"{P}_joint{i + 1}").id for i in range(7)]
@@ -128,6 +146,8 @@ class BiCore:
             A.arm_a = np.array([m.actuator(f"{P}_a{i + 1}").id for i in range(7)])
             A.lo, A.hi = m.jnt_range[A.arm_j, 0] + 0.02, m.jnt_range[A.arm_j, 1] - 0.02
             A.home = m.key("home").qpos[A.qa].copy()
+            if P == self.only:
+                A.lo, A.hi = np.maximum(A.lo, self.rig.lo), np.minimum(A.hi, self.rig.hi)
             A.base, A.elbow = m.body(f"{P}_link0").id, m.body(f"{P}_link4").id
             self._init_arm(A)
             self.arms[P] = A
@@ -593,7 +613,7 @@ class BiCore:
                 o = c.geom2 if a1 == P else c.geom1
                 if int(m.geom_bodyid[o]) in ignore:
                     continue
-                return "the other arm" if self.geom_arm[o] else self._body_label(int(m.geom_bodyid[o]))
+                return ("the parked right arm" if self.only else "the other arm") if self.geom_arm[o] else self._body_label(int(m.geom_bodyid[o]))
         return None
 
     def arms_collide(self, P, q):
@@ -615,8 +635,29 @@ class BiCore:
             return
         for q in list(Q[2::2]) + [Q[-1]]:
             if self.arms_collide(P, q):
+                if self.only:
+                    raise Stop("the arm would run into the parked right arm on the way: go round (up, then across), or "
+                               "choose another orientation")
                 raise Stop("the two arms would run into each other on the way: move the other arm out of the way first, "
                            "go round (up, then across), or choose another orientation")
+
+    def _rig_why(self, P, Q):
+        """Why the real rig's limits refuse the waypoints Q of arm P (None: they do not, or this is not a one-armed
+        scene). Not when the arm is already outside them: a way out."""
+        if self.rig is None or P != self.only or self.rig.check_q(Q[0]):
+            return None
+        return next((w for w in (self.rig.check_q(q) for q in list(Q[3::3]) + [Q[-1]]) if w), None)
+
+    def _check_rig(self, P, Q):
+        why = self._rig_why(P, Q)
+        if why:
+            e = Stop(f"the arm's safety limits refuse that move ({why}; m, rad): go another way, or choose another pose")
+            e.rig = True
+            raise e
+
+    def _check_only(self, P):
+        if self.only and P != self.only:
+            raise Stop(f"this robot uses only its {SIDE[self.only]} arm: the {SIDE[P]} arm stays parked")
 
     def joint_path(self, P, p1, R1):
         """A joint-space path to the pose: the best IK solution whose path touches nothing (the arm and the hand, as
@@ -630,10 +671,11 @@ class BiCore:
             n = max(int(math.ceil(np.abs(q1 - A.q_cmd).max() / 0.01)), 2)
             Q = np.array([A.q_cmd + (q1 - A.q_cmd) * i / n for i in range(n + 1)])
             hit = next((h for h in (self.collides(P, q, held) for q in list(Q[1::2]) + [Q[-1]]) if h), None)
-            if not hit:
+            lim = None if hit else self._rig_why(P, Q)
+            if not hit and not lim:
                 return Q
-            first = first or hit
-        raise Stop(f"out of the arm's reach on a straight line, and the way round by the joints would hit {first}: "
+            first = first or (f"would hit {hit}" if hit else f"is refused by the arm's safety limits ({lim})")
+        raise Stop(f"out of the arm's reach on a straight line, and the way round by the joints {first}: "
                    f"go up first, move in smaller steps, or choose another orientation")
 
     def _execute(self, P, Q, T, guarded, u=None):
@@ -676,6 +718,7 @@ class BiCore:
         """The tool point of arm P along a straight line to p1 with orientation R1 (or, a free move the arm cannot do
         as a line, a joint-space path: self.last_path = "joint"). Returns the stop reason or None; raises Stop (nothing
         moved) when the arm cannot."""
+        self._check_only(P)
         A = self.arms[P]
         p1 = np.asarray(p1, float)
         self.last_path = "line"
@@ -691,10 +734,16 @@ class BiCore:
             try:
                 Q, dist, ang = self.plan(P, p1, R1)
                 self._check_arms(P, Q)
-            except Stop:
+                self._check_rig(P, Q)
+            except Stop as line:
                 if guarded:
                     raise
-                Q = self.joint_path(P, p1, R1); self.last_path = "joint"
+                try:
+                    Q = self.joint_path(P, p1, R1); self.last_path = "joint"
+                except Stop:
+                    if getattr(line, "rig", False):                   # (the limits' own reason says more)
+                        raise line from None
+                    raise
                 dist, ang = float(np.linalg.norm(p1 - p0)), float(np.abs(Q[-1] - Q[0]).max()) * 1.2
         low = min(p0[2], p1[2]) < LOW_Z
         v = v or (V_SLOW if guarded or low else V_FREE)
@@ -704,6 +753,7 @@ class BiCore:
     def turn(self, P, centre, axis, angle_deg, w=math.radians(30)):
         """Rotate the whole hand of arm P rigidly by angle_deg about the line through centre along axis (right-hand
         rule: axis (0, 0, 1) and a positive angle = counter-clockwise seen from above). -> stop reason or None."""
+        self._check_only(P)
         A = self.arms[P]
         axis = np.asarray(axis, float); axis = axis / max(np.linalg.norm(axis), 1e-9); c = np.asarray(centre, float)
         p0, R0 = self.fk(P, A.q_cmd)
@@ -713,10 +763,12 @@ class BiCore:
             E = expm(axis * th * i / n); poses.append((c + E @ (p0 - c), E @ R0))
         Q = self._follow(P, poses)
         self._check_arms(P, Q)
+        self._check_rig(P, Q)
         return self._execute(P, Q, max(abs(th) / w, 0.3), False)
 
     def go_home(self, P):
         """Back to the start pose by the joints (collision-checked)."""
+        self._check_only(P)
         p, R = self.fk(P, self.arms[P].home)
         A = self.arms[P]
         n = max(int(math.ceil(np.abs(A.home - A.q_cmd).max() / 0.01)), 2)
@@ -726,6 +778,9 @@ class BiCore:
             hit = self.collides(P, q, held)
             if hit:
                 raise Stop(f"the way home by the joints would hit {hit}: move clear first")
+        why = self._rig_why(P, Q)
+        if why:
+            raise Stop(f"the way home by the joints is refused by the arm's safety limits ({why}): move clear first")
         self.last_path = "joint"
         return self._execute(P, Q, max(float(np.abs(Q[-1] - Q[0]).max()) * 1.2 / W_TURN, 0.3), False)
 

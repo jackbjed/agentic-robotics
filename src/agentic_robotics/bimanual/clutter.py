@@ -70,6 +70,26 @@ OOD = dict(scale=((0.5, 0.72), (1.3, 1.6)), more=(4, 7), density=((100, 250), (2
            bin_inner=((160, 200), (290, 340)), bin_h=((35, 50), (95, 110)), bin_yaw=((-45, -25), (25, 45)))
 OOD_BIN_COLOURS = {"blue": (45, 85, 170), "green": (45, 130, 70), "red": (175, 45, 40), "yellow": (225, 195, 50)}
 TRIES = 60                                                      # heaps drawn for one scene before giving up
+# one-armed scenes (arm="left": the left arm alone within the real rig's safety limits, the right arm parked;
+# clutter_one_arm.py, tasks pick_clutter_one_arm_*; medium and hard): where the heaps are (training, and the places
+# outside it), the limits of a scene set up by hand, and where an object may lie at the start ("reach", its centre):
+# where the arm's gripper gets from above within the rig's limits (scripts: the reach map in docs/bimanual.md) - not
+# nearer than x = -480, not in the corner beside the parked arm (x < corner x and y < corner y), not further than
+# `radius` from the arm's base
+ONE_ARM = dict(x=(-360, -220), y=(-120, 30),
+               place=dict(near=dict(x=(-430, -380), y=(-120, 30)), far=dict(x=(-180, -120), y=(-120, 30)),
+                          side=dict(x=(-270, -180), y=(-300, -240)), beyond=dict(x=(-380, -240), y=(350, 430))),
+               limits=dict(x=(-470.0, -100.0), y=(-360.0, 540.0)),
+               reach=dict(x=(-480.0, -60.0), y=(-390.0, 570.0), corner=(-345.0, -225.0), base=(-790.0, 40.0), radius=740.0))
+ARMS = (None, "left")
+
+
+def out_of_reach(P):
+    """Which of the points P [n, 2 or 3] (m) lie outside the one-armed scenes' reach (ONE_ARM["reach"])."""
+    R = ONE_ARM["reach"]
+    x, y = np.asarray(P, float)[:, 0] * 1000, np.asarray(P, float)[:, 1] * 1000
+    return ((x < R["x"][0]) | (x > R["x"][1]) | (y < R["y"][0]) | (y > R["y"][1]) | ((x < R["corner"][0]) & (y < R["corner"][1]))
+            | (np.hypot(x - R["base"][0], y - R["base"][1]) > R["radius"]))
 
 
 # ---------------------------------------------------------------------- the objects
@@ -517,6 +537,8 @@ def _make(sc, rng):
         return "the heap is on the ruler"
     if not (-0.585 < float(np.min(P[:, 0] - np.array(H.r))) and float(np.max(P[:, 0] + np.array(H.r))) < 0.0 and float(np.min(P[:, 1] - np.array(H.r))) > -0.585):
         return "the heap is too near the table's edge"
+    if sc.get("arm") and (np.any(out_of_reach(P)) or float(np.max(P[:, 1] + np.array(H.r))) > 0.585):
+        return "an object is out of the arm's reach"
     touch, floor = H.touching(0)
     seen, cover = _seen(H.m, d, sc)
     for view, (lo, hi) in SEEN[level].items():
@@ -545,9 +567,11 @@ def _pick(rng, r):
     return float(rng.uniform(*r[int(rng.integers(len(r)))]))
 
 
-def _draw(level, seed, attempt):
-    """The objects of a scene (not yet a heap): the target first. Below OOD_FROM within the training limits."""
+def _draw(level, seed, attempt, arm=None):
+    """The objects of a scene (not yet a heap): the target first. Below OOD_FROM within the training limits. arm: a
+    one-armed scene (ONE_ARM: the same objects as the two-armed scene of that seed, the heap where that arm reaches)."""
     T = TRAIN
+    places, here = (ONE_ARM["place"], ONE_ARM) if arm else (OOD["place"], T)
     rng = np.random.default_rng([13, LEVELS.index(level), int(seed), attempt])
     which = []
     if seed >= OOD_FROM:
@@ -558,8 +582,8 @@ def _draw(level, seed, attempt):
                 break
         if rng.random() < 0.3:
             which.append("density")
-    place = str(rng.choice(list(OOD["place"]))) if "place" in which else None
-    X, Y = (OOD["place"][place]["x"], OOD["place"][place]["y"]) if place else (T["x"], T["y"])
+    place = str(rng.choice(list(places))) if "place" in which else None
+    X, Y = (places[place]["x"], places[place]["y"]) if place else (here["x"], here["y"])
     centre = [round(float(rng.uniform(*X)), 1), round(float(rng.uniform(*Y)), 1)]
     n = int(rng.integers(T["n"][level][0], T["n"][level][1] + 1)) + (int(rng.integers(OOD["more"][0], OOD["more"][1] + 1)) if "count" in which else 0)
     box = None
@@ -602,16 +626,20 @@ def _draw(level, seed, attempt):
         o["rgb"] = _jit(rng, palette[o["color"]])
     sc = dict(kind=KIND, level=level, seed=int(seed), objects=objs, target=0, bin=box, centre_mm=centre, _ring=ring, _covers=covers,
               ood=[w for w in which if w != "place"] + ([f"place:{place}"] if place else []))
+    if arm:
+        sc["arm"] = arm
     return sc, rng
 
 
 @functools.lru_cache(maxsize=512)
-def _sample(level, seed):
+def _sample(level, seed, arm=None):
     if level not in LEVELS:
         raise KeyError(f"unknown level {level!r}: {LEVELS}")
+    if arm not in ARMS or (arm and level == "extra_hard"):
+        raise KeyError('one-armed scenes: arm "left", levels medium and hard')
     why = []
     for attempt in range(TRIES):
-        sc, rng = _draw(level, seed, attempt)
+        sc, rng = _draw(level, seed, attempt, arm)
         w = _make(sc, rng)
         if not w:
             sc = {k: v for k, v in sc.items() if not k.startswith("_")}
@@ -621,10 +649,11 @@ def _sample(level, seed):
     raise RuntimeError(f"no {level} heap for seed {seed} in {TRIES} tries: {sorted(set(why))}")
 
 
-def sample(level, seed):
-    """The scene of episode `seed` of pick_clutter_<level> (the same every time)."""
+def sample(level, seed, arm=None):
+    """The scene of episode `seed` of pick_clutter_<level> (the same every time); arm="left": of
+    pick_clutter_one_arm_<level> (the scene says so: "arm")."""
     import copy
-    return copy.deepcopy(_sample(level, int(seed)))
+    return copy.deepcopy(_sample(level, int(seed), arm))
 
 
 def target_name(sc):
@@ -688,7 +717,7 @@ def _vec(v, n, lo, hi, what):
     return [_num(x, lo, hi, what) for x in v]
 
 
-def _check_object(o, what):
+def _check_object(o, what, arm=None):
     """An object's spec, checked -> the fields it gives (shape, size_mm, color, rgb, density, role, name, parts, pos_mm,
     euler_deg)."""
     if not isinstance(o, dict):
@@ -748,7 +777,8 @@ def _check_object(o, what):
         out["role"] = o["role"]
     if "pos_mm" in o:
         p = _vec(o["pos_mm"], 3, -600.0, 600.0, f"{what}.pos_mm")
-        out["pos_mm"] = [_num(p[0], *LIMITS["x"], f"{what}.pos_mm x"), _num(p[1], *LIMITS["y"], f"{what}.pos_mm y"), _num(p[2], 0.0, 400.0, f"{what}.pos_mm z")]
+        L = ONE_ARM["limits"] if arm else LIMITS
+        out["pos_mm"] = [_num(p[0], *L["x"], f"{what}.pos_mm x"), _num(p[1], *L["y"], f"{what}.pos_mm y"), _num(p[2], 0.0, 400.0, f"{what}.pos_mm z")]
         out["euler_deg"] = _vec(o.get("euler_deg", [0, 0, 0]), 3, -360.0, 360.0, f"{what}.euler_deg")
     elif "euler_deg" in o:
         raise ValueError(f"{what}: euler_deg goes with pos_mm")
@@ -786,6 +816,8 @@ def _place(sc, rng, poses):
         return "an object ends off the table, or too near its edge or the robots' side (x > 0)"
     if np.any((P[:, 1] + r > RULER[0] / 1000 - 0.005) & (P[:, 1] - r < RULER[1] / 1000 + 0.005)):
         return "an object ends on the ruler"
+    if sc.get("arm") and np.any(out_of_reach(P)):
+        return "an object ends where the arm does not reach it from above (too near the robot, beside the parked arm, or too far)"
     touch, _ = H.touching(0)
     seen, cover = _seen(H.m, d, sc)
     for k, o in enumerate(sc["objects"]):
@@ -795,9 +827,10 @@ def _place(sc, rng, poses):
     return ""
 
 
-def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES):
+def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES, arm=None):
     """A scene set up by hand -> the scene; ValueError with the reason if it cannot be. spec: {"level", "seed"} alone is
-    sample(level, seed) (a seed below OOD_FROM). With more, a heap of its own (not in a bin):
+    sample(level, seed) (a seed below OOD_FROM). arm="left": a one-armed scene (ONE_ARM's places and limits). With
+    more, a heap of its own (not in a bin):
 
         n_objects    how many objects, the target included (default: as many as the level's heaps have, and no fewer
                      than the target and the objects given; of objects placed by pos_mm: those given)
@@ -822,14 +855,16 @@ def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES):
         raise ValueError(f"level: one of {', '.join(levels)}")
     if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < OOD_FROM:
         raise ValueError(f"seed: a whole number from 0 to {OOD_FROM - 1}")
+    if arm not in ARMS:
+        raise ValueError('arm: "left" (a one-armed scene) or none')
     if not set(spec) - {"level", "seed"}:
-        return sample(level, seed)
+        return sample(level, seed, arm)
     if level == "extra_hard":
         raise ValueError("extra_hard: only by level and seed")
     if not isinstance(spec.get("objects", []), list):
         raise ValueError("objects: a list of objects")
-    tgt = _check_object(spec.get("target", {}), "target")
-    others = [_check_object(o, f"objects[{i}]") for i, o in enumerate(spec.get("objects", []))]
+    tgt = _check_object(spec.get("target", {}), "target", arm)
+    others = [_check_object(o, f"objects[{i}]", arm) for i, o in enumerate(spec.get("objects", []))]
     if "role" in tgt:
         raise ValueError("target: the target has no role")
     n_given = None if spec.get("n_objects") is None else int(_num(spec["n_objects"], *LIMITS["n"], "n_objects"))
@@ -842,7 +877,8 @@ def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES):
     name_of = lambda o: (o.get("color"), o.get("name") if o.get("shape") == "custom" else o.get("shape"))
     if None not in name_of(tgt) and any(name_of(o) == name_of(tgt) for o in others):
         raise ValueError("objects: another object has the target's colour and shape (the task's text could not name the target)")
-    centre = [_num(spec["centre_mm"][0], *LIMITS["x"], "centre_mm x"), _num(spec["centre_mm"][1], *LIMITS["y"], "centre_mm y")] \
+    L, here = (ONE_ARM["limits"], ONE_ARM) if arm else (LIMITS, TRAIN)
+    centre = [_num(spec["centre_mm"][0], *L["x"], "centre_mm x"), _num(spec["centre_mm"][1], *L["y"], "centre_mm y")] \
         if isinstance(spec.get("centre_mm"), (list, tuple)) and len(spec["centre_mm"]) == 2 else None
     if "centre_mm" in spec and centre is None:
         raise ValueError("centre_mm: [x, y]")
@@ -853,7 +889,7 @@ def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES):
         rng = np.random.default_rng([17, LEVELS.index(level), int(seed), attempt])
         n = n_given if n_given is not None else 1 + len(others) if placed else \
             max(1 + len(others), int(rng.integers(TRAIN["n"][level][0], TRAIN["n"][level][1] + 1)))
-        c = centre or [round(float(rng.uniform(*TRAIN["x"])), 1), round(float(rng.uniform(*TRAIN["y"])), 1)]
+        c = centre or [round(float(rng.uniform(*here["x"])), 1), round(float(rng.uniform(*here["y"])), 1)]
         covers = 0 if level == "medium" else int(rng.integers(1, 3))
         ring = int(rng.integers(3, 6))
         R = {r: [o for o in others if o.get("role") == r] for r in ROLES}
@@ -883,6 +919,8 @@ def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES):
             objs.append(o)
         sc = dict(kind=KIND, level=level, seed=int(seed), objects=objs, target=0, bin=None, centre_mm=c, _ring=ring, _covers=covers, ood=[],
                   own=True, placed=bool(placed))
+        if arm:
+            sc["arm"] = arm
         w = _place(sc, rng, [(o["pos_mm"], o["euler_deg"]) for o in [tgt] + others]) if placed else _make(sc, rng)
         if not w:
             sc = {k: v for k, v in sc.items() if not k.startswith("_")}
@@ -900,8 +938,9 @@ _HOW = dict(
                "start it cannot be seen, or only a part of it.")
 
 
-def _text(level, name):
+def _text(level, name, arm=None):
     return (f"Task: take the {name} out of the heap of objects that lies on the table in front of the robot, and hold it up. "
+            + (f"The robot works with its {arm} arm alone (the other one stays parked). " if arm else "")
             + _HOW[level].format(name=name) + " The other objects may be pushed aside, or picked up and put down elsewhere on the "
             f"table. At the end the robot must hold the {name} still with its centre at least {LIFT:.0f} mm above the table, touching "
             "nothing but the robot, and nothing may have fallen off the table; then call done() (or let the program return).")
@@ -909,12 +948,14 @@ def _text(level, name):
 
 def text(sc):
     """The task's text in this scene: it names the target."""
-    return _text(sc["level"], target_name(sc))
+    return _text(sc["level"], target_name(sc), sc.get("arm"))
 
 
 # the task's text without a scene (a session's prompt): each episode's own text names its object
-TEXT = {level: _text(level, "named object").replace("Task: take the named object", "Task: take one object, named in each episode's "
-        "task text by its colour and shape (e.g. \"the red cylinder\"),") for level in LEVELS}
+_NAMED = ("Task: take the named object", "Task: take one object, named in each episode's task text by its colour and shape "
+          "(e.g. \"the red cylinder\"),")
+TEXT = {level: _text(level, "named object").replace(*_NAMED) for level in LEVELS}
+TEXT_ONE_ARM = {level: _text(level, "named object", "left").replace(*_NAMED) for level in LEVELS if level != "extra_hard"}
 
 
 def names(sc):
@@ -984,7 +1025,7 @@ def truth(ep):
     return out
 
 
-def sheet(level, seeds, path, env="sim_bimanual_grippers"):
+def sheet(level, seeds, path, env="sim_bimanual_grippers", arm=None):
     """A picture of the scenes of pick_clutter_<level>, one row each: the scene camera's first image, the heap from
     nearer by, and the same with the other objects made transparent (where the target is)."""
     import gc
@@ -993,7 +1034,7 @@ def sheet(level, seeds, path, env="sim_bimanual_grippers"):
     from .tasks import Episode
     rows = []
     for seed in seeds:
-        ep = Episode(env, f"pick_clutter_{level}", seed=seed, sensors="ideal"); S, sc = ep.S, ep.scene
+        ep = Episode(env, f"pick_clutter_{'one_arm_' if arm else ''}{level}", seed=seed, sensors="ideal"); S, sc = ep.S, ep.scene
         cam = mujoco.MjvCamera(); cam.type = mujoco.mjtCamera.mjCAMERA_FREE
         c = np.mean([S.object_pose(n)[0] for n in names(sc)], axis=0)
         cam.lookat[:] = [c[0], c[1], 0.03]; cam.distance, cam.azimuth, cam.elevation = 0.62, 205, -48
@@ -1022,6 +1063,7 @@ def main(argv=None):
     import time
     ap = argparse.ArgumentParser(description=main.__doc__)
     ap.add_argument("--level", required=True, choices=LEVELS)
+    ap.add_argument("--arm", choices=["left"], help="one-armed scenes (pick_clutter_one_arm_*)")
     ap.add_argument("--seeds", required=True, help="e.g. 2000-2049 or 3,5,5001")
     ap.add_argument("--out", help="a JSON file for the scenes ({seed: scene})")
     ap.add_argument("--sheet", help="a picture of the scenes (a .jpg), see sheet()")
@@ -1030,12 +1072,12 @@ def main(argv=None):
     out = {}
     for s in seeds:
         t = time.time()
-        out[s] = sc = sample(a.level, s)
+        out[s] = sc = sample(a.level, s, a.arm)
         print(f"seed {s} ({sc['attempts']} tries, {time.time() - t:.1f} s): {describe(sc)}")
     if a.out:
         Path(a.out).write_text(json.dumps(out) + "\n")
     if a.sheet:
-        sheet(a.level, seeds, a.sheet)
+        sheet(a.level, seeds, a.sheet, arm=a.arm)
 
 
 if __name__ == "__main__":

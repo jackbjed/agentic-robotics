@@ -20,7 +20,7 @@ import math
 
 import numpy as np
 
-from .core import ARMS, CAMS, GUARD_N, MIN_Z, SAFETY_N, Stop
+from .core import ARMS, CAMS, GUARD_N, MIN_Z, SAFETY_N, SIDE, Stop
 
 TIP_NOISE = 0.1          # N: the Sharpa fingertips' tactile reading
 
@@ -70,6 +70,9 @@ class Robot:
         self.S, self.segmenter = S, segmenter                       # segmenter: perception.sam3 (or None: no service)
         self.kind = S.HANDS                                         # "grippers" | "dexterous"
         self.t0, self.limit = float(S.d.time), time_limit_s
+        if getattr(S, "only", None):                                # a one-armed scene: that arm and its wrist camera
+            self.ARMS = (SIDE[S.only],)
+            self.CAMERAS = ("scene", f"{SIDE[S.only]}_wrist")
         self.frames = {}                                            # the latest frame of each camera
 
     # ------------------------------------------------------------------ time
@@ -91,8 +94,8 @@ class Robot:
         self._time()
         out = {}
         for c in (cameras or self.CAMERAS):
-            if c not in CAMS:
-                raise KeyError(f"camera must be one of {list(CAMS)}")
+            if c not in self.CAMERAS:
+                raise KeyError(f"camera must be one of {list(self.CAMERAS)}")
             out[c] = self.frames[c] = Frame(self.S.observe(c))
         return out
 
@@ -210,8 +213,9 @@ class Robot:
 
     # ------------------------------------------------------------------
     def _arm(self, arm):
-        if arm not in ARMS:
-            raise KeyError('arm must be "right" or "left"')
+        if arm not in self.ARMS:
+            raise KeyError('arm must be "right" or "left"' if len(self.ARMS) > 1 else
+                           f'arm must be "{self.ARMS[0]}": this robot uses only its {self.ARMS[0]} arm')
         return ARMS[arm]
 
     def _kind(self, kind):

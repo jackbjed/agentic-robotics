@@ -47,7 +47,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import clutter, practice, scenes
+from . import clutter, clutter_one_arm, practice, scenes
 from .tasks import TASKS, Episode
 from .tools import Toolbox, openai_items, openai_tools, text
 from .write import VARIES, instructions
@@ -275,8 +275,9 @@ sample_scenes draws. With more fields it is a heap of your own, made in the way 
    "target": {{"shape": "cylinder", "size_mm": [40, 50], "color": "red", "density": 600}},
    "objects": [{{"shape": "box", "size_mm": [110, 60, 15], "color": "blue", "role": "cover"}}, {{"shape": "ball"}}, ...]}}
 
-Every field but level can be left out; what is left out is drawn at random within the environment's ranges, by the
-seed (n_objects too, and the objects beyond those given, up to n_objects). size_mm is [a, b, c] for a box, [diameter, height] for a
+Every field but level can be left out (a field given as null, "" or [] counts as left out); what is left out is drawn
+at random within the environment's ranges, by the seed (n_objects too, and the objects beyond those given, up to
+n_objects). size_mm is [a, b, c] for a box, [diameter, height] for a
 cylinder, [diameter] for a ball, each {size} mm; density {dens} kg/m3; n_objects {n_own} (the target included);
 centre_mm within x {own_x}, y {own_y} (the arms do not reach all of that). color is one of the colours above, or any
 colour's name together with "rgb": [r, g, b] (0..255): the task text names the target by that name. role says how an
@@ -334,6 +335,19 @@ There is no program yet.
 
 The first looks of two practice scenes drawn at random, "example_medium" and "example_hard" (the arms at their start
 poses; the three cameras' colour images):"""
+
+# the two-armed session's texts -> the one-armed robot's (clutter_one_arm.py)
+_ONE_ARM = (("(the arms do not reach all of that)", "(the arm does not reach all of that)"),
+            ("heaps elsewhere on the table within the arms' reach", "heaps elsewhere on the table within the arm's reach"),
+            ("(the arms at their start\nposes; the three cameras' colour images)", "(the arm at its start\npose; the two cameras' colour images)"))
+
+
+def _one_arm(text):
+    for old, new in _ONE_ARM:
+        text = text.replace(old, new)
+    if "arms" in text or "three cameras" in text:
+        raise ValueError("the one-armed session's text still speaks of two arms")
+    return text
 
 CLUTTER_SEEDS = 2000                                            # sample_scenes: the seeds below this (the evaluation's are others)
 CLUTTER_EXAMPLE = 900                                           # the two scenes of the first look: clutter.sample of this seed
@@ -467,7 +481,11 @@ class Session:
     def _save(self, code, note, base=None):
         v = len(self.state["versions"])
         self._path(v).write_text(code if code.endswith("\n") else code + "\n")
-        self.state["versions"].append(dict(note=str(note)[:400], lines=len(code.splitlines()), base=base, runs={}))
+        st = self.state                                             # at: when it was saved (scripts/session_progress.py)
+        tk = st.get("tokens") or {}
+        st["versions"].append(dict(note=str(note)[:400], lines=len(code.splitlines()), base=base, runs={},
+                                   at=dict(turn=st.get("turn", 0), usd=round(self.spent(), 2), tokens=tk.get("input", 0) + tk.get("output", 0),
+                                           min=round((st.get("wall_s", 0.0) + (time.time() - self._t0 if getattr(self, '_t0', None) else 0.0)) / 60, 1))))
         return v
 
     def _version(self, a, key="version"):
@@ -692,6 +710,7 @@ class Session:
         """The session, to its end -> how it ended. (A session stopped by a failing model call, or killed, can be
         resumed: the state is kept after every step.)"""
         st, t0 = self.state, time.time()
+        self._t0 = t0
         try:
             while not st["ended"]:
                 if st["wall_s"] + time.time() - t0 > self.max_hours * 3600:
@@ -726,7 +745,7 @@ class Session:
                     self._ask_notes()
                 self._keep()
         finally:
-            st["wall_s"] = round(st["wall_s"] + time.time() - t0, 1)
+            st["wall_s"], self._t0 = round(st["wall_s"] + time.time() - t0, 1), None
             if self.asker is not None:
                 self.asker.close(); self.asker = None
             if self.bridge is not None:
@@ -765,6 +784,7 @@ class Session:
         st["usd"] = round(st["usd"] + st["turn_usd"], 5)
         st["prev"], st["last"] = r["id"], r.get("tokens") or {}
         tk = st["last"]
+        st["tokens"] = {k: (st.get("tokens") or {}).get(k, 0) + int(tk.get(k) or 0) for k in ("input", "cached", "output")}
         said = _said(r)
         st["calls"] = [dict(call_id=o.get("call_id"), name=o.get("name"), arguments=o.get("arguments"))
                        for o in r["output"] if o.get("type") == "function_call"]
@@ -1006,23 +1026,39 @@ class SceneSession(Session):
         return v, n, d
 
 
+def _opt(spec):
+    """A field that can also be null (= left out)."""
+    spec = dict(spec, type=[spec["type"], "null"])
+    if "enum" in spec:
+        spec["enum"] = list(spec["enum"]) + [None]
+    return spec
+
+
+def _given(v):
+    """A scene's spec without the fields given as null, "" or [] (= left out; `objects` keeps its place in the list)."""
+    if isinstance(v, dict):
+        return {k: _given(x) for k, x in v.items() if x is not None and x != "" and x != []}
+    return [_given(x) for x in v] if isinstance(v, list) else v
+
+
 _PART = _obj(type={"type": "string", "enum": list(clutter.PARTS)}, size_mm={"type": "array", "items": _N},
-             pos_mm={"type": "array", "items": _N}, euler_deg={"type": "array", "items": _N})
+             pos_mm=_opt({"type": "array", "items": _N}), euler_deg=_opt({"type": "array", "items": _N}))
 _CLUTTER_OBJECT = _obj(
-    "an object (the instructions: Scenes of your own); every field can be left out",
-    shape={"type": "string", "enum": list(clutter.SHAPES) + ["custom"]}, size_mm={"type": "array", "items": _N},
-    color={"type": "string"}, rgb={"type": "array", "items": {"type": "integer"}, "minItems": 3, "maxItems": 3}, density=_N,
-    role={"type": "string", "enum": list(clutter.ROLES), "description": "not for the target"},
-    name={"type": "string", "description": "a custom object's name"}, parts={"type": "array", "items": _PART},
-    pos_mm={"type": "array", "items": _N, "minItems": 3, "maxItems": 3}, euler_deg={"type": "array", "items": _N, "minItems": 3, "maxItems": 3})
+    "an object (the instructions: Scenes of your own); every field can be left out, or be null",
+    shape=_opt({"type": "string", "enum": list(clutter.SHAPES) + ["custom"]}), size_mm=_opt({"type": "array", "items": _N}),
+    color=_opt({"type": "string"}), rgb=_opt({"type": "array", "items": {"type": "integer"}}), density=_opt(_N),
+    role=_opt({"type": "string", "enum": list(clutter.ROLES), "description": "not for the target"}),
+    name=_opt({"type": "string", "description": "a custom object's name"}), parts=_opt({"type": "array", "items": _PART}),
+    pos_mm=_opt({"type": "array", "items": _N}), euler_deg=_opt({"type": "array", "items": _N}))
 _NAMES = {"type": "array", "items": {"type": "string", "description": "a scene's name, or a range such as s10..s49"}}
 
 
 def _clutter_tools(levels):
     keep = {s["name"]: s for s in TOOLS}
     lv = {"type": "string", "enum": list(levels)}
-    scene = _obj("a scene (the instructions: Scenes of your own)", level=lv, seed={"type": "integer"}, n_objects={"type": "integer"},
-                 centre_mm=_XY, target=_CLUTTER_OBJECT, objects={"type": "array", "items": _CLUTTER_OBJECT})
+    scene = _obj("a scene (the instructions: Scenes of your own); every field but level can be left out, or be null",
+                 level=lv, seed=_opt({"type": "integer"}), n_objects=_opt({"type": "integer"}),
+                 centre_mm=_opt(_XY), target=_opt(_CLUTTER_OBJECT), objects=_opt({"type": "array", "items": _CLUTTER_OBJECT}))
     scene["required"] = ["level"]
     out = [keep["write_program"], keep["edit_program"],
            _spec("sample_scenes", "Draw scenes at random from a level's environment -> their names, one line each.",
@@ -1054,13 +1090,21 @@ class ClutterSession(SceneSession):
 
     _WALL = practice.WALL_S
 
-    def __init__(self, out, env, levels, vlm, ask=None, **k):
-        self.levels, self.ask = tuple(levels), ask
+    def __init__(self, out, env, levels, vlm, ask=None, arm=None, **k):
+        """arm="left": the one-armed robot's environments (clutter_one_arm.py)."""
+        self.levels, self.ask, self.arm = tuple(levels), ask, arm
         if not self.levels or any(l not in ("medium", "hard") for l in self.levels):
             raise ValueError("levels: medium, hard")
-        super().__init__(out, env, f"pick_clutter_{self.levels[0]}", vlm, **k)
+        if arm not in clutter.ARMS or (arm and env != "sim_bimanual_grippers"):
+            raise ValueError('arm: "left" (the one-armed robot, in sim_bimanual_grippers) or none')
+        super().__init__(out, env, self._task(self.levels[0]), vlm, **k)
         if tuple(self.state.get("levels", self.levels)) != self.levels:
             raise ValueError(f"this session was started with the levels {', '.join(self.state['levels'])}")
+        if self.state.get("arm", arm) != arm:
+            raise ValueError(f"this session was started {'with the ' + self.state['arm'] + ' arm alone' if self.state.get('arm') else 'with both arms'}")
+
+    def _task(self, level):
+        return clutter_one_arm.task(level) if self.arm else f"pick_clutter_{level}"
 
     def _specs(self):
         return _clutter_tools(self.levels)
@@ -1069,39 +1113,41 @@ class ClutterSession(SceneSession):
         return []
 
     def _limit(self, level):
-        return TASKS[f"pick_clutter_{level}"].time_limit_s
+        return TASKS[self._task(level)].time_limit_s
 
     def _instructions(self, kind):
         model = (getattr(self.vlm, "m", None) or {}).get("model", "the model you are")
         return instructions(kind, " or ".join(f"{self._limit(l):.0f} s ({l})" for l in self.levels), self.segmenter,
-                            closing=self._closing(), asker=model if self.ask is not None else None)
+                            closing=self._closing(), asker=model if self.ask is not None else None, arm=self.arm)
 
     def _closing(self):
         T, S, L = clutter.TRAIN, clutter.SEEN, clutter.LIMITS
+        P, O = (clutter.ONE_ARM, clutter.ONE_ARM["limits"]) if self.arm else (T, L)       # where the heaps are; a scene of one's own
         r = lambda v: f"{v[0]:g}..{v[1]:g}"
-        return _CLUTTER.format(
-            at_once=AT_ONCE_SCENES, set_n=SET_N, points=practice.POINTS["pick_clutter_medium"], shown=practice.SHOWN,
+        return (_one_arm(_CLUTTER) if self.arm else _CLUTTER).format(
+            at_once=AT_ONCE_SCENES, set_n=SET_N, points=practice.POINTS[self._task("medium")], shown=practice.SHOWN,
             rules="\n" + practice.RULES, n_eval=self.n_eval, budget=self.budget, seed_hi=CLUTTER_SEEDS - 1,
             n_medium=f"{T['n']['medium'][0]} to {T['n']['medium'][1]}", n_hard=f"{T['n']['hard'][0]} to {T['n']['hard'][1]}",
             m_scene=S["medium"]["scene"][0], m_top=S["medium"]["top"][0], h_scene=S["hard"]["scene"][1], h_top=S["hard"]["top"][1],
             t_medium=self._limit("medium"), t_hard=self._limit("hard"), cover="90..130 x 55..75 x 10..25 mm",
-            x=r(T["x"]), y=r(T["y"]), ruler=r(clutter.RULER), density=r(T["density"]), colours=", ".join(clutter.COLOURS),
+            x=r(P["x"]), y=r(P["y"]), ruler=r(clutter.RULER), density=r(T["density"]), colours=", ".join(clutter.COLOURS),
             tb="28..58", tcd="28..58", tch="28..65", tball="32..58", ob="25..80 x 25..80 x 20..80", ocd="25..75", och="20..90", oball="28..65",
-            size=r(L["size"]), dens=r(L["density"]), n_own=r(L["n"]), own_x=r(L["x"]), own_y=r(L["y"]), parts=L["parts"],
+            size=r(L["size"]), dens=r(L["density"]), n_own=r(L["n"]), own_x=r(O["x"]), own_y=r(O["y"]), parts=L["parts"],
             tries=clutter.BUILD_TRIES)
 
     def _intro(self):
-        t = "\n\n".join(f"The {l} level. {clutter.TEXT[l]}" for l in self.levels)
-        return "Picking from clutter, at two levels.\n\n" + t + "\n\n" + ASK_CLUTTER
+        T = clutter_one_arm.TEXT if self.arm else clutter.TEXT
+        t = "\n\n".join(f"The {l} level. {T[l]}" for l in self.levels)
+        return f"Picking from clutter{' with one arm' if self.arm else ''}, at two levels.\n\n" + t + "\n\n" + ASK_CLUTTER
 
     def _first(self):
         st = self.state
-        st["eval_set"], st["tables"], st["levels"] = False, False, list(self.levels)
-        st["scenes"] = {f"example_{l}": clutter.sample(l, CLUTTER_EXAMPLE) for l in self.levels}
+        st["eval_set"], st["tables"], st["levels"], st["arm"] = False, False, list(self.levels), self.arm
+        st["scenes"] = {f"example_{l}": clutter.sample(l, CLUTTER_EXAMPLE, self.arm) for l in self.levels}
         st["n_scenes"] = 0
-        images, content = [], [{"type": "input_text", "text": self._intro() + _FIRST_CLUTTER}]
+        images, content = [], [{"type": "input_text", "text": self._intro() + (_one_arm(_FIRST_CLUTTER) if self.arm else _FIRST_CLUTTER)}]
         for n, sc in st["scenes"].items():
-            ep = Episode(self.env, f"pick_clutter_{sc['level']}", seed=sc["seed"], sensors=self.sensors, scene=sc)
+            ep = Episode(self.env, self._task(sc["level"]), seed=sc["seed"], sensors=self.sensors, scene=sc)
             content.append({"type": "input_text", "text": f"\n{n}. Its task text: {ep.text}"})
             content += openai_items(Toolbox(ep.robot).call("look", {}, free=True), images)
         return [{"role": "user", "content": content}], images
@@ -1118,9 +1164,9 @@ class ClutterSession(SceneSession):
             if rs:
                 ok = [r[1] for r in rs if r[0]]
                 calls = [r[2] for r in rs if len(r) > 2]
-                parts.append(f"{l} {len(ok)}/{len(rs)}" + (f" ({sum(ok) / len(ok):.0f} s" if ok else " (")
-                             + (f"{', ' if ok else ''}{sum(calls) / len(calls):.1f} calls)" if calls else ")" if ok else ""))
-        return ", ".join(p.replace(" ()", "") for p in parts)
+                extra = ([f"{sum(ok) / len(ok):.0f} s"] if ok else []) + ([f"{sum(calls) / len(calls):.1f} calls"] if calls else [])
+                parts.append(f"{l} {len(ok)}/{len(rs)}" + (f" ({', '.join(extra)})" if extra else ""))
+        return ", ".join(parts)
 
     def results_line(self):
         out = [f"v{v} " + self._by_level(m["runs"]) for v, m in enumerate(self.state["versions"]) if m["runs"]]
@@ -1141,11 +1187,12 @@ class ClutterSession(SceneSession):
         try:
             if not isinstance(spec, dict):
                 raise ValueError("a scene is a JSON object")
+            spec = _given(spec)
             seed = spec.get("seed", n % CLUTTER_SEEDS)
             drawn = not set(spec) - {"level", "seed"}
             if drawn and (isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < CLUTTER_SEEDS):
                 raise ValueError(f"seed: a scene drawn from an environment has a seed from 0 to {CLUTTER_SEEDS - 1}")
-            sc = clutter.build(spec, seed=seed, levels=self.levels)
+            sc = clutter.build(spec, seed=seed, levels=self.levels, arm=self.arm)
         except (ValueError, TypeError, KeyError, RuntimeError) as e:
             out.append(f"REFUSED ({json.dumps(spec)[:200]}): {str(e) or type(e).__name__}")
             return
@@ -1161,7 +1208,7 @@ class ClutterSession(SceneSession):
             raise ValueError(f"count: 1 to 60; the seeds first_seed to first_seed + count - 1 must be within 0 to {CLUTTER_SEEDS - 1}")
         out = []
         with ThreadPoolExecutor(16) as ex:                          # (clutter.sample keeps them)
-            list(ex.map(lambda seed: clutter.sample(level, seed), range(first, first + count)))
+            list(ex.map(lambda seed: clutter.sample(level, seed, self.arm), range(first, first + count)))
         for seed in range(first, first + count):
             self._add({"level": level, "seed": seed}, out, False)
         return [text("\n".join(out))]
@@ -1171,7 +1218,7 @@ class ClutterSession(SceneSession):
         if not isinstance(specs, list) or not specs or len(specs) > 12:
             raise ValueError("scenes: a list of 1 to 12 scene objects")
         for spec in specs:
-            self._add(spec, out, isinstance(spec, dict) and bool(set(spec) - {"level", "seed"}))
+            self._add(spec, out, isinstance(spec, dict) and bool(set(_given(spec)) - {"level", "seed"}))
         return [text("\n".join(out))]
 
     def _names(self, names):
@@ -1209,7 +1256,7 @@ class ClutterSession(SceneSession):
         sc = self.state["scenes"]
         with ThreadPoolExecutor(len(new)) as ex:                    # (practice.SLOTS bounds how many run at the same time)
             list(ex.map(lambda n: practice.run_sandboxed(
-                self.env, f"pick_clutter_{sc[n]['level']}", sc[n]["seed"], self._path(v), self._run_dir(v, n), sensors=self.sensors,
+                self.env, self._task(sc[n]["level"]), sc[n]["seed"], self._path(v), self._run_dir(v, n), sensors=self.sensors,
                 trace=True, bridge=self.bridge, wall_s=self._WALL, scene=sc[n], practice=True, asker=self.asker,
                 ask_label=f"v{v}_{n}"), new))
 
@@ -1294,11 +1341,17 @@ def _asked(r, brief=False):
             + (f" (${r['model_usd']:.3f}; {r['model_wait_s']:.0f} s of the robot time waiting for them)" if r["model_calls"] else ""))
 
 
+def _level_of(r):
+    """" (medium)" for a clutter episode's result, "" for another task's."""
+    t = str(r.get("task", ""))
+    return f" ({t[len('pick_clutter_'):].replace('one_arm_', '')})" if t.startswith("pick_clutter_") else ""
+
+
 def _episode_line(v, s, r, d, ep="seed"):
     """An episode's result in one line (a whole evaluation set at once)."""
     j = {k: x for k, x in r.items() if k in ("on_stick", "released", "stand_upright", "off_axis_mm", "stick_through_mm",
                                              "held", "height_mm", "held_by", "touches", "fallen")}
-    level = f" ({r['task'][len('pick_clutter_'):]})" if str(r.get("task", "")).startswith("pick_clutter_") else ""
+    level = _level_of(r)
     return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s{_asked(r, True)}; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])[:160]}" + ("" if r["ok"] else f"; judge: {json.dumps(j)}"))
 
@@ -1307,7 +1360,7 @@ def _episode_text(v, s, r, d, ep="seed"):
     pos = lambda t: "; ".join(f"{n} {tuple(p) if isinstance(p, list) else p}" for n, p in t.items())
     shown = sorted(p.name for p in (Path(d) / "shown").glob("*.png")) if (Path(d) / "shown").exists() else []
     n_lines = len((Path(d) / "output.txt").read_text(errors="replace").splitlines())
-    level = f" ({r['task'][len('pick_clutter_'):]})" if str(r.get("task", "")).startswith("pick_clutter_") else ""
+    level = _level_of(r)
     return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s of robot time, {r['commands']} robot commands"
             f"{_asked(r)}; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])}\n"
@@ -1319,9 +1372,10 @@ def _episode_text(v, s, r, d, ep="seed"):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--env", required=True, choices=["sim_bimanual_grippers", "sim_bimanual_dexterous"])
-    ap.add_argument("--task", required=True, choices=list(TASKS) + ["pick_clutter"],
+    ap.add_argument("--task", required=True, choices=list(TASKS) + ["pick_clutter", "pick_clutter_one_arm"],
                     help="pick_clutter: one program for several levels of picking from clutter (--levels), from nothing, with "
-                         "scenes of the model's own and model calls inside the episodes (robot.ask)")
+                         "scenes of the model's own and model calls inside the episodes (robot.ask); pick_clutter_one_arm: the "
+                         "same for the one-armed robot (the left arm alone, within the real rig's limits)")
     ap.add_argument("--levels", nargs="+", default=["medium", "hard"], choices=["medium", "hard"], help="pick_clutter: its levels")
     ap.add_argument("--model", required=True, help="a model of configs/models.yaml")
     ap.add_argument("--start", help="the starting program (v0); none: the model starts from nothing")
@@ -1350,12 +1404,12 @@ def main(argv=None):
                      max_usd_per_call=a.budget_usd), tag=f"{tag}:{a.env}:{a.task}")
     kw = dict(budget_usd=a.budget_usd, sensors=a.sensors, segmenter=bool(a.segmenter), effort=a.effort, max_output_tokens=a.max_output_tokens,
               n_eval=a.eval_episodes, max_hours=a.max_hours, spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
-    if a.task == "pick_clutter":
+    if a.task in ("pick_clutter", "pick_clutter_one_arm"):
         if a.start or a.eval_set or a.tables:
             ap.error("--start, --eval-set, --tables: not for pick_clutter")
         ask = lambda label: V.VLM(dict(model=a.model, max_calls_per_episode=practice.ASK["calls"], max_usd_per_episode=practice.ASK["reserve_usd"],
                                        run_usd=a.budget_usd - ASK_KEEP), tag=f"{tag}:ask:{label}")
-        s = ClutterSession(out, a.env, a.levels, vlm, ask=ask, **kw)
+        s = ClutterSession(out, a.env, a.levels, vlm, ask=ask, arm=clutter_one_arm.ARM if a.task == "pick_clutter_one_arm" else None, **kw)
     elif TASKS[a.task].scene:
         if a.start:
             ap.error("--start: a session on a task with varied scenes starts from nothing")

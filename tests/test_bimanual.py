@@ -674,3 +674,70 @@ def test_clutter_session_with_a_stub_model(tmp_path):
     r = v["results"][0]                                         # an evaluation: the model, and no truth
     assert not r["ok"] and "TypeError" in r["ended"] and r["scene"] == C.sample("hard", C.OOD_FROM + 1)
     assert r["model_calls"] == 4 and v["model_calls"] == 4 and v["model_usd"] == 0.04 and asked[-1][0] == f"s{C.OOD_FROM + 1}"
+
+
+def test_one_arm_clutter_session_with_a_stub_model(tmp_path):
+    """The clutter session of the one-armed robot (clutter_one_arm.py): the left arm alone in the instructions, the first
+    looks, the scenes and the episodes; a scene's fields given as null or empty count as left out; each version records
+    when it was saved (scripts/session_progress.py)."""
+    import subprocess
+    import sys
+    from agentic_robotics.bimanual import clutter as C, clutter_one_arm as O, improve, write
+
+    class Dev:
+        m = {"model": "stub-model"}
+
+        def __init__(self, calls):
+            self.calls, self.seen = list(calls), []
+
+        def respond(self, input, images, **k):
+            self.seen.append(dict(input=input, n_images=len(images), **k))
+            n, out = len(self.seen), []
+            if self.calls:
+                name, args = self.calls.pop(0)
+                out.append({"type": "function_call", "call_id": f"c{n}", "name": name, "arguments": json.dumps(args)})
+            return dict(ok=True, id=f"r{n}", status="completed", output=out, usd=0.01, wait_s=0.0, tokens=dict(input=1000, cached=0, output=100, reasoning=0))
+
+        def results(self):
+            return ["\n".join(c["text"] for c in i.get("output", []) if c.get("type") == "input_text") for s in self.seen for i in s["input"]]
+
+    prog = ("def run(robot, task):\n    f = robot.look()\n    print('cameras', sorted(f), 'target', robot.truth()['target'])\n"
+            "    for what in (lambda: robot.state('right'), lambda: robot.look(['right_wrist']),\n"
+            "                 lambda: robot.move('right', [-400, -300, 300], [0, 0, -1], [0, 1, 0])):\n"
+            "        try:\n            what()\n        except Exception as e:\n            print('refused:', e)\n"
+            "    print('moved', robot.move('left', [-300, -50, 200], [0, 0, -1], [0, 1, 0])['done'])\n")
+    blank = dict(role=None, name="", parts=[], pos_mm=None, euler_deg=None)     # the fields a model fills in although unused
+    own = [dict(level="medium", seed=100, n_objects=None, centre_mm=[-300, -60], objects=[],
+                target=dict(shape="ball", size_mm=[50], color="cyan", rgb=[40, 210, 220], density=400, **blank)),
+           dict(level="hard", seed=101, centre_mm=None, objects=None, target=dict(
+               shape="custom", size_mm=[], color="purple", rgb=[150, 55, 185], density=700, role=None, name="U-shaped block", pos_mm=None, euler_deg=None,
+               parts=[dict(type="box", size_mm=[60, 18, 18], pos_mm=[0, -22, 0], euler_deg=None),
+                      dict(type="box", size_mm=[18, 44, 18], pos_mm=[-21, 0, 0]), dict(type="box", size_mm=[18, 44, 18], pos_mm=[21, 0, 0])])),
+           dict(level="medium", seed=102, centre_mm=[-520, 0])]
+    dev = Dev([("sample_scenes", dict(level="medium", first_seed=3, count=1)), ("define_scenes", dict(scenes=own)),
+               ("write_program", dict(code=prog, note="looks")), ("run_episodes", dict(scenes=["s1"])), ("submit", dict(final=True))])
+    s = improve.ClutterSession(tmp_path / "a", GRIPPERS, ["medium", "hard"], dev, arm="left", segmenter=True, budget_usd=5.0, n_eval=100, log=lambda *a: None)
+    assert s.task.name == "pick_clutter_one_arm_medium" and s.state["arm"] == "left"
+    assert s.run() == "submitted"
+    res, first = dev.results(), dev.seen[0]
+    ins = first["instructions"]
+    t0 = "\n".join(c["text"] for c in first["input"][0]["content"] if c["type"] == "input_text")
+    assert first["n_images"] == 4 and "Picking from clutter with one arm" in t0 and O.TEXT["hard"] in t0 and "RIGHT arm" not in t0
+    assert "controls a robot arm:" in ins and 'arm is always "left"' in ins and "right_wrist" not in ins and "two-armed" not in ins
+    assert "x -360..-220" in ins and "the arm does not reach all of that" in ins and "arms" not in ins.split("You develop this program")[1]
+    assert "counts as left out" in ins and "600 s (medium) or 900 s (hard)" in ins
+    two = write.instructions("grippers", "600 s", True)         # the two-armed robot's text is not touched
+    assert "controls a two-armed robot:" in two and "right_wrist" in two
+    assert s.state["scenes"]["s1"] == O.sample("medium", 3) == C.sample("medium", 3, "left") and s.state["scenes"]["s1"]["arm"] == "left"
+    assert "s2 (seed 100): medium: target item_0, the cyan ball" in res[2] and "s3 (seed 101): hard: target item_0, the purple U-shaped block" in res[2]
+    assert res[2].count("REFUSED") == 1 and "centre_mm x: a number from -470 to -100" in res[2]
+    assert "cameras ['left_wrist', 'scene'] target item_0" in res[4] and res[4].count("refused: ") == 3 and "moved True" in res[4]
+    assert "this robot uses only its left arm" in res[4] and "v0 scene s1 (medium): FAILED" in res[4]
+    at = s.state["versions"][0]["at"]
+    assert at["turn"] == 3 and at["usd"] == 0.03 and at["tokens"] == 3300 and s.state["tokens"] == dict(input=5000, cached=0, output=500)
+    out = subprocess.run([sys.executable, str(ROOT / "scripts/session_progress.py"), str(tmp_path / "a")], capture_output=True, text=True, check=True).stdout
+    assert "1 versions, 5 turns" in out and "| v0 | 3 | 0.03 |" in out and "medium 0/1" in out and "turn 5 (final)" in out and "| looks |" in out
+    with pytest.raises(ValueError, match="left arm alone"):
+        improve.ClutterSession(tmp_path / "a", GRIPPERS, ["medium", "hard"], dev, budget_usd=5.0, log=lambda *a: None)
+    with pytest.raises(ValueError, match="arm:"):
+        improve.ClutterSession(tmp_path / "b", DEXTEROUS, ["medium"], dev, arm="left", budget_usd=5.0, log=lambda *a: None)

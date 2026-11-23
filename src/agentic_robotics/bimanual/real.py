@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import math
 import re
+import time
 from pathlib import Path
 
 import numpy as np
@@ -52,6 +53,9 @@ RIG_CAMS = {"scene": "d415", "left_wrist": "L_wrist"}           # what the rig h
 PARK_Y = -280.0                                                 # mm: the parked right arm's side (rig.json keep-out)
 DESCEND_Z = 0.15
 SETTLED = ("transit", "lift", "descend", "turn the hand", "settle")   # _go's phases that end with a settle
+GRIP_STEADY = (0.8, 5.0)        # s: after a gripper command the real opening is read until it has not changed for the
+                                # first (at most the second): the gripper's state comes every 0.2-0.33 s, so the arm
+                                # server's own wait (0.25 s without a change) can return in the middle of the motion
 PUSH = dict(dz=0.010, df=15.0)                                  # (arm_server._guard's upper limits)
 
 
@@ -92,6 +96,7 @@ class RealRobot:
         (shown/); hello: the server's; ask: the server answers robot.ask; trace: a file for the commands' log."""
         self.S, self.link, self.seg, self.out, self.trace = S, link, seg, Path(out), trace
         self.dry = hello.get("mode") == "dry"
+        self.grip_steady = GRIP_STEADY if hello.get("backend") == "robot" and not self.dry else None
         self.settle_all = bool(settle_all) and isinstance(S.backend, ReplyArm)
         if self.settle_all:
             S.backend.settle_phases = SETTLED
@@ -274,7 +279,8 @@ class RealRobot:
         g = float(np.clip(width_mm, 0, 80)) / 2000.0
 
         def go():
-            if abs(g - S.g_sent) > 1e-6:
+            moved = abs(g - S.g_sent) > 1e-6
+            if moved:
                 S._set_phase("close" if g < S.g_sent else "release")
                 S._queue([S.q_cmd.copy()] * 9, g, DT)               # (0.3 s in place, with the gripper's command)
                 S.g_cmd = g; S.d.ctrl[S.grip] = g
@@ -285,9 +291,26 @@ class RealRobot:
                     self._end(f"the gripper command was refused: {e}")
                 except _Stopped as e:
                     self._end(f"the gripper command was stopped: {e}")
-            w = S.g_cmd * 2 if self.dry else S.finger_width()
+            w = S.g_cmd * 2 if self.dry else self._width(moved)
             return round(max(float(w), 0.0) * 1000, 1)
         return self._call("set_gripper", go, (arm, width_mm))
+
+    def _width(self, moved):
+        """The measured opening (m); after a gripper command on the real arm, once it stands still (GRIP_STEADY)."""
+        S = self.S
+        w = float(S.finger_width())
+        if not (moved and self.grip_steady):
+            return w
+        steady, most = self.grip_steady
+        t0 = t = time.time()
+        while time.time() - t < steady and time.time() - t0 < most:
+            time.sleep(0.05)
+            v = S.sync().get("width")
+            v = 0.0 if v is None else float(v)
+            if abs(v - w) > 2e-4:
+                w, t = v, time.time()
+        S.timeline.append((float(S.d.time), "event", f"gripper steady at {w * 1000:.1f} mm ({time.time() - t0:.1f} s)"))
+        return w
 
     # ------------------------------------------------------------------ show, ask (practice.ProgramRobot's)
     def show(self, label, image):

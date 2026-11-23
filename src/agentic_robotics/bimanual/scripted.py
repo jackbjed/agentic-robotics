@@ -532,7 +532,8 @@ def pick_clutter(S, log=print, rounds=14):
     """Grippers only: the pick_clutter_* tasks (clutter.py), by the TRUE poses. While the target is covered (by rays
     from above, clutter.visibility), the highest object over it is taken away and dropped on the table beside the heap
     (or pushed aside if no grasp holds it); then the target is taken from above and held up. One go, no going back
-    to an earlier state: where it fails, the heap was too much for this procedure, not necessarily for a robot."""
+    to an earlier state: where it fails, the heap was too much for this procedure, not necessarily for a robot.
+    In a one-armed scene (S.only) that arm does it all, and what it takes away goes where it reaches."""
     from . import clutter as C
     if S.HANDS != "grippers":
         raise NotImplementedError("pick_clutter: no reference solution for the Sharpa hands yet")
@@ -540,7 +541,7 @@ def pick_clutter(S, log=print, rounds=14):
     t = f"item_{sc['target']}"
     items = [n for n in C.names(sc) if n != "bin"]
     mid = 0.5 * (S.d.xpos[S.arms["L"].base][1] + S.d.xpos[S.arms["R"].base][1])
-    arms = ("L", "R") if S.object_pose(t)[0][1] > mid + 0.10 else ("R", "L")
+    arms = (S.only,) if S.only else ("L", "R") if S.object_pose(t)[0][1] > mid + 0.10 else ("R", "L")
     c0 = S.object_pose("bin")[0][:2].copy() if sc.get("bin") else np.mean([S.object_pose(n)[0][:2] for n in items], axis=0)
     rad = (float(np.linalg.norm(np.array(sc["bin"]["inner_mm"]) / 2000)) + 0.13) if sc.get("bin") else 0.24
     dropped = 0
@@ -552,7 +553,10 @@ def pick_clutter(S, log=print, rounds=14):
         for k in range(16):
             a = (-1 if P == "R" else 1) * math.pi / 2 + 2 * math.pi * ((dropped + k) % 16) / 16 * (-1) ** k
             q = c0 + rad * np.array([math.cos(a), math.sin(a)])
-            if not (-0.50 <= q[0] <= -0.10 and (-0.50 if P == "R" else -0.15) <= q[1] <= (0.10 if P == "R" else 0.13)):
+            if S.only:                                              # (within the arm's reach, and not on the ruler)
+                if C.out_of_reach([q])[0] or not -0.45 <= q[0] <= -0.10 or C.RULER[0] - 60 < q[1] * 1000 < C.RULER[1] + 60:
+                    continue
+            elif not (-0.50 <= q[0] <= -0.10 and (-0.50 if P == "R" else -0.15) <= q[1] <= (0.10 if P == "R" else 0.13)):
                 continue
             best = q if best is None else best
             if min(float(np.linalg.norm(q - o)) for o in xy) > 0.09:
@@ -627,4 +631,5 @@ def biolab_drops(S, log=print):
 
 SOLUTIONS = {"open_bottle": open_bottle, "lift": lift, "move_across": move_across, "insert_cylinder": insert_cylinder,
              "insert_varied": insert_varied, "pick_clutter_medium": pick_clutter, "pick_clutter_hard": pick_clutter,
-             "pick_clutter_extra_hard": pick_clutter, "biolab_open": biolab_open, "biolab_drops": biolab_drops}
+             "pick_clutter_extra_hard": pick_clutter, "pick_clutter_one_arm_medium": pick_clutter,
+             "pick_clutter_one_arm_hard": pick_clutter, "biolab_open": biolab_open, "biolab_drops": biolab_drops}
