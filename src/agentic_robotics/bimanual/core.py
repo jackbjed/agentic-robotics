@@ -229,6 +229,8 @@ class BiCore:
                 for A in self.arms.values():
                     A.bias = np.clip(A.bias + (A.q_cmd - d.qpos[A.qa]), -0.05, 0.05); d.ctrl[A.arm_a] = A.q_cmd + A.bias
                 self.run(0.15)
+            if self.mech and hasattr(self.mech, "settled"):
+                self.mech.settled()
             self.record = rec
 
     def get_state(self):

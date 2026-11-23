@@ -2,12 +2,18 @@
 a check that the task can be done in the simulation, and how; not a baseline for an agent.
 
 The cap arm (C) carries the tube by its cap to the other rack; the other arm (H) holds the tube there from the side
-while C unscrews the cap, then lets go. The pipette arm (P) takes the pipette by its bulb, squeezes it, dips it in the
+while C unscrews the cap, then lets go. biolab_open ends there (design 0, the cap in C's fingers). The pipette arm (P) takes the pipette by its bulb, squeezes it, dips it in the
 cup, lets the bulb out, squeezes three drops into the tube and puts the pipette back. P is C (design 1: C puts the cap
 down on the table meanwhile and takes it again) or H (design 2: C waits with the cap in its fingers). H holds the
 tube again and C sets the cap on and screws it down.
 
-    solve(S, log=print)      plan(S, K, log), then STAGES[K["design"]][1:] over the context dict K
+The hold must leave C's hand room to turn round the cap: plan() and _hold() first take a hold that is clear of C's
+fingers over the whole turn (_sweep_free); where the rack leaves none (a high rack, a hole in the middle), in
+biolab_open C lifts the tube RAISE by its cap and H holds it lower down. A carry or a hold that fails is tried again
+on another hole or with the arms swapped (the tube is set down first).
+
+    solve(S, log=print, task="biolab_drops")     plan, take_tube and hold (up to three plans), then the rest of
+                                                 STAGES[K["design"]], over the context dict K
 """
 from __future__ import annotations
 
@@ -23,6 +29,8 @@ OPEN = 0.055                # the opening before a grasp
 TRAVEL = 0.140              # the height things are carried at (the tube's bottom, the pipette's tip) above the table
 CAP_UP = 0.007              # the tool point above the underside of the cap's lid (the fingertips at the skirt's middle)
 PIP_GRIP = (B.BULB_Z[0] + B.BULB_Z[1]) / 2000 + 0.002     # the tool point above the pipette's tip (the bulb's middle)
+RAISE = 0.025               # (biolab_open) how far the tube is lifted by its cap for a hold lower on it, when the
+                            # holding hand would else be in the way of the hand that turns the cap
 LIFT = 1.2                  # mm over a hole's bottom at which the tube is held (pressed on it, it kicks out sideways)
 DOWN = (0, 0, -1)
 ANGLES = (0, 180, 90, 270, 45, 225, 135, 315)
@@ -38,9 +46,9 @@ def _down(deg):
     return grip_R(DOWN, _u(deg))
 
 
-def _free(S, P, p, R, ignore=(), back=(), opening=None):
+def _free(S, P, p, R, ignore=(), back=(), opening=None, ok=None):
     """A joint solution of arm P at (p, R) that touches nothing (nor at the distances `back` behind, along the
-    approach), its fingers as they are or at that opening -> q | None."""
+    approach), its fingers as they are or at that opening, and passes ok(q) if given -> q | None."""
     A = S.arms[P]; keep = S.d.qpos[A.fq].copy()
     if opening is not None:
         S.d.qpos[A.fq] = opening / 2
@@ -54,10 +62,29 @@ def _free(S, P, p, R, ignore=(), back=(), opening=None):
                 if ep > 0.001 or er > 0.01 or S.collides(P, q2, ignore):
                     break
             else:
-                return q
+                if ok is None or ok(q):
+                    return q
         return None
     finally:
         S.d.qpos[A.fq] = keep
+
+
+def _sweep_free(S, H, q, C, ignore=(), qc=None):
+    """Does arm H at q stay clear of arm C's hand while that turns about its own axis (its last joint, over its whole
+    range) with open fingers, as in the unscrewing? (H's fingers closed on the tube; qc: arm C's joints, else as it is.)"""
+    A, fh = S.arms[C], S.arms[H].fq
+    keep = S.d.qpos[A.qa].copy(), S.d.qpos[A.fq].copy(), S.d.qpos[fh].copy()
+    try:
+        if qc is not None:
+            S.d.qpos[A.qa] = qc
+        S.d.qpos[A.fq] = OPEN / 2; S.d.qpos[fh] = B.TUBE_D / 2000 - 0.002
+        for w in np.arange(A.lo[6], A.hi[6] + 1e-6, math.radians(20)):
+            S.d.qpos[A.qa[6]] = w
+            if S.collides(H, q, ignore):
+                return False
+        return True
+    finally:
+        S.d.qpos[A.qa], S.d.qpos[A.fq], S.d.qpos[fh] = keep
 
 
 def _route(S, P, q, pts, R):
@@ -168,9 +195,11 @@ def _pip_ways(S, P, mouth_xy):
     return out
 
 
-def _hold_poses(S, H, rd, hole, other=None, limit=99):
+def _hold_poses(S, H, rd, hole, other=None, limit=99, sweep=None):
     """Ways arm H can hold the tube that stands in that hole, from the side (level, or coming down at an angle):
-    [(height, Rh, out)]. other = (arm, q): with the other arm's joints there meanwhile."""
+    [(height, Rh, out)]. other = (arm, q): with the other arm's joints there meanwhile. sweep = the cap arm: only the
+    ways that leave its hand room to turn on the cap (_sweep_free)."""
+    ok = (lambda q: _sweep_free(S, H, q, sweep, _tube_ids(S))) if sweep else None
     rk = S.scene["racks"][rd]
     pr, Rr = S.object_pose(B.NAMES[rd])
     i, j = hole; nx, ny = rk["cells"]
@@ -179,6 +208,7 @@ def _hold_poses(S, H, rd, hole, other=None, limit=99):
     z_mid, z_high = (rk["height_mm"] + 98.0) / 2000, min(rk["height_mm"] + 34.0, 88.0) / 1000   # (the fingers stay 5 mm under the cap)
     every = edge + [v for v in COMPASS if v not in edge]
     cands = [(v, z_mid, 0) for v in edge] + [(v, z_high, 0) for v in every] + [(v, z_high, tilt) for tilt in (30, 50) for v in every]
+    cands += [(v, z_high - dz, 30) for dz in (0.008, 0.016, 0.024) for v in every]     # (lower: under the turning cap hand)
     out = []
     if other:
         A = S.arms[other[0]]; keep = S.d.qpos[A.qa].copy(); S.d.qpos[A.qa] = other[1]
@@ -188,7 +218,7 @@ def _hold_poses(S, H, rd, hole, other=None, limit=99):
             ap = -o * math.cos(math.radians(tilt)) - np.array([0, 0, 1.0]) * math.sin(math.radians(tilt))   # (from above, at that angle)
             for sgn in (1, -1):
                 Rh = grip_R(ap, sgn * np.cross([0, 0, 1], o))
-                if _free(S, H, np.array([xy[0], xy[1], pr[2] + z]), Rh, _tube_ids(S), back=(0.05, 0.10)) is not None:
+                if _free(S, H, np.array([xy[0], xy[1], pr[2] + z]), Rh, _tube_ids(S), back=(0.05, 0.10), ok=ok) is not None:
                     out.append((float(pr[2] + z), Rh, o))
                     if len(out) >= limit:
                         return out
@@ -201,10 +231,11 @@ def _hold_poses(S, H, rd, hole, other=None, limit=99):
 def plan(S, K, log):
     """Which hole the tube goes to, which arm carries and turns the cap, which holds the tube, which works the pipette."""
     M, sc, T = S.mech, S.scene, S.table_z
+    pip = K.get("task", "biolab_drops") == "biolab_drops"           # (biolab_open: no pipette, design 0)
     for P in "LR":
         S.set_gripper(P, OPEN, 0.4)
-    K["home"] = {P: [v.tolist() for v in S.tool_pose(P)] for P in "LR"}
-    rd = 1 - M.tube_cell()[0]
+    K.setdefault("home", {P: [v.tolist() for v in S.tool_pose(P)] for P in "LR"})
+    rd = 1 - sc["tube"]["rack"]
     taken = set()
     pc = M.pipette_cell()
     if pc:
@@ -217,25 +248,35 @@ def plan(S, K, log):
     holes = [(i, j) for i, j in B.cells(sc["racks"][rd]) if (rd, i, j) not in taken]
     lone = lambda c: not any(k == rd and B._near(c, (i, j)) for k, i, j in taken)
     holes.sort(key=lambda c: (not lone(c),))
-    why = []
-    for i, j in holes:
-        xy = _hole(S, rd, i, j)
-        caps = {C: _cap_ways(S, C, rd, (i, j)) for C in "LR"}
-        pips = {P: _pip_ways(S, P, xy) for P in "LR"}
-        for design, C in ((1, "L"), (1, "R"), (2, "L"), (2, "R")):
-            H = "R" if C == "L" else "L"
-            P = C if design == 1 else H
-            if not caps[C] or not pips[P]:
-                continue
-            qc = S.solve(C, np.array([xy[0], xy[1], T + (B.BASE + B.TUBE_L) / 1000 + CAP_UP]), _down(caps[C][0]), 12)
-            if not _hold_poses(S, H, rd, (i, j), other=(C, qc), limit=1):
-                why.append(f"({i}, {j}) {design}{C}: no hold"); continue
-            K.update(C=C, H=H, P=P, design=design, rack=rd, hole=(i, j))
-            log(f"plan {design}: tube to {B.NAMES[rd]} hole ({i}, {j}){'' if lone((i, j)) else ' (a neighbour is taken)'}; {C} takes the cap "
-                f"{caps[C]}, {H} holds the tube, {P} works the pipette {pips[P]}")
-            return
-        why.append(f"({i}, {j}): cap {caps}, pipette {pips}")
-    raise Stop("no way found: " + "; ".join(why)[:400])
+    why, ways = [], {}
+    order = [(clear, avoid) for avoid in ((True, False) if K.get("bad_arms") else (False,)) for clear in (True, False)]
+    for clear, avoid in order:                                      # first a hold that leaves the cap hand room to turn
+        for i, j in holes:
+            xy = _hole(S, rd, i, j)
+            if (i, j) not in ways:
+                ways[i, j] = ({C: _cap_ways(S, C, rd, (i, j)) for C in "LR"}, {P: _pip_ways(S, P, xy) if pip else ["not used"] for P in "LR"})
+            caps, pips = ways[i, j]
+            for design, C in ((1, "L"), (1, "R"), (2, "L"), (2, "R")) if pip else ((0, "L"), (0, "R")):
+                H = "R" if C == "L" else "L"
+                P = C if design == 1 else H
+                if not caps[C] or not pips[P] or ((i, j), C) in K.get("bad", ()) or (avoid and C in K["bad_arms"]):
+                    continue
+                top = np.array([xy[0], xy[1], T + (B.BASE + B.TUBE_L) / 1000 + CAP_UP])
+                qc = S.solve(C, top, _down(caps[C][0]), 12)
+                found = _hold_poses(S, H, rd, (i, j), other=(C, qc), limit=1, sweep=C if clear else None)
+                if not found and clear and not pip:                 # (or with the tube lifted by its cap)
+                    q2, ep, er = S.ik(C, top + [0, 0, RAISE], _down(caps[C][0]), qc)
+                    found = ep < 0.001 and er < 0.01 and _hold_poses(S, H, rd, (i, j), other=(C, q2), limit=1, sweep=C)
+                if not found:
+                    why.append(f"({i}, {j}) {design}{C}: no {'clear ' if clear else ''}hold"); continue
+                K.update(C=C, H=H, P=P, design=design, rack=rd, hole=(i, j))
+                log(f"plan {design}: tube to {B.NAMES[rd]} hole ({i}, {j}){'' if lone((i, j)) else ' (a neighbour is taken)'}; {C} takes the cap "
+                    f"{caps[C]}, {H} holds the tube{'' if clear else ' (in the way of the turning hand)'}"
+                    + (f", {P} works the pipette {pips[P]}" if pip else ""))
+                return
+            if not clear:
+                why.append(f"({i}, {j}): cap {caps}, pipette {pips}")
+    raise Stop("no way found: " + "; ".join(why)[-400:])
 
 
 # ---------------------------------------------------------------- the stages
@@ -265,53 +306,130 @@ def take_tube(S, K, log):
     for _ in range(2):
         d = hole() - tip()[:2]
         _shift(S, C, [d[0], d[1], 0])
-    _shift(S, C, [0, 0, rk["height_mm"] / 1000 + 0.004 - (tip()[2] - T)])
-    d = hole() - tip()[:2]
-    _shift(S, C, [d[0], d[1], 0])
-    r1 = _shift(S, C, [0, 0, (B.BASE + 4.0) / 1000 - (tip()[2] - T)], v=0.02)
-    r2 = _shift(S, C, [0, 0, (B.BASE + LIFT) / 1000 - (tip()[2] - T)], v=0.01, guarded=True)
-    log(f"tube set in ({r1}, {r2}): its tip {((tip() - [*hole(), T]) * 1000).round(1)} mm from the hole's centre on the table; cell {M.tube_cell()}")
+    for k in range(3):                                              # (caught on the hole's edge: up again, once more)
+        _shift(S, C, [0, 0, rk["height_mm"] / 1000 + 0.004 - (tip()[2] - T)])
+        for _ in range(1 + k):
+            d = hole() - tip()[:2]
+            _shift(S, C, [d[0], d[1], 0])
+        r1 = _shift(S, C, [0, 0, (B.BASE + 4.0) / 1000 - (tip()[2] - T)], v=0.02 if k == 0 else 0.01)
+        r2 = _shift(S, C, [0, 0, (B.BASE + LIFT) / 1000 - (tip()[2] - T)], v=0.01, guarded=True)
+        log(f"tube set in ({r1}, {r2}): its tip {((tip() - [*hole(), T]) * 1000).round(1)} mm from the hole's centre on the table; cell {M.tube_cell()}")
+        if M.tube_cell() == (K["rack"], *K["hole"]):
+            return
+    raise Stop("the tube did not go into the hole")
 
 
 def hold(S, K, log):
-    """The holding arm takes the tube's body from the side, over the rack, and sets it upright."""
-    H = K["H"]
-    err = Stop("no way to hold the tube")
-    for z, Rh, o in _hold_poses(S, H, K["rack"], K["hole"]):
-        pt, Rt = S.object_pose("tube")
-        ax = pt + Rt[:, 2] * (z - pt[2]) / max(Rt[2, 2], 0.5)            # the tube's axis at the height of the hold
+    """The holding arm takes the tube's body from the side, over the rack, and sets it upright. If it finds no way in
+    while the cap arm holds the cap, that arm lets go and steps aside for it, then takes the cap again."""
+    M, C = S.mech, K["C"]
+    capped = lambda: bool(M.on and C in S.touching(int(M.b_cap))[0])
+    try:
+        return _hold(S, K, log, sweep=C if capped() else None)
+    except Stop as e:
+        if not capped():
+            raise
+        log(f"hold: {str(e)[:150]}; {C} steps aside")
+    cap, R = S.tool_pose(C)
+    q = S.arms[C].q_cmd.copy()
+    S.set_gripper(C, OPEN, 0.4)
+    _shift(S, C, [0, 0, 0.10])
+    try:
+        S.go_home(C)
+    except Stop as e:
+        log(f"{C} not home: {e}")
+    _hold(S, K, log, other=(C, q), sweep=C)
+    cap = S.d.xpos[M.b_cap] + [0, 0, CAP_UP]
+    err = Stop("no way back to the cap")
+    for a in ANGLES:
+        if _free(S, C, cap, _down(a), _tube_ids(S), back=(0.05,)) is None:
+            continue
         try:
-            _go(S, H, ax - 0.10 * Rh[:, 2], Rh, heights=(0.24, 0.30, 0.18))
-            r = S.move(H, ax, Rh)
-            if r:                                                       # (it touched something on the way in)
-                S.move(H, ax - 0.10 * Rh[:, 2], Rh)
-                raise Stop(f"the way in is not free: {r}")
+            _top(S, C, cap, _down(a), 0.10); break
         except Stop as e:
-            err = e; continue
-        w = S.set_gripper(H, 0.0, 0.8)
-        t0 = _tilt(S, "tube")
-        if not S.mech.on:                                               # (the cap arm does not hold it)
-            _shift(S, H, [0, 0, 0.002])
-            for _ in range(3):
-                pt, Rt = S.object_pose("tube")
-                n = np.cross(Rt[:, 2], [0, 0, 1.0]); t = math.degrees(math.asin(min(1.0, np.linalg.norm(n))))
-                if t < 0.7:
-                    break
+            err = e
+    else:
+        raise err
+    w = S.set_gripper(C, 0.0, 0.8)
+    log(f"{C} holds the cap again ({a} deg, {w * 1000:.1f} mm)")
+
+
+def _hold(S, K, log, other=None, sweep=None):
+    """sweep = the cap arm: the ways that leave its hand room to turn come first (checked again where the arm really
+    is); if there is none (biolab_open), the cap arm lifts the tube RAISE by its cap and the hold is taken lower on it
+    (K["raised"]). other = (arm, q): only the ways that are free with that arm back there."""
+    H, M = K["H"], S.mech
+    K["raised"] = 0.0
+    err = [Stop("no way to hold the tube")]
+    held = bool(S.touching(int(M.b_cap))[0])                        # the cap is in a hand (the tube hangs from it)
+
+    def attempt(poses, strict):
+        for z, Rh, o in poses:
+            pt, Rt = S.object_pose("tube")
+            ax = pt + Rt[:, 2] * (z - pt[2]) / max(Rt[2, 2], 0.5)        # the tube's axis at the height of the hold
+            try:
+                _go(S, H, ax - 0.10 * Rh[:, 2], Rh, heights=(0.24, 0.30, 0.18))
+                r = S.move(H, ax, Rh)
+                if r:                                                   # (it touched something on the way in)
+                    S.move(H, ax - 0.10 * Rh[:, 2], Rh)
+                    raise Stop(f"the way in is not free: {r}")
+            except Stop as e:
+                err[0] = e; continue
+            if strict and not _sweep_free(S, H, S.d.qpos[S.arms[H].qa].copy(), sweep, _tube_ids(S), other[1] if other else None):
+                err[0] = Stop("in the way of the turning hand")
                 try:
-                    S.turn(H, S.tool_pose(H)[0], n / np.linalg.norm(n), t)
-                except Stop as e:
-                    log(f"not set upright: {e}"); break
-            pt = S.object_pose("tube")[0]
-            d = [*(_hole(S, K["rack"], *K["hole"])[:2] - pt[:2]), S.table_z + (B.BASE + LIFT) / 1000 - pt[2]]
-            _shift(S, H, d)                                             # its tip over the hole's middle
-        log(f"{H} holds the tube from {math.degrees(math.atan2(o[1], o[0])):.0f} deg, {(z - S.table_z) * 1000:.0f} mm up ({w * 1000:.1f} mm); "
-            f"tube tilt {t0:.1f} -> {_tilt(S, 'tube'):.1f} deg")
+                    S.move(H, ax - 0.10 * Rh[:, 2], Rh)
+                except Stop:
+                    pass
+                continue
+            w = S.set_gripper(H, 0.0, 0.8)
+            t0 = _tilt(S, "tube")
+            if not (M.on and held):                                     # (the cap arm does not hold it)
+                _shift(S, H, [0, 0, 0.002])
+                for _ in range(3):
+                    pt, Rt = S.object_pose("tube")
+                    n = np.cross(Rt[:, 2], [0, 0, 1.0]); t = math.degrees(math.asin(min(1.0, np.linalg.norm(n))))
+                    if t < 0.7:
+                        break
+                    try:
+                        S.turn(H, S.tool_pose(H)[0], n / np.linalg.norm(n), t)
+                    except Stop as e:
+                        log(f"not set upright: {e}"); break
+                pt = S.object_pose("tube")[0]
+                d = [*(_hole(S, K["rack"], *K["hole"])[:2] - pt[:2]), S.table_z + (B.BASE + LIFT) / 1000 - pt[2]]
+                _shift(S, H, d)                                         # its tip over the hole's middle
+            log(f"{H} holds the tube from {math.degrees(math.atan2(o[1], o[0])):.0f} deg, {(z - S.table_z) * 1000:.0f} mm up ({w * 1000:.1f} mm)"
+                + (f", the tube lifted {K['raised'] * 1000:.0f} mm" if K["raised"] else "") + f"; tube tilt {t0:.1f} -> {_tilt(S, 'tube'):.1f} deg")
+            return True
+        return False
+
+    clear = _hold_poses(S, H, K["rack"], K["hole"], other=other, sweep=sweep) if sweep else []
+    if attempt(clear, True):
         return
-    raise err
+    if sweep and not other and K.get("task") == "biolab_open" and M.on and sweep in S.touching(int(M.b_cap))[0]:
+        try:
+            _shift(S, sweep, [0, 0, RAISE], v=0.02)
+            K["raised"] = RAISE
+            if attempt(_hold_poses(S, H, K["rack"], K["hole"], sweep=sweep), True):
+                return
+        except Stop as e:
+            err[0] = e
+        if K["raised"]:
+            S.move(sweep, S.tool_pose(sweep)[0] - [0, 0, RAISE], S.tool_pose(sweep)[1], v=0.02, guarded=True)
+            K["raised"] = 0.0
+    if attempt(_hold_poses(S, H, K["rack"], K["hole"], other=other), False):
+        return
+    raise err[0]
 
 
 def let_go(S, K, log):
     H = K["H"]
+    if K.get("raised"):                                             # (the tube down into its hole again)
+        try:
+            _shift(S, H, [0, 0, -(K["raised"] - LIFT / 1000)], v=0.02, guarded=True)
+        except Stop as e:
+            log(f"tube not lowered: {str(e)[:80]}")
+        K["raised"] = 0.0
     S.set_gripper(H, OPEN, 0.4)
     _shift(S, H, -0.10 * S.tool_pose(H)[1][:, 2])
     retire(S, K, log)
@@ -337,15 +455,32 @@ def retire(S, K, log):
 
 def unscrew(S, K, log, step=150):
     M, C = S.mech, K["C"]
+
+    def centre():                                                   # the hand over the cap's centre, where it took it
+        d = S.d.xpos[M.b_cap] + [0, 0, CAP_UP] - S.tool_pose(C)[0]
+        if np.linalg.norm(d[:2]) > 0.001 or abs(d[2]) > 0.0015:
+            try:
+                _shift(S, C, d)
+            except Stop:
+                pass
+        return S.tool_pose(C)[0]
+
+    def wind(n):                                                    # open fingers back, until the wrist ends or something is touched
+        k = 0
+        for _ in range(n):
+            try:
+                if S.turn(C, cc, (0, 0, 1), -30):
+                    break
+            except Stop:
+                break
+            k += 1
+        return 30 * k
+
     cc = S.tool_pose(C)[0]
     S.set_gripper(C, OPEN, 0.4)
-    back = 0
-    for _ in range(8):
-        try:
-            S.turn(C, cc, (0, 0, 1), -30); back += 30
-        except Stop:
-            break
+    back = wind(8)
     for cyc in range(8):
+        cc = centre()
         S.set_gripper(C, 0.0, 0.6); a0 = M.cap_angle()
         for st in (step, 100, 60, 30):
             try:
@@ -358,14 +493,14 @@ def unscrew(S, K, log, step=150):
         if not M.on:
             break
         S.set_gripper(C, OPEN, 0.4)
-        for _ in range(int(st // 30)):
-            try:
-                S.turn(C, cc, (0, 0, 1), -30)
-            except Stop:
-                break
+        wind(int(st // 30))
     if M.on:
         raise Stop("the cap did not come off")
-    _shift(S, C, [0, 0, 0.06])
+    for up in (0.06, 0.03, 0.015):                                  # the cap clear of the tube's mouth
+        try:
+            _shift(S, C, [0, 0, up]); break
+        except Stop as e:
+            log(f"cap not lifted {up * 1000:.0f} mm: {str(e)[:80]}")
 
 
 def cap_away(S, K, log):
@@ -597,15 +732,55 @@ def leave(S, K, log):
     retire(S, K, log)
 
 
-STAGES = {1: [plan, take_tube, hold, unscrew, let_go, cap_down, retire, take_pipette, draw, drop, return_pipette, cap_up, cap_away, hold, cap_back, cap_on, screw, leave],
+def _clear(S, K, log):
+    """Both hands off the tube and home (before another plan)."""
+    C, H, M = K["C"], K["H"], S.mech
+    if M.on and C in S.touching(int(M.b_cap))[0] and M.tube_cell() is None:   # (carried: down where it is, before it is let go)
+        try:
+            _shift(S, C, [0, 0, -(S.object_pose("tube")[0][2] - S.table_z - (B.BASE + LIFT) / 1000)], v=0.02, guarded=True)
+        except Stop as e:
+            log(f"tube not set down: {str(e)[:80]}")
+    for P, d in ((H, -0.10 * S.tool_pose(H)[1][:, 2]), (C, [0, 0, 0.10])):
+        if S.touching("tube")[0].get(P) or S.touching(int(S.mech.cap_body()))[0].get(P):
+            S.set_gripper(P, OPEN, 0.4)
+            try:
+                _shift(S, P, d)
+            except Stop as e:
+                log(f"{P} not back: {str(e)[:80]}")
+        if np.abs(S.arms[P].q_cmd - S.arms[P].home).max() > 0.01:
+            try:
+                S.go_home(P)
+            except Stop:
+                try:
+                    _go(S, P, np.array(K["home"][P][0]), np.array(K["home"][P][1])); S.go_home(P)
+                except Stop as e:
+                    log(f"{P} not home: {str(e)[:80]}")
+
+
+STAGES = {0: [plan, take_tube, hold, unscrew, cap_away, let_go],            # biolab_open: the cap stays in the cap arm's fingers
+          1: [plan, take_tube, hold, unscrew, let_go, cap_down, retire, take_pipette, draw, drop, return_pipette, cap_up, cap_away, hold, cap_back, cap_on, screw, leave],
           2: [plan, take_tube, hold, unscrew, cap_away, let_go, take_pipette, draw, drop, return_pipette, hold, cap_back, cap_on, screw, leave]}
 
 
-def solve(S, log=print):
+def solve(S, log=print, task="biolab_drops"):
     """Grippers only: plan(), then the stages of the design it chose, over one context dict."""
     if S.HANDS != "grippers":
-        raise NotImplementedError("biolab_drops: no reference solution for the Sharpa hands yet")
-    K = {}
-    plan(S, K, log)
-    for f in STAGES[K["design"]][1:]:
+        raise NotImplementedError(f"{task}: no reference solution for the Sharpa hands yet")
+    K = dict(task=task, bad=set(), bad_arms=set())
+    for k in range(3):                                              # (no way in for the holding arm: another hole, or the arms the other way round)
+        plan(S, K, log)
+        try:
+            stage = take_tube; take_tube(S, K, log)
+            stage = hold; hold(S, K, log)
+            break
+        except Stop as e:
+            if k == 2:
+                raise
+            log(f"{stage.__name__}: {str(e)[:150]}: another way")
+            K["bad"].add((K["hole"], K["C"]))
+            if stage is take_tube:
+                K["bad_arms"].add(K["C"])
+            _clear(S, K, log)
+    assert STAGES[K["design"]][:3] == [plan, take_tube, hold]
+    for f in STAGES[K["design"]][3:]:
         f(S, K, log)

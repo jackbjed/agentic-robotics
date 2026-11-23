@@ -8,6 +8,7 @@ simulation, not baselines for an agent.
     insert_cylinder(S, log=print)  (grippers) the nearer arm takes the cylinder from above and lowers it onto the stick
     insert_varied(S, log=print)    (grippers) the same in a varied scene: tries arms and closing directions (a check)
     pick_clutter(S, log=print)     (grippers) takes what covers the target off the heap, then the target (clutter.py)
+    biolab_open(S, log=print)      (grippers) tube to the other rack, cap off (biolab_ref.py)
     biolab_drops(S, log=print)     (grippers) tube to the other rack, cap off, three drops, cap on (biolab_ref.py)
     SOLUTIONS[task](S, log)        -> the task's judge's verdict is then the caller's business (tasks.Episode.finish)
 """
@@ -612,6 +613,12 @@ def pick_clutter(S, log=print, rounds=14):
     raise Stop(f"the target is not in the hand after {rounds} rounds")
 
 
+def biolab_open(S, log=print):
+    """Grippers only: the tube to the other rack and its cap off (biolab.py), by the TRUE poses; the first stages of biolab_ref.py."""
+    from . import biolab_ref
+    return biolab_ref.solve(S, log, task="biolab_open")
+
+
 def biolab_drops(S, log=print):
     """Grippers only: the bio-lab task (biolab.py), by the TRUE poses; the stages are in biolab_ref.py."""
     from . import biolab_ref
@@ -620,4 +627,4 @@ def biolab_drops(S, log=print):
 
 SOLUTIONS = {"open_bottle": open_bottle, "lift": lift, "move_across": move_across, "insert_cylinder": insert_cylinder,
              "insert_varied": insert_varied, "pick_clutter_medium": pick_clutter, "pick_clutter_hard": pick_clutter,
-             "pick_clutter_extra_hard": pick_clutter, "biolab_drops": biolab_drops}
+             "pick_clutter_extra_hard": pick_clutter, "biolab_open": biolab_open, "biolab_drops": biolab_drops}

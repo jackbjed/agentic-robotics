@@ -1,7 +1,10 @@
-"""The bio-lab bench (docs/bimanual.md, task biolab_drops): two tube racks next to each other, a 50 mL centrifuge tube
-with a screw cap standing in a hole of one of them, a pipette (a dropper with a squeeze bulb) standing in another
-hole, and a cup of water. The task: move the tube to the other rack, open it, draw water from the cup with the
-pipette, put three drops into the tube, close the tube.
+"""The bio-lab bench (docs/bimanual.md): two tube racks next to each other, a 50 mL centrifuge tube with a screw cap
+standing in a hole of one of them, a pipette (a dropper with a squeeze bulb) standing in another hole, and a cup of
+water. Two tasks on the same scenes:
+
+    biolab_open      move the tube to the other rack and open it (the pipette and the cup are there, not used)
+    biolab_drops     move the tube to the other rack, open it, draw water from the cup with the pipette, put three
+                     drops into the tube, close the tube
 
 A scene is a JSON-able dict (mm, degrees, colours by name):
 
@@ -17,7 +20,8 @@ A scene is a JSON-able dict (mm, degrees, colours by name):
                            with some aspects outside them (OOD_ASPECTS)
     model_xml(file, scene), layout(scene), paint(model, scene)    the simulation's model and layout (core.BiCore)
     mechanisms(S)          the scene's mechanisms in the simulation S (core.BiCore.mech): the cap's thread, the liquid
-    text(scene), judge(S), truth(ep)                              the task's text, verdict and true state (tasks.py)
+    text(scene), judge(S), truth(ep)                              biolab_drops' text and verdict, the true state (tasks.py)
+    text_open(scene), judge_open(S)                               biolab_open's text and verdict
 
 Bodies: obj_rack_a, obj_rack_b, obj_tube (its cap: tube_cap, on a thread; tube_cap_free once it is off), obj_pipette
 (its bulb: PLATES plates pip_b0.. on one degree of freedom), obj_cup, obj_extra_k. Origins: a rack's and the cup's at the
@@ -279,11 +283,13 @@ def describe(sc):
 
 
 # ---------------------------------------------------------------------- the task
-_HOW = (
+_HOW_TUBE = (
     f"How things are: the tube is {TUBE_D:.0f} mm across and {TUBE_L:.0f} mm long, light (about 25 g), and stands loosely in its hole (the holes "
     "are square, a few mm wider than the tube; the racks are not fixed to the table). Its cap is "
     f"{CAP_OUT:.0f} mm across and {CAP_SKIRT + CAP_LID:.0f} mm high. The cap unscrews counter-clockwise seen from above: after three quarters of a turn "
-    f"({UNSCREW_DEG:.0f} degrees) it is free and can be lifted off; unless the tube is held, it turns with the cap. To put the cap back, set it "
+    f"({UNSCREW_DEG:.0f} degrees) it is free and can be lifted off; unless the tube is held, it turns with the cap.")
+_HOW = _HOW_TUBE + (
+    " To put the cap back, set it "
     "level and centred on the tube's mouth (within 2 mm, and within a few degrees of the tube's axis: it catches the thread as it comes to rest "
     "on the rim, the tube standing), then turn it clockwise by "
     f"three quarters of a turn, until it stops; it counts as closed within {CLOSED_DEG:.0f} degrees of that. The pipette is {PIP_L:.0f} mm long: "
@@ -315,6 +321,26 @@ def text(sc):
 
 
 TEXT = _text()                                                  # without a scene (a session's prompt)
+
+
+def _text_open(cap="", bulb="", cup="", liquid="water"):
+    sp = lambda s: (s + " ") if s else ""
+    return ("Task (a bio-lab bench): two tube racks stand next to each other on the table in front of the robot. A 50 mL centrifuge tube, "
+            f"closed with a {sp(cap)}screw cap, stands in a hole of one of them. Take the tube out of the rack it stands in, set it in a "
+            "hole of the other rack, then open it (unscrew its cap and take it off). At the end the tube must stand in a hole of the "
+            "other rack with its cap off, the robot not touching the tube; the cap may be held by the robot or lie on the table; the "
+            "cup must still stand and nothing may have fallen off the table; then call done() (or let the program return). Also on the "
+            f"bench, and not part of this task: a pipette with a {sp(bulb)}squeeze bulb standing in another hole, and a {sp(cup)}cup "
+            f"with {liquid}. " + _HOW_TUBE)
+
+
+def text_open(sc):
+    """The text of biolab_open in this scene."""
+    c = sc["cup"]
+    return _text_open(sc["tube"]["cap_color"], sc["pipette"]["color"], c["color"], "water" if c["liquid"] == "blue" else f"{c['liquid']} water")
+
+
+TEXT_OPEN = _text_open()
 
 
 def names(sc):
@@ -579,6 +605,22 @@ class Mech:
         self.n_watch = 0                                            # cap first came off, the cap was last screwed on
         self._show()
 
+    def settled(self):
+        """After the reset's settling: what does not stand at its height is set back in its place. (While a rack comes to
+        rest, the guard against false contacts (core._false_contacts) can switch its contacts off for some steps: the
+        rack sinks a few mm into the table and what stood in it or on it falls through.)"""
+        S, m, d = self.S, self.S.m, self.S.d
+        lay = layout(S.scene)
+        for _ in range(4):
+            low = [n for n, v in lay.items() if d.xpos[S.objects[n]][2] - S.table_z < v[2] - 0.003]
+            if not low:
+                return
+            for n in low:
+                j = m.body_jntadr[S.objects[n]]
+                a, v = m.jnt_qposadr[j], m.jnt_dofadr[j]
+                d.qpos[a:a + 7] = lay[n]; d.qpos[a + 2] += S.table_z; d.qvel[v:v + 6] = 0
+            S.run(0.4)
+
     def get_state(self):
         m = self.S.m
         return dict(on=self.on, armed=self.armed, V=self.V, A=self.A, pend=self.pend, back=self.back, s_prev=self.s_prev,
@@ -820,6 +862,30 @@ def judge(S):
                 pipette="held" if held else "on the table or elsewhere" if pip is None else f"in {NAMES[pip[0]]} hole ({pip[1]}, {pip[2]})",
                 in_order=bool(all(v is not None for v in order) and order == sorted(order)),
                 times_s=dict(moved=ev["moved"], opened=ev["opened"], drops=drops_t, closed=ev["closed"]))
+
+
+def judge_open(S):
+    """biolab_open, TRUE state: the tube stands in a hole of the other rack, its cap off (in the robot's fingers or on the
+    table), the robot not touching the tube; the cup stands; nothing has fallen off the table. Also told, not judged:
+    who holds the cap, where the pipette is, and whether the tube was moved before it was opened."""
+    M, sc, d = S.mech, S.scene, S.d
+    side = lambda parts: {{"R": "right", "L": "left"}[k]: sorted(v) for k, v in parts.items()}
+    cell = M.tube_cell()
+    moved = bool(cell is not None and cell[0] != sc["tube"]["rack"])
+    tube, cap = S.touching(int(M.b_tube))[0], S.touching(int(M.cap_body()))[0]
+    fallen = [x for x in names(sc) if S.object_pose(x)[0][2] < S.table_z - 0.05]
+    if d.xpos[M.cap_body()][2] < S.table_z - 0.05:
+        fallen.append("tube_cap")
+    pc, Rc = S.object_pose("cup")
+    cup = bool(Rc[2, 2] > math.cos(math.radians(10)) and abs(pc[2] - S.table_z) < 0.01)
+    ev, pip = M.events, M.pipette_cell()
+    return dict(ok=bool(moved and not M.on and not tube and cup and not fallen),
+                moved=moved, tube_in=None if cell is None else f"{NAMES[cell[0]]} hole ({cell[1]}, {cell[2]})", open=not M.on,
+                cap=f"on, {M.cap_angle():.0f} deg from screwed on" if M.on else "off, held by the robot" if cap else "off",
+                released=not tube, held_by=side(tube), cap_held_by=side(cap), cup_standing=cup, fallen=fallen,
+                pipette="held" if M.pipette_held() else "on the table or elsewhere" if pip is None else f"in {NAMES[pip[0]]} hole ({pip[1]}, {pip[2]})",
+                in_order=bool(ev["moved"] is not None and ev["opened"] is not None and ev["moved"] <= ev["opened"]),
+                times_s=dict(moved=ev["moved"], opened=ev["opened"]))
 
 
 def truth(ep):

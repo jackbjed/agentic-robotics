@@ -314,6 +314,35 @@ def test_biolab_bench():
     assert not v["ok"] and not v["moved"] and v["closed"] and v["drops_in_tube"] == 0 and v["cup_standing"] and v["released"]
 
 
+def test_biolab_reset_standing():
+    """A bench whose pipette fell through its rack while the scene came to rest (the guard against false contacts
+    switched the rack's contacts off for some steps): biolab.Mech.settled sets it back."""
+    from agentic_robotics.bimanual import biolab as B
+    ep = Episode(GRIPPERS, "biolab_open", seed=2037, sensors="ideal")
+    S, M = ep.S, ep.S.mech
+    assert M.pipette_cell() == (ep.scene["pipette"]["rack"], *ep.scene["pipette"]["cell"]) and M.tube_cell() is not None
+    lay = B.layout(ep.scene)
+    assert all(S.object_pose(n)[0][2] - S.table_z > lay[n][2] - 0.003 for n in lay)
+
+
+def test_biolab_open():
+    """biolab_open: the same benches as biolab_drops with a shorter task (tube to the other rack, cap off); its own text
+    and judge; untouched, not a success; the cap turned off where the tube stands is not one either (not moved)."""
+    from agentic_robotics.bimanual import biolab as B
+    from agentic_robotics.bimanual.scripted import SOLUTIONS
+    a = B.sample(2001)
+    ep = Episode(GRIPPERS, "biolab_open", seed=2001, sensors="ideal")
+    S, M = ep.S, ep.S.mech
+    assert ep.scene == a and ep.text == B.text_open(a) and "three drops" not in ep.text and "open it" in ep.text
+    assert TASKS["biolab_open"].time_limit_s < TASKS["biolab_drops"].time_limit_s and "biolab_open" in SOLUTIONS
+    v = B.judge_open(S)
+    assert not v["ok"] and not v["moved"] and not v["open"] and v["released"] and v["cup_standing"] and not v["fallen"]
+    S.d.qpos[M.q_turn] = np.radians(B.UNSCREW_DEG + 1.0); S.d.qpos[M.q_rise] = B.K_THREAD * np.radians(B.UNSCREW_DEG + 1.0)
+    S.run(1.0)
+    v = ep.finish()
+    assert v["open"] and v["cap"] == "off" and not v["moved"] and not v["ok"] and not v["in_order"] and v["times_s"]["opened"] is not None
+
+
 @pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])
 def test_untouched_scene_is_not_a_success(task):
     ep = Episode(GRIPPERS, task, seed=0, sensors="ideal")

@@ -14,10 +14,11 @@ judge on the simulation's TRUE state, and the limits. The same tasks run in both
     pick_clutter_medium | _hard | _extra_hard    take the object the text names (its colour and shape) out of a heap of
                     objects and hold it up: it lies among the others and can be seen | it lies under others | the
                     same in an open bin (clutter.py)                                                 (one arm or both)
-    biolab_drops    a bio-lab bench: move a 50 mL tube to the other rack, unscrew its cap, draw water from a cup with a
+    biolab_open     a bio-lab bench: move a 50 mL tube to the other rack and unscrew its cap (biolab.py)      (needs both arms)
+    biolab_drops    the same bench, the whole procedure: move the tube to the other rack, unscrew its cap, draw water from a cup with a
                     pipette, put three drops into the tube, screw the cap back on (biolab.py)          (needs both arms)
 
-A task with varied scenes (insert_varied, pick_clutter_*, biolab_drops) has a scene for each seed: below 5000 within the limits a
+A task with varied scenes (insert_varied, pick_clutter_*, biolab_*) has a scene for each seed: below 5000 within the limits a
 controller may be prepared on, from 5000 on outside them (other sizes, colours, shapes, numbers, places).
 """
 from __future__ import annotations
@@ -59,6 +60,7 @@ class Task:
     max_calls: int                                              # tool calls of a direct-control episode
     arms: int                                                   # how many arms the task needs
     scene: Callable | None = None                               # seed -> a varied scene (scenes.py), instead of the layout
+    text_of: Callable | None = None                             # scene -> this task's text in it (default: the scene module's)
 
 
 def _rng(name, seed):
@@ -140,6 +142,8 @@ TASKS = {t.name: t for t in (
     Task(f"pick_clutter_{level}", clutter.TEXT[level], lambda seed, level=level: clutter.layout(clutter.sample(level, seed)),
          clutter.judge, limit, calls, 2, lambda seed, level=level: clutter.sample(level, seed))
     for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120), ("extra_hard", 900.0, 120))) + (
+    Task("biolab_open", biolab.TEXT_OPEN, lambda seed: biolab.layout(biolab.sample(seed)), biolab.judge_open, 600.0, 120, 2, biolab.sample,
+         biolab.text_open),
     Task("biolab_drops", biolab.TEXT, lambda seed: biolab.layout(biolab.sample(seed)), biolab.judge, 1200.0, 200, 2, biolab.sample),
 )}
 
@@ -162,7 +166,8 @@ class Episode:
             self.S = make(env, seed=self.seed, sensors=sensors, layout=self.layout, record=record)
         self.robot = Robot(self.S, time_limit_s=self.task.time_limit_s if time_limit_s is None else time_limit_s, segmenter=segmenter)
         mod = scene_module(self.scene) if self.scene is not None else None
-        self.text = mod.text(self.scene) if hasattr(mod, "text") else self.task.text
+        self.text = (self.task.text_of(self.scene) if self.task.text_of and self.scene is not None else
+                     mod.text(self.scene) if hasattr(mod, "text") else self.task.text)
         self.verdict = None
 
     def finish(self):

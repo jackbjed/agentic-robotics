@@ -73,6 +73,26 @@ errors). The judge reads the simulation's true state after the scene has rested 
 | `lift` | 1 | the roll in front of the robot, where both arms reach | the roll is held at least 50 mm above the table, touching nothing but the robot | 240 s, 40 calls |
 | `insert_cylinder` | 1 | the stand on the right (x −300..−200, y −200..−100 mm, turned up to 45°), the cylinder standing on the left (x −360..−240, y 40..140 mm), both where both arms reach; seed 0: the reference spots | the cylinder is on the stick (its middle below the stick's top, within 4 mm of the stick's axis), the robot does not touch it, and the stand is upright on the table | 600 s, 80 calls |
 | `insert_varied` | 1 | `scenes.py`: another cylinder and stand in every scene (sizes, colours, densities, places, the stand turned up to 45°) and up to 3 other objects; seeds from 5000 on: beyond those limits (the evaluation's out-of-distribution scenes); from 8000 on: the scene of seed - 3000 on another table (height, colour, pattern) | as `insert_cylinder` (the hole 2 mm wider than the stick) | 600 s, 80 calls |
+| `biolab_open` | 2 | `biolab.py`, the bio-lab bench: two tube racks side by side, a 50 mL centrifuge tube with a screw cap in a hole of one of them, a pipette standing in another hole, a cup of water, sometimes vials or a block; another bench for every seed (rack sizes, heights, colours, places; seeds from 5000 on: beyond the training limits) | the tube stands in a hole of the other rack with its cap off (held by the robot or on the table), the robot does not touch the tube, the cup stands, nothing fell off the table | 600 s, 120 calls |
+| `biolab_drops` | 2 | the same benches | the tube in the other rack, exactly three drops of the cup's water in it (put in with the pipette), the tube closed again, the robot touching nothing of it, the cup standing, nothing fallen off the table | 1200 s, 200 calls |
+
+**The bio-lab bench** (2026-11-23). `biolab_open` is the short task (the first stages of `biolab_drops`: carry, hold,
+unscrew); the pipette and the cup are on the bench and not used, so that a seed gives the same bench in both tasks.
+A rack weighs 0.4–0.7 kg and is not fixed, a hole is 2 mm wider than the tube (training benches), and the cap is free
+after three quarters of a turn against the thread's friction: one arm has to hold the tube while the other turns
+the cap, and on a high rack or in a middle hole there is little room for the two hands. The reference solutions
+(`biolab_ref.py`, true poses, grippers; `scripted.SOLUTIONS`) on seeds 2000–2049 and 5000–5049:
+
+| task | ID | OOD | robot time (median, longest) |
+|---|---|---|---|
+| `biolab_open` | 49/50 | 50/50 | 99 s, 156 s |
+| `biolab_drops` | 46/50 | 47/50 | 276 s, 389 s |
+
+At reset, whatever does not stand at its height after the scene has come to rest is set back
+(`biolab.Mech.settled`): while a rack settles on the table, the guard against false contacts (`core._false_contacts`)
+can switch all the contacts of the rack's boxes off for some steps, and the pipette standing on its walls fell through
+(3 of the 100 benches). The guard switches off whole geoms, not the false contact alone: a weakness to keep in mind
+for other scenes with flat boxes on the table.
 
 The roll is a ring 50 mm across and 27 mm high (0.06 kg). `insert_cylinder` is the precision task: the cylinder goes
 on only when its axis is within about 1 mm of the stick's (the stick's top is flat, its edge square: nothing guides the
@@ -404,4 +424,4 @@ of its own: 37 on another table (32 at another height, to +-25 mm; 14 with a pat
 - `--model` speaks the OpenAI Responses API only. A Claude model is tested through `drive` (in Claude Code) or needs
   a loop on the Anthropic API (the converters are there, the loop is not).
 - Colour is MuJoCo's rendering, not the splat; the right wrist camera's mount is assumed, not calibrated.
-- Five tasks; `insert_cylinder` and `insert_varied` have no reference solution with the Sharpa hands. The layouts of `open_bottle` cover the area where both reference solutions work, not the whole table.
+- `insert_cylinder`, `insert_varied` and the bio-lab tasks have no reference solution with the Sharpa hands. The layouts of `open_bottle` cover the area where both reference solutions work, not the whole table.

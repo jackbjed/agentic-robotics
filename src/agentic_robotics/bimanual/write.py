@@ -114,6 +114,8 @@ VARIES = {
     "pick_clutter_extra_hard": "another heap of other objects (other shapes, sizes, colours and numbers) lies in another open box "
                                "(other size, colour, place and turn), and the task names another object of it, which lies under "
                                "other objects, hidden or nearly",
+    "biolab_open": "other racks (other numbers of holes, colours and heights) stand elsewhere, turned otherwise, the tube stands "
+                   "in another hole, and the pipette and the cup (not used) are others, elsewhere",
     "biolab_drops": "other racks (other numbers of holes, colours and heights) stand elsewhere, turned otherwise, the tube and the "
                     "pipette stand in other holes, and another cup (other size and colour) stands elsewhere",
 }
