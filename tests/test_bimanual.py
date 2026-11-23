@@ -66,7 +66,7 @@ def test_environment_cameras_and_state(env):
     rb.move("right", (-350, -300, 300), (0, 0, -1), (0, 1, 0) if env == GRIPPERS else (1, 0, 0))
     S.set_state(st)
     assert np.allclose(S.get_state()["qpos"], st["qpos"])
-    assert set(bimanual.ENVS) == {GRIPPERS, DEXTEROUS} and set(TASKS) == {"open_bottle", "move_across", "lift", "insert_cylinder", "insert_varied"}
+    assert set(bimanual.ENVS) == {GRIPPERS, DEXTEROUS} and {"open_bottle", "move_across", "lift", "insert_cylinder", "insert_varied"} <= set(TASKS)
 
 
 @pytest.mark.parametrize("env", ENVS)
@@ -198,6 +198,59 @@ def test_another_table():
                      ({"tilt": 1}, "unknown field")):
         with pytest.raises(ValueError, match=why):
             scenes.build({"table": bad}, seed=1)
+
+
+def test_picking_from_clutter():
+    """clutter.py: a seed gives one settled heap; the three levels differ in how much of the target the cameras see and
+    in the box; seeds from OOD_FROM on leave the training ranges in at least two aspects; the judge wants the target
+    held up alone; the reference solution takes it out."""
+    from agentic_robotics.bimanual import clutter as C, practice, scenes
+    assert {f"pick_clutter_{L}" for L in C.LEVELS} <= set(TASKS)
+    for L in C.LEVELS:
+        a = C.sample(L, 2001)
+        assert a == C.sample(L, 2001) and a != C.sample(L, 2002) and a["ood"] == [] and a["level"] == L
+        assert (a["bin"] is not None) == (L == "extra_hard")
+        tr = C.TRAIN
+        assert tr["n"][L][0] <= len(a["objects"]) <= tr["n"][L][1]
+        assert all(o["shape"] in C.SHAPES and o["color"] in scenes.COLOURS for o in a["objects"])
+        t = a["objects"][a["target"]]
+        assert sum((o["color"], o["shape"]) == (t["color"], t["shape"]) for o in a["objects"]) == 1     # the text names one object
+        assert t["color"] in C.text(a) and C.target_name(a) in C.text(a)
+        seen, cover = C.visibility(a)
+        for cam, (lo, hi) in C.SEEN[L].items():
+            assert lo <= seen[cam] <= hi, (L, cam, seen)
+        assert bool(cover) == (L != "medium")
+        o = C.sample(L, C.OOD_FROM + 3)
+        assert len(o["ood"]) >= 2 and {x.split(":")[0] for x in o["ood"]} <= set(C.OOD_ASPECTS)
+    kinds = {x.split(":")[0] for k in range(6) for x in C.sample("extra_hard", C.OOD_FROM + k)["ood"]}
+    assert len(kinds) >= 4
+
+    for L, seed in (("medium", 2001), ("extra_hard", 2002)):
+        ep = Episode(GRIPPERS, f"pick_clutter_{L}", seed=seed, sensors="ideal")
+        S, sc = ep.S, ep.scene
+        assert sc == C.sample(L, seed) and ep.text == C.text(sc) and set(ep.layout) == set(C.names(sc))
+        lay = C.layout(sc)
+        p0 = {n: S.object_pose(n)[0].copy() for n in C.names(sc)}
+        assert all(np.allclose(p0[n], lay[n][:3], atol=0.001) for n in p0)      # the heap as it was settled ...
+        S.run(1.0)
+        assert max(float(np.linalg.norm(S.object_pose(n)[0] - p0[n])) for n in p0) < 0.002      # ... and at rest
+        f = ep.robot.look(["scene"])["scene"]
+        assert np.isfinite(f.depth).mean() > 0.5
+        tr = practice.truth(ep)
+        assert tr["target"] == f"item_{sc['target']}" and set(C.names(sc)) < set(tr)
+        assert all(abs(tr["target_seen"][k] - C.visibility(sc)[0][k]) < 0.03 for k in ("scene", "top"))
+        v = ep.finish()
+        assert not v["ok"] and not v["held"] and v["height_mm"] < 100
+
+    ep = Episode(GRIPPERS, "pick_clutter_hard", seed=2001, sensors="ideal")
+    assert C.truth(ep)["target_seen"]["top"] <= 0.35 and C.truth(ep)["target_covered_by"]
+    assert run.run_scripted(ep, log=lambda *a: None) == "returned"
+    v = ep.finish()
+    assert v["ok"] and v["held"] and v["height_mm"] >= C.LIFT and not v["touches"] and not v["fallen"], v
+    ep.S.set_gripper(next(iter(v["held_by"]))[0].upper(), 0.08)
+    ep.S.run(1.0)
+    v = C.judge(ep.S)
+    assert not v["ok"] and not v["held"]                                # dropped: no longer a success
 
 
 @pytest.mark.parametrize("task", ["lift", "move_across", "open_bottle", "insert_cylinder"])

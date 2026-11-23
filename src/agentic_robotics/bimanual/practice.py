@@ -49,7 +49,7 @@ from pathlib import Path
 import numpy as np
 
 from .api import TimeUp
-from .core import ARMS
+from .core import ARMS, scene_module
 from .tasks import TASKS, Episode
 
 IMPORTS = ("math", "numpy", "scipy", "cv2", "itertools", "functools", "collections", "dataclasses", "typing", "heapq",
@@ -105,6 +105,8 @@ def truth(ep):
     """The TRUE positions (mm) of the episode's objects: each object's reference point (the cylinder's and the
     bottle's: the centre of the bottom), the stick's top, the bottle's cap."""
     S = ep.S
+    if ep.scene is not None and hasattr(scene_module(ep.scene), "truth"):
+        return scene_module(ep.scene).truth(ep)
     out = {n: _mm(S.object_pose(n)[0]) for n in ep.layout}
     if "stick_stand" in out:
         out["stick_top"] = _mm(S.stick_top()[0])

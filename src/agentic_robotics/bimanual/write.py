@@ -94,6 +94,13 @@ VARIES = {
                        "the stand is turned about the vertical by up to 45 degrees either way",
     "insert_varied": "another cylinder and another stand (other sizes, colours and weights) stand elsewhere, the stand turned about the "
                      "vertical by up to 45 degrees either way, and there can be other objects on the table",
+    "pick_clutter_medium": "another heap of other objects (other shapes, sizes, colours and numbers) lies elsewhere on the table, and "
+                           "the task names another object of it; that object touches its neighbours but can be seen",
+    "pick_clutter_hard": "another heap of other objects (other shapes, sizes, colours and numbers) lies elsewhere on the table, and "
+                         "the task names another object of it, which lies under other objects, hidden or nearly",
+    "pick_clutter_extra_hard": "another heap of other objects (other shapes, sizes, colours and numbers) lies in another open box "
+                               "(other size, colour, place and turn), and the task names another object of it, which lies under "
+                               "other objects, hidden or nearly",
 }
 
 _ASK = """

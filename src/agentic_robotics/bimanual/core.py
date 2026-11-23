@@ -89,12 +89,19 @@ class Arm:
     pass
 
 
+def scene_module(scene):
+    """The module of a scene's kind: scenes.py (the varied cylinder-and-stick scenes), or clutter.py. It gives the
+    scene's model_xml(), paint() and layout(), and for some kinds the task's text(), judge() and truth()."""
+    from . import clutter, scenes
+    return {clutter.KIND: clutter}.get(scene.get("kind"), scenes)
+
+
 class BiCore:
     NAME = None                                                # the model's name (models/NAME.xml)
 
     def __init__(self, seed=0, sensors="d415", out: Path | None = None, record=False, layout="bottle", scene=None):
-        """scene: a varied cylinder-and-stick scene (scenes.py): the model gets its stand, cylinder and distractors,
-        and the layout is the scene's."""
+        """scene: a varied scene (scenes.py: a cylinder, a stick and distractors; clutter.py: a heap of objects): the
+        model gets its objects, and the layout is the scene's."""
         f = MODELS / f"{self.NAME}.xml"
         if not f.exists():
             raise FileNotFoundError(f"{f} missing: build it with scripts/build_bimanual.py")
@@ -104,10 +111,10 @@ class BiCore:
         if scene is None:
             self.m = m = mujoco.MjModel.from_xml_path(str(f))
         else:
-            from . import scenes
-            self.m = m = mujoco.MjModel.from_xml_string(scenes.model_xml(f, scene))
-            scenes.paint(m, scene)
-            layout = scenes.layout(scene)
+            mod = scene_module(scene)
+            self.m = m = mujoco.MjModel.from_xml_string(mod.model_xml(f, scene))
+            mod.paint(m, scene)
+            layout = mod.layout(scene)
         # the table top's height in this frame (the robot's): 0 but for the scenes on another table (scenes.py)
         self.table_z = float(scene["table"]["height_mm"]) / 1000 if scene and scene.get("table") else 0.0
         self.d = mujoco.MjData(m); self.dk = mujoco.MjData(m)
@@ -159,7 +166,7 @@ class BiCore:
     # ------------------------------------------------------------------ scene
     def reset(self, layout="bottle", seed=0, joints=None, settle=0.5):
         """A new episode. layout: {object: (x, y, yaw_deg)} (or a name in LAYOUTS): those objects stand on the table,
-        every other one is parked out of sight. joints: {joint name: value} (e.g. a box lid's hinge). seed: the
+        every other one is parked out of sight; or {object: (x, y, z, qw, qx, qy, qz)}: the object's whole pose (a heap). joints: {joint name: value} (e.g. a box lid's hinge). seed: the
         episode's sensor errors (camera calibration, depth scale, noise)."""
         m, d = self.m, self.d
         if isinstance(layout, str):
@@ -177,8 +184,11 @@ class BiCore:
         for i, (n, b) in enumerate(sorted(self.objects.items())):
             a = m.jnt_qposadr[m.body_jntadr[b]]
             if n in layout:
-                x, y, yaw = (list(layout[n]) + [0.0])[:3]
-                d.qpos[a:a + 3] = [x, y, self.table_z + TABLE_Z]; d.qpos[a + 3:a + 7] = yaw_quat(yaw)
+                if len(layout[n]) == 7:
+                    d.qpos[a:a + 7] = layout[n]; d.qpos[a + 2] += self.table_z
+                else:
+                    x, y, yaw = (list(layout[n]) + [0.0])[:3]
+                    d.qpos[a:a + 3] = [x, y, self.table_z + TABLE_Z]; d.qpos[a + 3:a + 7] = yaw_quat(yaw)
                 m.body_gravcomp[self.obj_bodies[n]] = 0
             else:                                                   # parked: out of sight, no contacts, no weight
                 d.qpos[a:a + 3] = [PARK + 0.6 * i, PARK, FLOOR_Z + TABLE_Z]; d.qpos[a + 3:a + 7] = [1, 0, 0, 0]

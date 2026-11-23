@@ -11,6 +11,12 @@ judge on the simulation's TRUE state, and the limits. The same tasks run in both
     insert_cylinder put a cylinder on a vertical stick that its hole fits with 1 mm to spare all round   (one arm)
     insert_varied   the same with the cylinder's and the stand's sizes, colours, weights and places varied, and other
                     objects on the table; nothing about the objects in the text (scenes.py)              (one arm)
+    pick_clutter_medium | _hard | _extra_hard    take the object the text names (its colour and shape) out of a heap of
+                    objects and hold it up: it lies among the others and can be seen | it lies under others | the
+                    same in an open bin (clutter.py)                                                 (one arm or both)
+
+A task with varied scenes (insert_varied, pick_clutter_*) has a scene for each seed: below 5000 within the limits a
+controller may be prepared on, from 5000 on outside them (other sizes, colours, shapes, numbers, places).
 """
 from __future__ import annotations
 
@@ -19,9 +25,9 @@ from typing import Callable
 
 import numpy as np
 
-from . import make, scenes
+from . import clutter, make, scenes
 from .api import Robot
-from .core import BOTTLE_XY
+from .core import BOTTLE_XY, scene_module
 
 TABLE_HALF = 0.61
 ROLL = "tape_white"
@@ -128,26 +134,31 @@ TASKS = {t.name: t for t in (
          "at the end the cylinder must be on the stick, the robot not touching it, and the stand upright on the table. The "
          "task requires mm level precision.",
          lambda seed: scenes.layout(scenes.sample(seed)), lambda S: S.judge_insert(), 600.0, 80, 1, scenes.sample),
-)}
+) + tuple(
+    Task(f"pick_clutter_{level}", clutter.TEXT[level], lambda seed, level=level: clutter.layout(clutter.sample(level, seed)),
+         clutter.judge, limit, calls, 2, lambda seed, level=level: clutter.sample(level, seed))
+    for level, limit, calls in (("medium", 600.0, 80), ("hard", 900.0, 120), ("extra_hard", 900.0, 120)))}
 
 
 class Episode:
     """One episode of a task in an environment: the simulation, the robot a controller gets, the judge."""
 
     def __init__(self, env, task, seed=0, sensors="d415", record=False, time_limit_s=None, segmenter=None, scene=None):
-        """scene (tasks with varied scenes, scenes.py): this scene instead of the task's own for `seed`; the seed
-        then only sets the episode's sensor errors."""
+        """scene (tasks with varied scenes: scenes.py, clutter.py): this scene instead of the task's own for `seed`;
+        the seed then only sets the episode's sensor errors. The text of a task whose scenes differ in what is asked
+        (pick_clutter_*: which object) is the scene's."""
         self.task = TASKS[task] if isinstance(task, str) else task
         self.env, self.seed, self.sensors = env, int(seed), sensors
         self.scene = scene if scene is not None else self.task.scene(self.seed) if self.task.scene else None
         if self.scene is not None:
-            self.layout = scenes.layout(self.scene)
+            self.layout = scene_module(self.scene).layout(self.scene)
             self.S = make(env, seed=self.seed, sensors=sensors, record=record, scene=self.scene)
         else:
             self.layout = self.task.layout(self.seed)
             self.S = make(env, seed=self.seed, sensors=sensors, layout=self.layout, record=record)
         self.robot = Robot(self.S, time_limit_s=self.task.time_limit_s if time_limit_s is None else time_limit_s, segmenter=segmenter)
-        self.text = self.task.text
+        mod = scene_module(self.scene) if self.scene is not None else None
+        self.text = mod.text(self.scene) if hasattr(mod, "text") else self.task.text
         self.verdict = None
 
     def finish(self):
