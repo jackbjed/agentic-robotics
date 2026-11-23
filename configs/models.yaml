@@ -21,3 +21,6 @@ budget:
                       # refilled; 2026-11-22: +5.4 for a $15 session the user approved with a refill) = $61.34;
                       # 2026-11-22: a third key ($68 credit, configs/local.yaml) and a $40 session the user approved
                       # (picking from clutter, with model calls inside the episodes) + $0.66 for its checks
+                      # (ledger $97.08 after it); 2026-11-23: that session's evaluation, which the user approved
+                      # ($36 left on the third key): 200 episodes whose program calls the model, run under a cap of
+                      # 110.0, cost $4.90 (ledger $101.98); the cap is back at what is spent: raise it for a new run

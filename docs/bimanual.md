@@ -73,6 +73,7 @@ errors). The judge reads the simulation's true state after the scene has rested 
 | `lift` | 1 | the roll in front of the robot, where both arms reach | the roll is held at least 50 mm above the table, touching nothing but the robot | 240 s, 40 calls |
 | `insert_cylinder` | 1 | the stand on the right (x −300..−200, y −200..−100 mm, turned up to 45°), the cylinder standing on the left (x −360..−240, y 40..140 mm), both where both arms reach; seed 0: the reference spots | the cylinder is on the stick (its middle below the stick's top, within 4 mm of the stick's axis), the robot does not touch it, and the stand is upright on the table | 600 s, 80 calls |
 | `insert_varied` | 1 | `scenes.py`: another cylinder and stand in every scene (sizes, colours, densities, places, the stand turned up to 45°) and up to 3 other objects; seeds from 5000 on: beyond those limits (the evaluation's out-of-distribution scenes); from 8000 on: the scene of seed - 3000 on another table (height, colour, pattern) | as `insert_cylinder` (the hole 2 mm wider than the stick) | 600 s, 80 calls |
+| `pick_clutter_medium`, `_hard`, `_extra_hard` | 1–2 | `clutter.py`: a heap of 5–11 objects (boxes, cylinders, balls; seeds from 5000 on: other shapes, colours, sizes, counts, places); the task text names the target by colour and shape; medium: it touches others and can be seen; hard: it lies under others; extra hard: the heap in an open bin | the target is held with its centre at least 150 mm above the table, touching nothing but the robot; nothing fell off the table | 600 s, 80 calls (medium); 900 s, 120 calls |
 | `biolab_open` | 2 | `biolab.py`, the bio-lab bench: two tube racks side by side, a 50 mL centrifuge tube with a screw cap in a hole of one of them, a pipette standing in another hole, a cup of water, sometimes vials or a block; another bench for every seed (rack sizes, heights, colours, places; seeds from 5000 on: beyond the training limits) | the tube stands in a hole of the other rack with its cap off (held by the robot or on the table), the robot does not touch the tube, the cup stands, nothing fell off the table | 600 s, 120 calls |
 | `biolab_drops` | 2 | the same benches | the tube in the other rack, exactly three drops of the cup's water in it (put in with the pipette), the tube closed again, the robot touching nothing of it, the cup standing, nothing fallen off the table | 1200 s, 200 calls |
 
@@ -414,6 +415,48 @@ of its own: 37 on another table (32 at another height, to +-25 mm; 14 with a pat
   program puts the cylinder down, looks again and grasps again). 5103 succeeds on its other table (8103, 287 s) and
   5111 on its (8111, 64 s): what decides is the insertion, a few millimetres of the estimate of where the held
   cylinder's hole is, not the table.
+
+## Picking from clutter: a session whose program asks the model (2026-11-23)
+
+`improve --task pick_clutter --levels medium hard` (`ClutterSession`): one program for both levels, from nothing. The
+model was given the environments and their randomization ranges, not the evaluation seeds; it sets up its own
+heaps (`sample_scenes`, `define_scenes`, with shapes of its own), its practice shows the simulation's truth, and its
+program may call the model inside an episode: `robot.ask(question, images, effort)` (`practice.AskBridge`; at most 4
+calls an episode, their latency is robot time, their cost comes out of the session's budget).
+
+```bash
+python -m agentic_robotics.bimanual.improve --env sim_bimanual_grippers --task pick_clutter --levels medium hard \
+    --model astra --segmenter sam3 --budget-usd 40 --eval-episodes 100 --max-hours 14 --out runs/bimanual/clutter_astra_1123
+python scripts/eval_bimanual_ask.py --program runs/bimanual/clutter_astra_1123/program.py --model astra \
+    --tasks pick_clutter_medium pick_clutter_hard --seeds 2000-2049,5000-5049 --run-usd 12 --out runs/bimanual/clutter_astra_1123_eval
+```
+
+The session (gpt-6-astra, effort high): 121 turns, 86 min, $35.71 of $40 ($21.11 of it the model calls of its 935
+practice episodes), 20 versions; the submitted program (401 lines) asks the model which object is the target and
+what to clear first (overhead and side views) and checks what it holds (three images), and solved 136 of 136 of
+the session's own practice heaps (68 medium, 68 hard).
+
+The evaluation (`scripts/eval_bimanual_ask.py`: cameras with realistic depth, SAM3 and `robot.ask`, no truth; 50
+episodes per cell, $4.90 of model calls, no call refused). Reference: `scripted.pick_clutter` with the true poses.
+
+| | medium ID | medium OOD | hard ID | hard OOD |
+|---|---|---|---|---|
+| reference (true poses) | 49/50 | 47/50 | 48/50 | 46/50 |
+| the session's program | **48/50** | **47/50** | **47/50** | **38/50** |
+| robot time of its successes: mean (median) | 102 s (45 s) | 93 s (36 s) | 240 s (193 s) | 257 s (208 s) |
+| model calls an episode | 0.86 | 1.16 | 2.18 | 2.48 |
+| model cost an episode | $0.012 | $0.017 | $0.031 | $0.037 |
+
+180 of 200 (ID 95/100, OOD 85/100). The 20 failures:
+- 7, all OOD: it lifted a look-alike (the orange cross for the orange steps, the red T for the red cross, the cyan
+  box for the teal one, the maroon box for the pink one, ...) and its check of the held object accepted it: SAM3
+  found the target's phrase on the lifted object (3), the model said yes (2), no model call was left (2);
+- 7: the grasps closed on nothing or lost the target until the attempts or the time ran out;
+- 4, all ID: the target was not found after the four model calls;
+- 2: the target lifted with another object resting on it; an episode ended with nothing lifted.
+
+The practice score (136/136) overstated the result on new heaps, most of all on out-of-distribution objects, where
+colours and shapes close to the target's are the main cause.
 
 ## Not there yet
 
