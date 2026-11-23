@@ -11,6 +11,8 @@ Backends (spec "backend"):
           real.python); real/run.py does.
   twin    the simulator's own world server (sim/server.py World: a layout, physics, the judge) at the calibrated cameras:
           a rehearsal of the whole real path, and its test.
+  sim     the bimanual simulation's scene of a task (spec "sim": task, seed), its left arm and its two cameras
+          (SimBackend): the rehearsal of a bimanual-environment program (real/run.py program) with the task's objects.
 Modes (spec "mode"):
   dry     NOTHING is sent. Each trajectory the program plans (and RealSim checked) is recorded and drawn over the scene
           camera's frame (plan/NNN.jpg, real/ghost.py); the arm stays where it is and the program gets its real state
@@ -200,6 +202,158 @@ class TwinBackend:
         return dict(judge={k: res.get(k) for k in keys}, video=None, twin_record=str(out / "twin"))
 
 
+class SimBackend:
+    """The bimanual simulation (src/agentic_robotics/bimanual: environment sim_bimanual_grippers, a task's scene for a
+    seed, the D415s' depth and calibration errors) standing in for the robot and the scene: its LEFT arm follows the
+    trajectories as the arm server would (the same limits check, the gripper, the contact guard, a force stop), its
+    scene and left-wrist cameras deliver the frames, the task's own judge gives the result. A free rehearsal of a
+    program's whole real path with the task's objects (the twin has no cylinder and no stand)."""
+    clock = "sim time"
+    CAMS = {"d415": "scene", "L_wrist": "left_wrist"}
+
+    def __init__(self, spec, out):
+        import mujoco
+        from agentic_robotics.sim import twin  # noqa: F401  (the vendored code on the path)
+        from agentic_robotics.bimanual.tasks import Episode
+        from panda_fk import Kin, Limits, load_rig
+        e = spec["sim"]
+        self.mj, self.out = mujoco, Path(out) / "sim"
+        self.ep = Episode("sim_bimanual_grippers", e["task"], seed=int(e["seed"]), sensors=e.get("sensors", "d415"),
+                          record=bool(spec.get("record", True)), scene=e.get("scene"))
+        self.C = C = self.ep.S
+        self.A = A = C.arms["L"]
+        self.rig = rig = load_rig()
+        self.lim = Limits(rig, Kin(rig, {}))                      # (the simulation's hand has no adapter)
+        c = rig["control"]
+        self.track_abort, self.force_abort = float(c["track_abort"]), float(c["force_abort"])
+        self.dt = float(C.m.opt.timestep)
+        self.g_target, self.g_speed, self.t_grip = float(A.g_cmd), float(rig["gripper"]["move_speed"]) / 2, -1.0
+        Rs, es = C.nominal_camera("d415")                        # the mounts the program is told: the nominal ones
+        Rw, ew = C.nominal_camera("L_wrist")                      # (the episode's true ones differ: CALIB)
+        hb = C.m.body("L_hand").id
+        Rh, ph = C.d.xmat[hb].reshape(3, 3), C.d.xpos[hb]
+        Ts, Th = np.eye(4), np.eye(4)
+        Ts[:3, :3], Ts[:3, 3] = Rs, es
+        Th[:3, :3], Th[:3, 3] = Rh.T @ Rw, Rh.T @ (ew - ph)
+        self.hello_info = dict(sim=True, env="sim_bimanual_grippers", sim_task=self.ep.task.name, seed=int(e["seed"]),
+                               calib=dict(scene_cam=dict(T_world_cam=Ts.tolist()), wrist_cam=dict(T_hand_cam=Th.tolist())))
+        self.task = dict(kind=self.ep.task.name, instruction=self.ep.text)
+
+    # ---- the arm
+    def _step(self, q=None):
+        C, A = self.C, self.A
+        if q is not None:
+            A.q_cmd = np.asarray(q, float).copy()
+        C.d.ctrl[A.arm_a] = A.q_cmd + A.bias
+        A.g_cmd += float(np.clip(self.g_target - A.g_cmd, -self.g_speed * self.dt, self.g_speed * self.dt))
+        C.d.ctrl[A.grip] = A.g_cmd
+        C.step()
+
+    def _hold(self, T_):
+        for _ in range(max(0, int(round(float(T_) / self.dt)))):
+            self._step()
+
+    def _force(self):
+        return self.C.contacts()["L"][1]
+
+    def _tcp_z(self, q):
+        return float(self.C.fk("L", q)[0][2])
+
+    def wall(self):
+        return float(self.C.d.time)
+
+    def state(self):
+        C, A = self.C, self.A
+        return dict(ok=True, q=C.d.qpos[A.qa].tolist(), dq=C.d.qvel[A.va].tolist(), width=float(C.width("L")), grasped=None,
+                    f_ext=np.r_[C.force_estimate("L"), 0, 0, 0].tolist(), mode=2, errors=[], t=float(C.d.time),
+                    bias=[0.0] * 7, fault=None)
+
+    def execute(self, h):
+        C, A = self.C, self.A
+        t, Q = np.asarray(h["t"], float), np.asarray(h["q"], float)
+        why = self.lim.check_traj(t, Q, C.d.qpos[A.qa].copy())
+        if why:
+            return dict(ok=False, refused=True, why="refused by the server: " + why)
+        grip, guard = h.get("grip"), h.get("guard")
+        if grip is not None:
+            self.g_target = 0.0 if grip["kind"] == "grasp" else float(np.clip(float(grip["width"]) / 2, 0.0, 0.04))
+            self.t_grip = float(C.d.time)
+        every = max(int(round(0.005 / self.dt)), 1)                 # (force, lag and guard: every 5 ms)
+        f0 = self._force(); fh = [f0] * 3
+        z_off = float(C.tool_pose("L")[0][2]) - self._tcp_z(Q[0])    # (the servo's standing error is not a contact)
+        track = fmax = 0.0
+        n = max(int(round(float(t[-1]) / self.dt)), 1) if len(t) > 1 else 0
+        for i in range(1, n + 1):
+            ti = float(t[-1]) * i / n
+            q = np.array([np.interp(ti, t, Q[:, j]) for j in range(7)])
+            self._step(q)
+            if i % every:
+                continue
+            qm = C.d.qpos[A.qa]
+            lag = float(np.abs(qm - q - 0).max()); track = max(track, lag)
+            fh = fh[1:] + [self._force()]; f = np.median(fh, axis=0)
+            fm = float(np.linalg.norm(f - f0)); fmax = max(fmax, fm)
+            if lag > self.track_abort or fm > self.force_abort:
+                A.q_cmd = qm.copy(); self._hold(0.3)
+                return dict(ok=False, aborted=True, why=f"stopped: lag {lag:.3f} rad, force {fm:.1f} N", q_end=C.d.qpos[A.qa].tolist(),
+                            hold=A.q_cmd.tolist())
+            if guard is not None:
+                dz = float(C.tool_pose("L")[0][2]) - self._tcp_z(q) - z_off
+                dfz = abs(float(f[2] - f0[2]))
+                if dz > guard["dz"] or dfz > guard["df"]:
+                    A.q_cmd = qm.copy(); self._hold(0.3)
+                    return dict(ok=True, guarded=True, contact=dict(dz_mm=round(dz * 1000, 2), dfz_n=round(dfz, 2)),
+                                q_end=C.d.qpos[A.qa].tolist(), hold=A.q_cmd.tolist(), track_max=track, f_max=fmax)
+        if len(Q):
+            A.q_cmd = Q[-1].copy()
+        self._hold(max(float(h.get("hold_after", 0.1)), self.dt))
+        for _ in range(3):                                          # (the servos' standing error taken out, as the arm
+            if float(np.linalg.norm(self._force() - f0)) > 1.0:     # server's settle; not while something pushes back)
+                break
+            A.bias = np.clip(A.bias + (A.q_cmd - C.d.qpos[A.qa]), -0.05, 0.05)
+            self._hold(0.15)
+        return dict(ok=True, q_end=C.d.qpos[A.qa].tolist(), hold=A.q_cmd.tolist(), track_max=track, f_max=fmax,
+                    guarded=guard is not None, contact=None)
+
+    def idle(self, T_):
+        self._hold(T_)
+
+    def wait_gripper(self, timeout):
+        C = self.C; t0 = float(C.d.time); hist = []
+        while True:
+            self._step()
+            now = float(C.d.time); hist.append((now, C.width("L")))
+            hist = [x for x in hist if now - x[0] <= 0.25]
+            still = now - hist[0][0] >= 0.2 and max(x[1] for x in hist) - min(x[1] for x in hist) < 0.0002
+            if still and now - self.t_grip > 0.3 and abs(self.A.g_cmd - self.g_target) < 1e-6:
+                return dict(ok=True, width=float(C.width("L")), waited=round(now - t0, 2))
+            if now - t0 > float(timeout or 4.0):
+                return dict(ok=True, width=float(C.width("L")), timeout=True)
+
+    # ---- the cameras
+    def frame(self, cam):
+        o = self.C.observe(self.CAMS[cam])
+        z = np.where(np.isfinite(o["depth"]), o["depth"], np.inf).astype(np.float32)
+        return o["rgb"], z, tuple(float(x) for x in o["K"])
+
+    def latest_scene(self):
+        C = self.C
+        r = C.renderer(480, 640); cid = C.m.camera("d415").id
+        self.mj.mj_forward(C.m, C.d)
+        r.update_scene(C.d, camera=cid)
+        import math
+        f = 240 / math.tan(math.radians(C.m.cam_fovy[cid]) / 2)
+        return r.render().copy(), (640, 480, f, f, 320.0, 240.0)
+
+    def finish(self, h, out):
+        v = self.ep.finish()
+        self.out.mkdir(parents=True, exist_ok=True)
+        video = self.C.write_video(self.out / "video.mp4")
+        (self.out / "result.json").write_text(json.dumps(dict(v, scene=self.ep.scene), indent=1, default=str))
+        return dict(judge=dict(v, success=bool(v.get("ok")), category="success" if v.get("ok") else "fail"), video=None,
+                    sim_record=str(self.out), sim_video=str(video) if video else None)
+
+
 # ---------------------------------------------------------------------------------------------------- the episode
 class RealEpisode:
     def __init__(self, spec, out):
@@ -208,7 +362,7 @@ class RealEpisode:
         assert self.mode in ("dry", "live"), self.mode
         for d in ("frames", "plan"):
             (self.out / d).mkdir(parents=True, exist_ok=True)
-        self.be = RobotBackend(spec, self.out) if spec["backend"] == "robot" else TwinBackend(spec, self.out)
+        self.be = {"robot": RobotBackend, "twin": TwinBackend, "sim": SimBackend}[spec["backend"]](spec, self.out)
         self.task = dict(spec["task"]) if spec.get("task") else dict(getattr(self.be, "task", None) or {})
         self.limit = float(spec.get("robot_time_limit_s", 150.0))
         self.max_traj = int(spec.get("max_trajectories", 40))
@@ -230,6 +384,12 @@ class RealEpisode:
             from agentic_robotics.perception.vlm import VLM
             v = spec["vlm"]
             self.vlm = VLM(v, tag=v.get("tag", "real"), cache_dir=None)
+        self.ask = None                                            # (bimanual programs' robot.ask: run.py bimanual)
+        if (spec.get("ask") or {}).get("enabled"):
+            from agentic_robotics.perception.vlm import VLM
+            A = self.ask = spec["ask"]
+            self.vlm = VLM(dict(enabled=True, model=A["model"], max_calls_per_episode=A["calls"],
+                                max_usd_per_episode=A["usd_per_episode"], run_usd=A["run_usd"]), tag=A.get("tag", "real"), cache_dir=None)
         if spec.get("sam3") == "robot":                            # (the robot's own SAM3 servers, :8131 / :8134)
             from agentic_robotics import services
             ports = {"sam3_text": 8131, "sam3_points": 8134}
@@ -282,7 +442,7 @@ class RealEpisode:
         if cmd == "hello":
             return dict(ok=True, real=self.spec["backend"] == "robot", backend=self.spec["backend"], mode=self.mode,
                         twin=False, fake=False, allow_motion=self.mode == "live", camera_mounts="real",
-                        robot_time_limit_s=self.limit, t0=0.0, **{f"arm_{k}": v for k, v in self.be.hello_info.items()}), []
+                        robot_time_limit_s=self.limit, t0=0.0, ask=self.ask is not None, **{f"arm_{k}": v for k, v in self.be.hello_info.items()}), []
         if cmd == "task":
             return dict(ok=True, task=self.task), []
         if cmd == "now":
@@ -355,6 +515,31 @@ class RealEpisode:
             r = self.vlm.ask(h.get("prompt", ""), list(arrays), detail=h.get("detail", "high"))
             self.log("vlm reply", **r)
             return dict(r), []
+        if cmd == "ask":                                          # a bimanual program's robot.ask (practice.AskBridge's rules)
+            A = self.ask
+            if A is None:
+                return dict(ok=False, why="no model calls in this run"), []
+            q, effort = str(h.get("question") or ""), str(h.get("effort") or "low")
+            if (len(arrays) > A["images"] or effort not in A["efforts"] or len(q) > A["chars"]
+                    or any(im.ndim != 3 or im.shape[2] != 3 or im.dtype != np.uint8 or max(im.shape) > A["side"] for im in arrays)):
+                return dict(ok=False, why="model service: bad request"), []
+            n = self.counts["ask"] = self.counts.get("ask", 0) + 1
+            import cv2
+            (self.out / "asked").mkdir(exist_ok=True)
+            for k, im in enumerate(arrays):
+                cv2.imwrite(str(self.out / "asked" / f"{n:02d}_{k}.png"), cv2.cvtColor(np.ascontiguousarray(im), cv2.COLOR_RGB2BGR))
+            self.log("ask request", question=q, effort=effort, n_images=len(arrays))
+            try:
+                r = self.vlm.ask(q, list(arrays), effort=effort, max_output_tokens=A["tokens"])
+            except Exception as e:                                  # a fault of the service: the program goes on without
+                r = dict(ok=False, why=f"model service: {type(e).__name__}: {str(e)[:200]}")
+            self.log("ask reply", **r)
+            wait = float(np.clip(r.get("wait_s") or 0.0, 0.0, A["wait_s"]))
+            if self.mode == "live" and self.spec["backend"] != "robot":
+                self.be.idle(wait)                                  # (the robot's own wait was real; the twin's world waits here)
+            self.robot_s += wait                                    # the robot stands still while the answer comes
+            self.timeline.append((round(self.t_run(), 3), "event", f"ask {n}"))
+            return dict(ok=bool(r.get("ok")), text=r.get("text"), why=r.get("why"), wait_s=wait, usd=float(r.get("usd") or 0.0)), []
         if cmd == "vlm_converse":
             return dict(ok=False, why="no multi-turn model calls on the real robot runner"), []
         if cmd == "event":

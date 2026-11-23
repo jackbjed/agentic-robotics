@@ -458,6 +458,14 @@ episodes per cell, $4.90 of model calls, no call refused). Reference: `scripted.
 The practice score (136/136) overstated the result on new heaps, most of all on out-of-distribution objects, where
 colours and shapes close to the target's are the main cause.
 
+## On the real arm (2026-11-23)
+
+`src/agentic_robotics/bimanual/real.py` answers the program API on the real rig, which moves the left Panda only:
+`real/run program --program runs/bimanual/<session>/program.py` (real/README.md, "A bimanual session's program on the
+real arm"). The insertion program (`insert_varied`) runs there; the clutter tasks need both arms and are refused.
+`--backend sim` rehearses the whole path with this simulation as the robot: the insertion program v21 succeeds on 29
+of 31 seeds, the two failures being scenes on the right arm's side. Nothing has run on the real arm yet.
+
 ## Not there yet
 
 - No coding-agent session yet (direct control through `drive`, or writing programs); model results are 2 to 10 episodes per cell, one task for programs, grippers only.

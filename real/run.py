@@ -15,6 +15,16 @@
         (runs/learning/<run>/experiment.json), else configs/experiments/fidelity2_A.yaml's; --vlm-usd caps ALL real
         runs' model spending together (ledger tag 'real', default $2); --no-vlm turns it off.
         --task place: "Put the <object> into the white box." (skills/place.py), else "Pick up the <object> and lift it."
+  real/run program --program runs/bimanual/<session>/program.py [--task insert_varied] [--mode dry|live] [--tag NAME]
+        [--time-limit S] [--robot-clock] [--no-settle] [--max-trajectories N] [--speed S] [--guard-speed M_PER_S] [--guard-dz M]
+        [--free-push] [--raw-force] [--backend sim --seed N [--scene FILE.json]]
+        ONE episode of a program written for the bimanual environments' robot API (run(robot, task): docs/bimanual.md),
+        unchanged, on the rig's LEFT arm (src/agentic_robotics/bimanual/real.py: what differs from the simulation).
+        --task insert_varied (the default): "put the cylinder on the stick", one arm's work: the cylinder and the stand
+        on the left arm's side. --backend sim: the rehearsal, the bimanual simulation's scene `seed` of the task (or
+        --scene) standing in for the robot and judged by the task's judge. The clutter tasks (--task clutter --object
+        ... --level ...) need both arms: for now not on the real robot (--backend twin only: the path's own test).
+        No model call unless --ask (robot.ask: at most 4 calls an episode, ledger tag 'real:program').
   real/run verdict RESULTS_DIR success|fail [--knocked-off] [--intervened] [--note ...]
         the operator's verdict on a live robot episode, after it (or to correct it)
   real/run summary [RESULTS_DIR ...]
@@ -130,22 +140,7 @@ def vlm_spent(tag):
 
 def run_episode(a):
     a.entry = a.entry or ("skills/place.py" if a.task == "place" else "skills/pick.py")
-    hi = {}
-    if a.backend == "robot":
-        from agentic_robotics.sim import twin  # noqa: F401
-        hi = arm_hello(a.port)
-        if hi is None:
-            raise SystemExit("the arm server does not answer (panda_twin: srv, or srv --allow-motion for a live run)")
-        print(f"arm server: {'FAKE arm' if hi.get('fake') else 'the REAL arm'}, motion {'allowed' if hi.get('allow_motion') else 'not allowed'}"
-              f"{', each trajectory confirmed there' if hi.get('confirm') else ''}", flush=True)
-    if a.mode == "live" and a.backend == "robot" and not hi.get("fake"):
-        if not sys.stdin.isatty():
-            raise SystemExit("a live robot run needs the operator at this terminal")
-        print(CHECKLIST)
-        if input("Type LIVE to send motion to the real arm: ").strip() != "LIVE":
-            raise SystemExit("not confirmed: nothing was run")
-    if not services_ok(a.sam3):
-        raise SystemExit(f"SAM3 ({a.sam3}) is not answering: bin/ar services start sam3_text sam3_points")
+    hi = preflight(a)
     skills = Path(a.skills).resolve()
     if not (skills / a.entry).exists():
         raise SystemExit(f"{skills / a.entry}: no such entry")
@@ -173,6 +168,124 @@ def run_episode(a):
                 platform=git_rev(), started=stamp)
     (out / "spec.json").write_text(json.dumps(spec, indent=1))
     shutil.copytree(skills, out / "skill", ignore=shutil.ignore_patterns("__pycache__", "practice", "*.mp4"))
+    host_args = ["--skills", str(skills), "--entry", a.entry] + (["--no-library"] if a.library == "off" else []) + \
+        (["--speed", str(a.speed)] if a.speed is not None else [])
+    return launch(a, out, prog_out, spec, skills, "host.py", host_args, hi)
+
+
+def preflight(a):
+    """The arm server's answer, the operator's LIVE confirmation, SAM3 -> the arm server's hello ({} on the twin)."""
+    hi = {}
+    if a.backend == "robot":
+        from agentic_robotics.sim import twin  # noqa: F401
+        hi = arm_hello(a.port)
+        if hi is None:
+            raise SystemExit("the arm server does not answer (panda_twin: srv, or srv --allow-motion for a live run)")
+        print(f"arm server: {'FAKE arm' if hi.get('fake') else 'the REAL arm'}, motion {'allowed' if hi.get('allow_motion') else 'not allowed'}"
+              f"{', each trajectory confirmed there' if hi.get('confirm') else ''}", flush=True)
+    if a.mode == "live" and a.backend == "robot" and not hi.get("fake"):
+        if not sys.stdin.isatty():
+            raise SystemExit("a live robot run needs the operator at this terminal")
+        print(CHECKLIST + getattr(a, "checklist_more", ""))
+        if input("Type LIVE to send motion to the real arm: ").strip() != "LIVE":
+            raise SystemExit("not confirmed: nothing was run")
+    if not services_ok(a.sam3):
+        raise SystemExit(f"SAM3 ({a.sam3}) is not answering: bin/ar services start sam3_text sam3_points")
+    return hi
+
+
+PROGRAM_MORE = {"insert_varied": """
+  - THIS PROGRAM WAS WRITTEN IN SIMULATION, WHERE THE ROBOT HAS TWO ARMS; only the LEFT arm moves here:
+      the cylinder (standing, its hole up) and the stand (stick up) both on the left arm's side of the table
+      (table frame: x -380..-180 mm, y -150..+130 mm), at least one of them at y > -60 mm (else the program picks
+      the right arm and the episode ends), their centres at least 150 mm apart, nothing else near them; the right
+      arm parked. A dry run first: its output gives where the program sees them and the arm it picks;
+  - it lowers the hand until contact (5 mm/s), closes on the cylinder, carries it over the stick and searches for the
+      hole with small moves until contact: the stand may be pushed; be ready on the E-stop;
+  - about 3 minutes when the first try goes in; up to 11 minutes when it has to search and grasp again.""",
+                "clutter": ""}
+HELD = {"insert_varied": "is the cylinder on the stick (the stick through its hole), let go by the robot, the stand upright on "
+                         "the table (the task's success)?"}
+
+
+def run_program(a):
+    from agentic_robotics.bimanual import clutter
+    from agentic_robotics.bimanual.practice import ASK, check_program
+    from agentic_robotics.bimanual.tasks import TASKS
+    program = Path(a.program).resolve()
+    if not program.is_file():
+        raise SystemExit(f"{program}: no such program")
+    bad = check_program(program.read_text())
+    if bad:
+        raise SystemExit("the program is refused: " + "; ".join(bad))
+    if a.task == "clutter":
+        if a.backend != "twin":
+            raise SystemExit("the clutter tasks need both arms: for now they are not run on the real robot (the rig moves one arm). "
+                             "--backend twin runs the path's own test on the single-arm twin's pile")
+        if a.level not in clutter._HOW:
+            raise SystemExit(f"--level is one of {', '.join(clutter._HOW)}")
+        limit = 900.0 if a.level == "hard" else 600.0                         # (the simulation's limits)
+    elif a.backend == "twin":
+        raise SystemExit(f"--task {a.task}: the twin has no cylinder and no stand; its rehearsal is --backend sim")
+    else:
+        limit = float(TASKS[a.task].time_limit_s)
+    # the program's limit is the simulation's, on the program's clock (bimanual/real.py, time); the rig's own is longer,
+    a.time_limit = a.time_limit or (limit if a.robot_clock else 2.5 * limit)   # as its stop_on_contact moves are slower
+    a.max_trajectories = a.max_trajectories or (40 if a.mode == "dry" else 400)
+    a.checklist_more = PROGRAM_MORE[a.task]
+    a.held_question = HELD.get(a.task)
+    hi = preflight(a)
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    tag = a.tag or program.parent.name
+    out = Path(a.out_root or RESULTS) / f"{stamp}_{a.backend}_{a.mode}_{tag}"
+    prog_out = out / "program"; prog_out.mkdir(parents=True)
+    task = sim = None
+    if a.backend == "robot":
+        task = dict(kind=a.task, instruction=TASKS[a.task].text)
+    elif a.backend == "sim":
+        sim = dict(task=a.task, seed=a.seed, sensors=a.sensors, scene=json.loads(Path(a.scene).read_text()) if a.scene else None)
+    A = None
+    if a.ask:
+        from agentic_robotics.perception.vlm import models_config
+        M = models_config()
+        if a.model not in M["models"]:
+            raise SystemExit(f"--model is one of {', '.join(M['models'])}")
+        total, cap = vlm_spent(None), float(M["budget"]["total_usd"])
+        A = dict(enabled=True, model=a.model, tag="real:program", run_usd=a.ask_usd, usd_per_episode=ASK["calls"] * ASK["reserve_usd"],
+                 **{k: (list(v) if isinstance(v, tuple) else v) for k, v in ASK.items() if k != "reserve_usd"})
+        print(f"robot.ask on ({a.model}): at most {ASK['calls']} calls an episode; all real runs together capped at ${a.ask_usd} "
+              f"(spent so far ${vlm_spent('real'):.3f})", flush=True)
+        if total >= cap:
+            print(f"   NOTE: the repository's model budget is spent (${total:.2f} of {cap:.2f}, configs/models.yaml budget.total_usd): "
+                  "every robot.ask will be refused until the cap is raised", flush=True)
+    spec = dict(mode=a.mode, backend=a.backend, task=task, robot_time_limit_s=a.time_limit, max_trajectories=a.max_trajectories,
+                sam3=a.sam3, vlm=None, ask=A, record=not a.no_record, depth_fps=a.depth_fps, port=a.port, replay_frames=a.replay_frames,
+                twin=dict(task_config=a.task_config, split=a.split, level=a.twin_level, idx=a.idx, seed=a.seed) if a.backend == "twin" else None,
+                sim=sim, skills=str(program), kind="program", program_time_limit_s=limit, robot_clock=a.robot_clock, program_task=a.task, level=a.level if a.task == "clutter" else None,
+                speed=a.speed, guard_speed=a.guard_speed, guard_dz=a.guard_dz, free_push=a.free_push, raw_force=a.raw_force,
+                max_stops=a.max_stops, settle_all=not a.no_settle, platform=git_rev(), started=stamp)
+    skill = out / "skill"; skill.mkdir()
+    shutil.copy2(program, skill / "program.py")                               # (the sandbox sees this copy only)
+    spec["skills_hash"] = tree_hash(skill)
+    (out / "spec.json").write_text(json.dumps(spec, indent=1))
+    host_args = ["--program", str(skill / "program.py"), "--guard-speed", str(a.guard_speed), "--max-stops", str(a.max_stops),
+                 "--program-limit", str(limit)] + (["--robot-clock"] if a.robot_clock else []) + (["--no-settle"] if a.no_settle else []) + \
+        (["--clutter-level", a.level] if a.task == "clutter" else []) + (["--speed", str(a.speed)] if a.speed is not None else []) + \
+        (["--guard-dz", str(a.guard_dz)] if a.guard_dz is not None else []) + (["--free-push"] if a.free_push else []) + \
+        (["--raw-force"] if a.raw_force else [])
+    launch(a, out, prog_out, spec, skill, "host_program.py", host_args, hi)
+    txt = prog_out / "output.txt"                                             # the program's own prints (not the commands' log)
+    own = [l for l in txt.read_text().splitlines() if l.strip() and not l.startswith("#")] if txt.exists() else []
+    if own:
+        print(f"the program's own output ({txt}; {len(own)} lines, the first 8):")
+        for l in own[:8]:
+            print("  " + l[:200])
+    return out
+
+
+def launch(a, out, prog_out, spec, skills, host, host_args, hi):
+    """The episode: real/server.py for the robot (or the twin), the host (a file of real/) with the program in its
+    sandbox (skills: the directory bound read-only into it), then the record and the verdict -> out."""
     sock_dir = Path(tempfile.mkdtemp(prefix="arr-"))
     sock = sock_dir / "real.sock"
     py = robot_python() if a.backend == "robot" else VENV_PY
@@ -180,7 +293,7 @@ def run_episode(a):
     t0 = time.time()
     srv = subprocess.Popen([py, "-I", str(REAL / "server.py"), "--spec", str(out / "spec.json"), "--sock", str(sock), "--out", str(out)],
                            env=env, cwd=str(ROOT), stdout=open(out / "server.log", "w"), stderr=subprocess.STDOUT)
-    host = None
+    proc = None
     interrupted = False
     try:
         while not Path(str(sock) + ".ready").exists():
@@ -189,34 +302,32 @@ def run_episode(a):
             if time.time() - t0 > 180:
                 raise SystemExit("the real-robot server did not start in 180 s")
             time.sleep(0.1)
-        cmd = [VENV_PY, "-I", str(REAL / "host.py"), "--skills", str(skills), "--entry", a.entry, "--sock", str(sock),
-               "--out", str(prog_out)] + (["--no-library"] if a.library == "off" else []) + \
-              (["--speed", str(a.speed)] if a.speed is not None else [])
+        cmd = [VENV_PY, "-I", str(REAL / host), "--sock", str(sock), "--out", str(prog_out)] + list(host_args)
         cmd = sbx.program_cmd(cmd, skills, prog_out, sock_dir)
-        cmd[1:1] = ["--ro-bind", str(REAL / "host.py"), str(REAL / "host.py")]   # (only this file of real/: no results)
+        cmd[1:1] = ["--ro-bind", str(REAL / host), str(REAL / host)]             # (only this file of real/: no results)
         print(f"{a.mode} run on the {a.backend}: {out}", flush=True)
-        host = subprocess.Popen(cmd, cwd=str(prog_out), stdout=open(prog_out / "host.log", "w"), stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(cmd, cwd=str(prog_out), stdout=open(prog_out / "host.log", "w"), stderr=subprocess.STDOUT)
         try:
-            host.wait(timeout=a.wall_limit)
+            proc.wait(timeout=a.wall_limit)
         except subprocess.TimeoutExpired:
             print("wall limit: the program is stopped", flush=True)
-            host.kill(); host.wait()
+            proc.kill(); proc.wait()
         except KeyboardInterrupt:
             interrupted = True
             print("\nCtrl-C: the program is stopped (no more trajectories are sent; the arm holds where it is)", flush=True)
-            host.kill(); host.wait()
+            proc.kill(); proc.wait()
         try:
             srv.wait(timeout=60)
         except subprocess.TimeoutExpired:
             if not (out / "server.json").exists():
                 from agentic_robotics.execution.episode import _send_done
-                _send_done(sock, "interrupted by the operator" if interrupted else f"program ended without reporting (exit {host.returncode})")
+                _send_done(sock, "interrupted by the operator" if interrupted else f"program ended without reporting (exit {proc.returncode})")
             try:
                 srv.wait(timeout=180)
             except subprocess.TimeoutExpired:
                 srv.kill(); srv.wait()
     finally:
-        for p in (host, srv):
+        for p in (proc, srv):
             if p is not None and p.poll() is None:
                 p.kill()
         shutil.rmtree(sock_dir, ignore_errors=True)
@@ -231,9 +342,11 @@ def run_episode(a):
 
 
 def verdict(a, S, interrupted, hi):
-    if a.backend == "twin":
+    if a.backend in ("twin", "sim"):
         j = S.get("judge") or {}
-        return dict(by="twin judge", success=bool(j.get("success")), category=j.get("category"), t_success=j.get("t_success"))
+        if a.mode == "dry" and a.backend == "sim":
+            return dict(by=f"none (dry run: no motion; the sim's judge on the untouched scene: {j.get('category')})", success=None)
+        return dict(by=f"{a.backend} judge", success=bool(j.get("success")), category=j.get("category"), t_success=j.get("t_success"))
     if a.mode == "dry":
         return dict(by="none (dry run: no motion)", success=None)
     if hi.get("fake"):
@@ -249,7 +362,7 @@ def verdict(a, S, interrupted, hi):
             if s in ("y", "yes", "n", "no"):
                 return s.startswith("y")
     print("Verdict (the operator):")
-    held = yn("is the target held up by both fingers, nothing else lifted (the task's success)?")
+    held = yn(getattr(a, "held_question", None) or "is the target held up by both fingers, nothing else lifted (the task's success)?")
     knocked = yn("did anything fall off the table or get knocked over?")
     stopped = yn("did you intervene (E-stop, refused a trajectory, by hand)?")
     note = input("   a note (Enter for none): ").strip()
@@ -274,6 +387,7 @@ def write_readme(out, r):
              ("plan/", "each planned move drawn over the scene camera (NNN.jpg; sheet.jpg: all of them)"),
              ("video/, episode.mp4", "robot: both cameras recorded at 15 fps, and side by side with the phase, gripper, force"),
              ("twin/", "twin backend: the simulator's own record (video.mp4, result.json with the judge)"),
+             ("sim/", "sim backend: the bimanual simulation's record (video.mp4, result.json: the judge, the scene)"),
              ("program/", "the program's own output: program.json, host.log, debug images, program_error.txt"),
              ("server.log", "the real-robot server's log")]
     L = [f"# {out.name}", "", one_line(out, r), "", "| file | |", "|---|---|"]
@@ -392,13 +506,54 @@ def main():
     s.add_argument("--task-config", default="configs/tasks/clutter_pick_A_rig.yaml", help="twin: the condition")
     s.add_argument("--split", default="val"); s.add_argument("--level", type=int, default=1)
     s.add_argument("--idx", type=int, default=0); s.add_argument("--seed", type=int, default=13)
+    s = sub.add_parser("program")
+    s.add_argument("--program", required=True, help="a bimanual-environment session's program.py (run(robot, task))")
+    s.add_argument("--task", default="insert_varied", choices=("insert_varied", "clutter"),
+                   help="insert_varied: put the cylinder on the stick (one arm's work); clutter: twin backend only")
+    s.add_argument("--mode", default="dry", choices=("dry", "live"))
+    s.add_argument("--backend", default="robot", choices=("robot", "sim", "twin"),
+                   help="sim: the bimanual simulation's scene of the task (a rehearsal); twin: --task clutter's test")
+    s.add_argument("--tag")
+    s.add_argument("--time-limit", type=float, default=None,
+                   help="the rig's robot seconds (default: 2.5 x the task's 600 s; the program's own limit stays the task's, on its clock)")
+    s.add_argument("--no-settle", action="store_true",
+                   help="the arm server's settle after the unguarded ways down only (default: after every move that is not a contact)")
+    s.add_argument("--robot-clock", action="store_true",
+                   help="robot.time_s() = the rig's clock (default: the stop_on_contact moves counted at the simulation's 40 mm/s)")
+    s.add_argument("--max-trajectories", type=int, default=None, help="default 40 dry, 400 live (one per command of the program)")
+    s.add_argument("--speed", type=float, default=None, help="RealSim time scale (default rig.json's: 0.5)")
+    s.add_argument("--guard-speed", type=float, default=0.005, help="m/s of the stop_on_contact moves (0.005: validated on the arm; simulation: 0.04)")
+    s.add_argument("--guard-dz", type=float, default=None, help="m the hand is held up at a contact (default rig.json's 0.002; the arm server allows 0.001-0.01)")
+    s.add_argument("--free-push", action="store_true",
+                   help="send a push down after a contact as a plain 40 mm/s move (default: a 5 mm/s guarded one: 15 N / 10 mm)")
+    s.add_argument("--raw-force", action="store_true", help="state()'s force as the arm reports it (default: minus its reading at the start)")
+    s.add_argument("--max-stops", type=int, default=3, help="safety stops of the arm server before the episode ends")
+    s.add_argument("--wall-limit", type=float, default=3600.0)
+    s.add_argument("--sam3", default="ours", choices=("ours", "robot"), help="ours: :8151/:8154 (bin/ar services); robot: :8131/:8134")
+    s.add_argument("--ask", action="store_true", help="robot.ask answers (a model call; off: it answers ok=False)")
+    s.add_argument("--model", default="astra", help="robot.ask's model (configs/models.yaml)")
+    s.add_argument("--ask-usd", type=float, default=2.0, help="the cap for ALL real runs' model calls together (ledger tag 'real')")
+    s.add_argument("--no-record", action="store_true"); s.add_argument("--depth-fps", type=float, default=0.0)
+    s.add_argument("--port", type=int, default=None, help="the arm server's port (default rig.json's)")
+    s.add_argument("--replay-frames", help="robot backend, tests: a real run's frames/ dir instead of the cameras")
+    s.add_argument("--verdict", choices=("success", "fail"), help="live robot: the operator's verdict without the questions")
+    s.add_argument("--note", default="")
+    s.add_argument("--out-root", help="where the run's directory goes (default real/results)")
+    s.add_argument("--seed", type=int, default=2001, help="sim: the task's scene (twin: the layout's seed)")
+    s.add_argument("--scene", help="sim: a scene file (bimanual/scenes.py's dict) instead of the seed's")
+    s.add_argument("--sensors", default="d415", choices=("d415", "ideal"), help="sim: the cameras' depth and calibration errors, or none")
+    s.add_argument("--object", help="clutter: unused (the twin's layout names its own target)")
+    s.add_argument("--level", default="medium", help="clutter: the task's text, medium | hard")
+    s.add_argument("--task-config", default="configs/tasks/clutter_pick_A_rig.yaml", help="twin: the condition")
+    s.add_argument("--split", default="val"); s.add_argument("--twin-level", type=int, default=1)
+    s.add_argument("--idx", type=int, default=0)
     s = sub.add_parser("verdict"); s.add_argument("dir"); s.add_argument("result", choices=("success", "fail"))
     s.add_argument("--knocked-off", action="store_true"); s.add_argument("--intervened", action="store_true")
     s.add_argument("--note", default="")
     s = sub.add_parser("summary"); s.add_argument("dirs", nargs="*")
     a = ap.parse_args()
     RESULTS.mkdir(parents=True, exist_ok=True)
-    {"check": check, "episode": run_episode, "verdict": set_verdict, "summary": summary}[a.cmd](a)
+    {"check": check, "episode": run_episode, "program": run_program, "verdict": set_verdict, "summary": summary}[a.cmd](a)
 
 
 if __name__ == "__main__":
