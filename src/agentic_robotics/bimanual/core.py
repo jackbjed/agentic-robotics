@@ -189,6 +189,15 @@ class BiCore:
         self.rec_cam = mujoco.MjvCamera(); self.rec_cam.type = mujoco.mjtCamera.mjCAMERA_FREE
         self.rec_cam.lookat[:] = [-0.30, -0.175, 0.17]; self.rec_cam.distance = 1.25; self.rec_cam.azimuth = 160; self.rec_cam.elevation = -22
         self.last_path = "line"
+        # a world's composites (scene["mjcf"]: a soft body, a cloth, loose particles): {prefix: its bodies' ids}
+        self.groups = {}
+        if scene is not None and scene.get("mjcf"):
+            from . import scenes as _sc
+            names = [m.body(b).name for b in range(m.nbody)]
+            self.groups = {pre: np.array([b for b, n in enumerate(names) if n.startswith(pre)])
+                           for pre in sorted(_sc.mjcf_groups(scene["mjcf"]), key=len, reverse=True)}
+            self.groups = {pre: ids for pre, ids in self.groups.items() if len(ids)}
+        self.group_of = {int(b): pre for pre, ids in self.groups.items() for b in ids}
         self.mech = mod.mechanisms(self) if scene is not None and hasattr(mod, "mechanisms") else None
         self.guard, self.glitches = bool(scene is not None and getattr(mod, "GUARD", False)), 0
         self.reset(layout, seed)
@@ -254,8 +263,20 @@ class BiCore:
             sys.path.insert(0, str(paths.VENDOR / "panda_twin" / "code"))
             import d415_model
             rng = np.random.default_rng(1000 + seed)
-            self.dm = d415_model.D415Real(self, rng, MIN_Z, calib=CALIB)
-            self.dm.scale = {c: float(rng.uniform(-1, 1)) * self.dm.p["scale"] for c in CAMS.values()}
+            from . import scenes as _sc
+            # a world's cameras (scene["cameras"]): each camera's depth parameters, its pose error; without: the model's own
+            P, Z, I, C, F = _sc.camera_models(self.scene, d415_model.P, MIN_Z, {n: CALIB[c] for n, c in CAMS.items()})
+            self.dm = d415_model.D415Real(self, rng, MIN_Z, calib={CAMS[n]: C[n] for n in CAMS})
+            for n, (dpos, drot) in F.items():                       # (a fixed error in place of the drawn one)
+                self.set_camera_error(CAMS[n], dpos, drot)
+                self.dm.calib[CAMS[n]] = dict(dpos_mm=np.round(dpos * 1000, 1).tolist(), drot_deg=np.round(drot, 2).tolist())
+            self.dm.scale = {c: float(rng.uniform(-1, 1)) * P[n]["scale"] for n, c in CAMS.items()}
+            m_ = self.m
+            rgba = np.where((m_.geom_matid >= 0)[:, None], m_.mat_rgba[np.clip(m_.geom_matid, 0, None)], m_.geom_rgba)
+            lum = rgba[:, :3] @ [0.299, 0.587, 0.114]
+            thing = np.array([m_.body(m_.geom_bodyid[g]).name.startswith(("obj_", "w_")) for g in range(m_.ngeom)])
+            self.cam_depth = {c: dict(p={**P[n], "calib": self.dm.p["calib"]}, min_z=Z[n], ideal=I[n], dark=thing & (lum < P[n]["dark_lum"]))
+                              for n, c in CAMS.items()}
         mujoco.mj_forward(m, d)
         if settle:
             rec, self.record = self.record, False
@@ -315,6 +336,24 @@ class BiCore:
         """TRUE pose (for judges and tests; a controller must use the cameras)."""
         b = self.objects[name]
         return self.d.xpos[b].copy(), self.d.xmat[b].reshape(3, 3).copy()
+
+    def world_truth(self):
+        """TRUE state of a world's own bodies (scene["mjcf"]: their names start with "w_"): each named body's position
+        (mm: its frame's origin) and each named slide or hinge joint's value (mm, degrees)."""
+        m, d, out = self.m, self.d, {}
+        for pre, ids in self.groups.items():                        # (a composite: the centre of its bodies)
+            out[pre] = [round(float(v) * 1000, 1) for v in d.xpos[ids].mean(0)]
+        for b in range(1, m.nbody):
+            n = m.body(b).name
+            if n.startswith("w_") and b not in self.group_of:
+                out[n] = [round(float(v) * 1000, 1) for v in d.xpos[b]]
+        for j in range(m.njnt):
+            n = m.joint(j).name
+            if (n.startswith("w_") and m.jnt_type[j] in (mujoco.mjtJoint.mjJNT_SLIDE, mujoco.mjtJoint.mjJNT_HINGE)
+                    and int(m.jnt_bodyid[j]) not in self.group_of):      # (not a composite's own joints)
+                v = float(d.qpos[m.jnt_qposadr[j]])
+                out[n if n not in out else n + "_joint"] = round(v * 1000 if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_SLIDE else math.degrees(v), 1)
+        return out
 
     def cap_angle(self):
         """Degrees the cap has been unscrewed (UNSCREW_DEG = it comes free)."""
@@ -498,7 +537,10 @@ class BiCore:
             rs = self.renderer(H, W, seg=True); rs.update_scene(d, camera=cid); seg = rs.render().copy()
             m.geom_rgba[:, 3] = a0
             gid = np.where((seg[..., 1] == int(mujoco.mjtObj.mjOBJ_GEOM)) & (seg[..., 0] >= 0), seg[..., 0], -1)
-            depth = self.dm.apply(depth, gid, cam)
+            cd = self.cam_depth[cam]                                    # (this camera's depth model: a world can set it)
+            if not cd["ideal"]:
+                self.dm.p, self.dm.min_z, self.dm.dark = cd["p"], cd["min_z"], cd["dark"]
+                depth = self.dm.apply(depth, gid, cam)
             if self.fx.get("thin_depth") and which != "scene":
                 depth = self._thin_dropout(depth, gid, H / 2 / math.tan(math.radians(m.cam_fovy[cid]) / 2))
         depth = depth.astype(np.float64); depth[~np.isfinite(depth)] = np.nan
@@ -634,10 +676,14 @@ class BiCore:
             a1, a2 = self.geom_arm[c.geom1], self.geom_arm[c.geom2]
             if (a1 == P) != (a2 == P):
                 out.add(int(m.geom_bodyid[c.geom2 if a1 == P else c.geom1]))
+        for pre in {self.group_of[b] for b in out if b in self.group_of}:      # (a held composite: the whole of it)
+            out |= {int(b) for b in self.groups[pre]}
         return out
 
     def _body_label(self, b):
         n = self.m.body(b).name
+        if b in self.group_of:
+            n = self.group_of[b]
         if not n or n == "world":
             return "the table or the arms' frame"
         if n.startswith("bottle_cap"):
@@ -645,7 +691,7 @@ class BiCore:
         for prefix, label in (self.mech.labels.items() if self.mech else ()):
             if n.startswith(prefix):
                 return label
-        return "the " + n.removeprefix("obj_").replace("_", " ")
+        return "the " + n.removeprefix("obj_").removeprefix("w_").replace("_", " ")
 
     def collides(self, P, q, ignore=()):
         """What arm P (with its hand as it is) would touch with its arm joints at q: a name, or None."""

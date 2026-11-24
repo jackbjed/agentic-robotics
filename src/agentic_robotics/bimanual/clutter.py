@@ -32,12 +32,14 @@ An object's pose is that of its geometric centre. Object k is the body obj_item_
 from __future__ import annotations
 
 import functools
+import json
 import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
 
+from . import scenes as _scenes
 from .scenes import COLOURS, JITTER, OOD_COLOURS, RULER
 
 KIND = "clutter"
@@ -49,8 +51,9 @@ TABLE = dict(size="0.6105 0.6120 0.0150", pos="0 0 -0.0150", friction="1.0 0.02 
 FLAT = dict(friction="0.7 0.02 0.005", condim="4")              # the objects' contacts; balls and capsules roll with friction
 ROUND = dict(friction="0.7 0.02 0.002", condim="6")
 FACETS = 8                                                      # a cylinder collides as a prism of 2 FACETS sides (see _object_geoms)
+RING_WALLS = 24                                                 # a round ring (a world's scene): that many walls about its hole
 NOUN = {"box": "block", "cylinder": "cylinder", "ball": "ball", "pill": "capsule", "L": "L-shaped block", "steps": "stepped block",
-        "T": "T-shaped block", "cross": "cross-shaped block", "hexagon": "hexagonal prism"}
+        "T": "T-shaped block", "cross": "cross-shaped block", "hexagon": "hexagonal prism", "ring": "ring"}
 
 # the training limits: what a scene below OOD_FROM is drawn from (sizes in mm at scale 1, see _size)
 SHAPES = ("box", "cylinder", "ball")
@@ -130,6 +133,8 @@ def radius(o):
         return math.sqrt(z[0] ** 2 + z[1] ** 2 + z[2] ** 2) / 2
     if s == "cylinder":
         return math.hypot(z[0], z[1]) / 2
+    if s == "ring":                                                 # (a polygon's corners stand out of its circle)
+        return math.hypot(z[0] / math.cos(math.pi / int(o["sides"])) if o.get("sides") else z[0], z[1]) / 2
     if s == "ball":
         return z[0] / 2
     if s == "pill":
@@ -148,6 +153,8 @@ def radius(o):
 
 
 def _part_radius(p):
+    if p["type"] == _scenes.HULL:                                   # (a world's custom object: a convex hull of points)
+        return max(float(np.linalg.norm(q)) for q in p["points_mm"])
     z = p["size_mm"]
     return {"box": lambda: math.sqrt(z[0] ** 2 + z[1] ** 2 + z[2] ** 2) / 2, "cylinder": lambda: math.hypot(z[0], z[1]) / 2,
             "ball": lambda: z[0] / 2, "capsule": lambda: z[1] / 2}[p["type"]]()
@@ -171,7 +178,7 @@ def _thin_axis(o):
     s, z = o["shape"], o.get("size_mm")
     if s == "box":
         return int(np.argmin(z))
-    if s == "cylinder":
+    if s in ("cylinder", "ring"):
         return 2 if z[1] <= z[0] else 0
     if s in ("L", "T", "steps", "cross", "hexagon"):
         return 2
@@ -201,6 +208,16 @@ def _object_geoms(body, asset, name, o, group=0):
         for k in range(N):                                          # has one contact point and never comes to rest
             _geom(body, f"{name}_c{k}", "box", rgb, 0, 3, (r * math.cos(math.pi / (2 * N)), r * math.sin(math.pi / (2 * N)), h),
                   euler=f"0 0 {k * math.pi / N:.5f}", **FLAT)
+    elif s == "ring":                                               # (a world's scene) a cylinder with a hole along its axis:
+        R, H, r_in = z[0] / 2, z[1], z[2] / 2                       # walls about the hole, as scenes._cylinder's (they overlap:
+        N = int(o.get("sides") or RING_WALLS)                       # the density is scaled to a ring's weight); `sides`: its
+        t = R - r_in; rc = r_in + t / 2                             # outline and its hole are polygons of that many sides
+        hw = R * math.tan(math.pi / N) * (1.0 if o.get("sides") else 1.05)
+        dn = den * math.pi * (R * R - r_in * r_in) / (N * t * 2 * hw)
+        for k in range(N):
+            a = 2 * math.pi * k / N
+            _geom(body, f"{name}_w{k}", "box", rgb, dn, group, (t / 2, hw, H / 2), (rc * math.cos(a), rc * math.sin(a), 0),
+                  euler=f"0 0 {a:.5f}", **FLAT)
     elif s == "ball":
         g("", "sphere", (z[0] / 2,), c=ROUND)
     elif s == "pill":
@@ -229,9 +246,11 @@ def _object_geoms(body, asset, name, o, group=0):
                   euler=f"0 0 {k * math.pi / 3:.5f}", **FLAT)
     elif s == "custom":                                             # an asset of parts (build()): each at its own pose
         for i, p in enumerate(o["parts"]):
-            pz, pos, q = [v / 1000 for v in p["size_mm"]], [v / 1000 for v in p["pos_mm"]], _euler_quat(p["euler_deg"])
+            pz, pos, q = [v / 1000 for v in p.get("size_mm") or []], [v / 1000 for v in p["pos_mm"]], _euler_quat(p["euler_deg"])
             qs = lambda q: " ".join(f"{v:.6f}" for v in q)
-            if p["type"] == "box":
+            if p["type"] == _scenes.HULL:                           # (a world's scene) the convex hull of its points: a mesh
+                _scenes.hull_geom(body, asset, f"{name}_p{i}", p, rgb, den, quat=qs(q), group=str(group), **FLAT)
+            elif p["type"] == "box":
                 g(f"_p{i}", "box", (pz[0] / 2, pz[1] / 2, pz[2] / 2), pos, quat=qs(q))
             elif p["type"] == "cylinder":                           # (seen as a cylinder, collides as a prism: as above)
                 r, h, N = pz[0] / 2, pz[1] / 2, FACETS
@@ -246,6 +265,7 @@ def _object_geoms(body, asset, name, o, group=0):
                 g(f"_p{i}", "capsule", (pz[0] / 2, (pz[1] - pz[0]) / 2), pos, c=ROUND, quat=qs(q))
     else:
         raise ValueError(f"unknown shape {s!r}")
+    _scenes.contact_attrs(body.findall("geom"), o)                  # (a world's scene: its friction, its contacts' hardness)
 
 
 def _bin_density(b):
@@ -266,11 +286,19 @@ def _bin_geoms(body, b, group=0):
         g(f"y{k}", (lx / 2, w / 2, h / 2), (0, sy * (ly / 2 + w / 2), w + h / 2))
 
 
+def _fixed_extras(wb, sc, asset):
+    """A world's extras (world_scene: all fixed) as bodies without a joint: part of the table."""
+    for k, e in enumerate(sc.get("extras") or []):
+        b = ET.SubElement(wb, "body", name=f"fixed_extra_{k}", pos=f"{e['xy_mm'][0] / 1000:.5f} {e['xy_mm'][1] / 1000:.5f} {e['z_mm'] / 1000:.5f}",
+                          euler=f"0 0 {math.radians(e['yaw_deg']):.5f}")
+        _scenes._extra_geoms(b, k, e, asset)
+
+
 def _free_model(sc):
     """The heap's own model: the table, the bin and the objects (free bodies), without the robot. The target's geoms
     are in group 1, all the others in group 0 (visibility())."""
     root = ET.Element("mujoco", model="clutter")
-    ET.SubElement(root, "compiler", angle="radian")
+    ET.SubElement(root, "compiler", angle="radian", autolimits="true")     # (autolimits: as models/*.xml, for a world's MJCF)
     opt = ET.SubElement(root, "option", timestep="0.002", integrator="implicitfast", cone="elliptic", impratio="10")
     ET.SubElement(opt, "flag", multiccd="enable")                   # (as models/*.xml)
     asset = ET.SubElement(root, "asset")
@@ -280,11 +308,18 @@ def _free_model(sc):
         b = ET.SubElement(wb, "body", name="obj_bin", pos="0 0 0.001")
         ET.SubElement(b, "freejoint")
         _bin_geoms(b, sc["bin"])
+    _fixed_extras(wb, sc, asset)
     for k, o in enumerate(sc["objects"]):
         b = ET.SubElement(wb, "body", name=f"obj_item_{k}", pos=f"{2 + 0.3 * k:.1f} 3 1")
         ET.SubElement(b, "freejoint")
         _object_geoms(b, asset, f"item_{k}", o, group=1 if k == sc["target"] else 0)
     import mujoco
+    if sc.get("mjcf"):                                              # (a world's own bodies: the last, at their start values)
+        _scenes.add_mjcf(root, sc)
+        q = _scenes.mjcf_qpos(sc).split()
+        m = mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"))
+        m.qpos0[m.nq - len(q):] = [float(v) for v in q]
+        return m
     return mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"))
 
 
@@ -663,14 +698,16 @@ def target_name(sc):
 
 
 def noun(o):
-    return o["name"] if o["shape"] == "custom" else NOUN[o["shape"]]
+    """What the task's text calls an object of this shape (a world's object can carry its own name: "name")."""
+    return o["name"] if o["shape"] == "custom" or o.get("name") else NOUN[o["shape"]]
 
 
 def _what(o):
     """An object in a line of describe()."""
     if o["shape"] == "custom":
-        return f"{o['color']} {o['name']} (custom: " + " + ".join(f"{p['type']} {' x '.join(f'{v:g}' for v in p['size_mm'])}" for p in o["parts"]) + ")"
-    return f"{o['color']} {o['shape']} {' x '.join(f'{v:g}' for v in o['size_mm'])}"
+        return f"{o['color']} {o['name']} (custom: " + " + ".join(_scenes.part_text(p) for p in o["parts"]) + ")"
+    return (f"{o['color']} {o['shape']} {' x '.join(f'{v:g}' for v in o['size_mm'])}" + (f" with {o['sides']} sides" if o.get("sides") else "")
+            + (f" (called \"{o['name']}\")" if o.get("name") else ""))
 
 
 def describe(sc):
@@ -684,7 +721,10 @@ def describe(sc):
     if b:
         out += (f"; bin: {b['color']}, inside {b['inner_mm'][0]:g} x {b['inner_mm'][1]:g} x {b['height_mm']:g}, {b['mass_kg']:g} kg, at "
                 f"({b['pos_mm'][0]:.0f}, {b['pos_mm'][1]:.0f}) turned {b['yaw_deg']:g} deg")
-    return out + " (mm)" + (f"; out of distribution: {', '.join(sc['ood'])}" if sc["ood"] else "")
+    for k, e in enumerate(sc.get("extras") or []):
+        out += (f"; fixed to the table, \"{e['name']}\": " + " + ".join(_scenes.part_text(q) for q in e["parts"])
+                + f" at ({e['xy_mm'][0]:g}, {e['xy_mm'][1]:g}, {e['z_mm']:g})")
+    return out + " (mm)" + (f"; out of distribution: {', '.join(sc['ood'])}" if sc.get("ood") else "") + _scenes.mjcf_text(sc) + _scenes.cameras_text(sc)
 
 
 def brief(sc):
@@ -930,6 +970,184 @@ def build(spec, seed=0, levels=LEVELS, tries=BUILD_TRIES, arm=None):
     raise ValueError((f"no {level} heap of these objects in {tries} tries: " if not placed else "placed by hand: ") + "; ".join(sorted(set(why))))
 
 
+# ---------------------------------------------------------------------- a WORLD's scene (practice.py: world; a session with --worlds)
+# The scene after the session's own world code changed it: not held to the limits of build(), only to what the
+# simulation can hold (world_scene checks it):
+#   objects    up to WORLD["n"]; any shape of WORLD_SIZES (the training shapes, the out-of-distribution ones, and "ring":
+#              [outer diameter, height, hole diameter], with "sides": its outline and hole as polygons) or "custom" (parts);
+#              "name": what the task's text calls it instead of its shape's noun; pos_mm with quat or euler_deg
+#   target     the index of any of them
+#   extras     bodies of parts FIXED to the table (scenes.world_extras: a mat, a book, a box, a stand)
+#   friction, contact   on an object or an extra: its sliding friction and its contacts' hardness (scenes.CONTACT_KEYS)
+#   a part of type "hull"   (a custom object's, an extra's) the convex hull of points_mm: a convex mesh
+#   settle     how the heap comes to rest before the episode: "together" (default: all objects set at their poses at once),
+#              "in_order" (one after another, 0.5 s each: a heap built from the bottom up) or "none" (taken as given);
+#              a scene whose objects and extras the world did not change is taken as it is
+WORLD = dict(n=(1, 24), size=(3.0, 300.0), density=(30.0, 9000.0), x=(-700.0, 150.0), y=(-600.0, 600.0), z=(0.0, 400.0), wall=1.5,
+             sides=(3, 24), parts=10, part=(1.0, 300.0), part_pos=200.0)
+WORLD_SIZES = dict(box=3, cylinder=2, ball=1, pill=2, L=3, steps=3, T=4, cross=3, hexagon=2, ring=3)
+SETTLE = ("together", "in_order", "none")
+_WORLD_OBJECT = ("shape", "size_mm", "color", "rgb", "density", "pos_mm", "quat", "euler_deg", "name", "parts", "sides") + _scenes.CONTACT_KEYS
+_WORLD_KEEPS = ("centre_mm", "own", "placed", "attempts")          # (what build() noted in the scene: kept as it was)
+
+
+def _world_object(o, what):
+    W = WORLD
+    if not isinstance(o, dict):
+        raise ValueError(f"{what}: a dict")
+    if set(o) - set(_WORLD_OBJECT):
+        raise ValueError(f"{what}: unknown field(s) {', '.join(sorted(set(o) - set(_WORLD_OBJECT)))}; there are {', '.join(_WORLD_OBJECT)}")
+    s = o.get("shape")
+    out = dict(shape=s)
+    if s == "custom":
+        parts = o.get("parts")
+        if not isinstance(parts, list) or not 1 <= len(parts) <= W["parts"]:
+            raise ValueError(f"{what}.parts: a list of 1 to {W['parts']} parts")
+        out["parts"] = []
+        for i, p in enumerate(parts):
+            w = f"{what}.parts[{i}]"
+            if not isinstance(p, dict) or p.get("type") not in tuple(PARTS) + (_scenes.HULL,) or set(p) - {"type", "size_mm", "points_mm", "pos_mm", "euler_deg"}:
+                raise ValueError(f"{w}: {{type: {' | '.join(PARTS)} | {_scenes.HULL}, size_mm (a hull: points_mm), pos_mm, euler_deg}}")
+            if p["type"] == _scenes.HULL:
+                shape = dict(points_mm=_scenes.hull_points(p, w))
+            else:
+                if p.get("points_mm") is not None:
+                    raise ValueError(f"{w}: points_mm are a hull's")
+                z = _vec(p.get("size_mm"), PARTS[p["type"]], *W["part"], f"{w}.size_mm")
+                if p["type"] == "capsule" and z[1] < z[0] + 1:
+                    raise ValueError(f"{w}: a capsule's length (the whole of it) is more than its diameter")
+                shape = dict(size_mm=z)
+            out["parts"].append(dict(type=p["type"], **shape, pos_mm=_vec(p.get("pos_mm", [0, 0, 0]), 3, -W["part_pos"], W["part_pos"], f"{w}.pos_mm"),
+                                     euler_deg=_vec(p.get("euler_deg", [0, 0, 0]), 3, -360.0, 360.0, f"{w}.euler_deg")))
+    elif s in WORLD_SIZES:
+        if "parts" in o:
+            raise ValueError(f"{what}: parts are a custom object's")
+        z = out["size_mm"] = _vec(o.get("size_mm"), WORLD_SIZES[s], *W["size"], f"{what}.size_mm ({WORLD_SIZES[s]} for a {s})")
+        if s == "ring":
+            if z[0] < z[2] + 2 * W["wall"]:
+                raise ValueError(f"{what}: a ring is [outer diameter, height, hole diameter], its wall at least {W['wall']:g} mm thick")
+            if o.get("sides"):
+                out["sides"] = int(_num(o["sides"], *W["sides"], f"{what}.sides"))
+        elif o.get("sides"):
+            raise ValueError(f"{what}: sides are a ring's")
+        if s == "pill" and z[1] < z[0] + 1:
+            raise ValueError(f"{what}: a pill is [diameter, whole length], longer than it is thick")
+        if s in ("L", "cross") and z[1] >= z[0]:
+            raise ValueError(f"{what}: [arm length, arm width, height], the width under the length")
+    else:
+        raise ValueError(f"{what}: shape is one of {', '.join(WORLD_SIZES)}, or custom (with parts)")
+    name = o.get("name")
+    if name is not None or s == "custom":
+        if not isinstance(name, str) or not 2 <= len(name.strip()) <= 40 or not all(c.isalnum() or c in " -" for c in name):
+            raise ValueError(f"{what}: name is what the task's text calls the object (2 to 40 letters, digits, spaces, hyphens)"
+                             + ("; a custom object needs one" if s == "custom" else ""))
+        out["name"] = name.strip()
+    c = o.get("color")
+    if not isinstance(c, str) or not 2 <= len(c) <= 20 or not c.replace(" ", "").replace("-", "").isalpha():
+        raise ValueError(f"{what}: color is the colour's name (the task's text names the target by it)")
+    out["color"] = c
+    out["rgb"] = [int(round(v)) for v in _vec(o.get("rgb"), 3, 0, 255, f"{what}.rgb")]
+    out["density"] = _num(o.get("density"), *W["density"], f"{what}.density")
+    out.update(_scenes.world_contact(o, what))
+    p = o.get("pos_mm")
+    if not isinstance(p, (list, tuple)) or len(p) != 3:
+        raise ValueError(f"{what}.pos_mm: [x, y, z], the object's centre")
+    out["pos_mm"] = [_num(p[0], *W["x"], f"{what}.pos_mm x"), _num(p[1], *W["y"], f"{what}.pos_mm y"), _num(p[2], *W["z"], f"{what}.pos_mm z")]
+    if o.get("euler_deg") is not None and o.get("quat") is None:
+        out["quat"] = [round(v, 6) for v in _euler_quat(_vec(o["euler_deg"], 3, -360.0, 360.0, f"{what}.euler_deg"))]
+    else:
+        q = np.array(_vec(o.get("quat", [1, 0, 0, 0]), 4, -1.0001, 1.0001, f"{what}.quat"))
+        if np.linalg.norm(q) < 0.5:
+            raise ValueError(f"{what}.quat: [w, x, y, z], a unit quaternion")
+        out["quat"] = [round(float(v), 6) for v in q / np.linalg.norm(q)]
+    return out
+
+
+def _settle(sc, how):
+    """The heap of a world's scene brought to rest (how: SETTLE) -> the scene with the poses at rest, and what is seen
+    of its target; ValueError if it does not come to rest or leaves the table."""
+    H = _Heap(sc, np.random.default_rng(0)); d = H.d
+    if how != "none":
+        for k, o in enumerate(sc["objects"]):
+            H.put(k, [v / 1000 for v in o["pos_mm"]], o["quat"])
+            if how == "in_order":
+                H.run(0.5)
+        if not H.rest(limit=8.0):
+            raise ValueError("the scene's objects do not come to rest (do they overlap, or roll?)")
+        P = np.array([d.xpos[b] for b in H.body])
+        if np.any(P[:, 2] < -0.01) or np.any(np.abs(P[:, 0]) > 0.62) or np.any(np.abs(P[:, 1]) > 0.62):
+            raise ValueError("an object of the scene ends off the table")
+        for k, o in enumerate(sc["objects"]):
+            o["pos_mm"] = [round(float(v) * 1000, 2) for v in P[k]]
+            o["quat"] = [round(float(v), 6) for v in d.xquat[H.body[k]]]
+    else:
+        for k, o in enumerate(sc["objects"]):
+            H.put(k, [v / 1000 for v in o["pos_mm"]], o["quat"])
+    touch, _ = H.touching(sc["target"])
+    seen, cover = _seen(H.m, d, sc)
+    sc.update(visible=seen, touching=touch, covered_by=cover)
+    return sc
+
+
+def world_scene(sc, before=None):
+    """A scene as a world's code returned it -> the scene the simulation builds: every value checked against WORLD
+    (ValueError with the reason), unknown fields refused; if the world changed the objects or the extras, the heap is
+    brought to rest again (sc["settle"]: SETTLE). before: the scene the world's code got (its level, arm and bin stay)."""
+    W = WORLD
+    if not isinstance(sc, dict) or sc.get("kind") != KIND:
+        raise ValueError('a world\'s scene(...) returns the scene: the dict it got ("kind": "clutter"), changed')
+    known = ("kind", "level", "seed", "objects", "target", "bin", "visible", "touching", "covered_by", "ood", "arm", "extras", "settle",
+             "mjcf", "joints", "cameras") + _WORLD_KEEPS
+    if set(sc) - set(known):
+        raise ValueError(f"scene: unknown field(s) {', '.join(sorted(set(sc) - set(known)))}; there are {', '.join(known)}")
+    ref = before if before is not None else sc
+    if sc.get("level") != ref.get("level") or sc.get("level") not in LEVELS or sc.get("arm") != ref.get("arm") or sc.get("arm") not in ARMS:
+        raise ValueError("scene: level and arm stay what they were")
+    if json.dumps(sc.get("bin"), sort_keys=True) != json.dumps(ref.get("bin"), sort_keys=True):
+        raise ValueError("scene: the bin stays what it was")
+    objs = sc.get("objects")
+    if not isinstance(objs, list) or not W["n"][0] <= len(objs) <= W["n"][1]:
+        raise ValueError(f"objects: a list of {W['n'][0]} to {W['n'][1]} objects")
+    t = sc.get("target")
+    if isinstance(t, bool) or not isinstance(t, int) or not 0 <= t < len(objs):
+        raise ValueError("target: the index of the target in objects")
+    how = sc.get("settle", "together")
+    if how is False or how is None:
+        how = "none"
+    if how is True:
+        how = "together"
+    if how not in SETTLE:
+        raise ValueError(f"settle: one of {', '.join(SETTLE)}")
+    extras = _scenes.world_extras(sc.get("extras"))
+    if any(not e["fixed"] for e in extras):
+        raise ValueError('extras: in a heap\'s scene they are fixed to the table ("fixed": True); a free body is an object of "objects"')
+    out = dict(kind=KIND, level=sc["level"], seed=int(sc.get("seed", 0)), objects=[_world_object(o, f"objects[{k}]") for k, o in enumerate(objs)],
+               target=t, bin=sc.get("bin"), ood=list(sc.get("ood") or []), visible=sc.get("visible"), touching=sc.get("touching"),
+               covered_by=sc.get("covered_by"))
+    out.update({k: sc[k] for k in _WORLD_KEEPS if k in sc})
+    if sc.get("arm"):
+        out["arm"] = sc["arm"]
+    if extras:
+        out["extras"] = extras
+    if sc.get("mjcf"):                                              # (bodies of the world's own, as MJCF: scenes.world_mjcf)
+        out["mjcf"] = _scenes.world_mjcf(sc["mjcf"])
+    j = _scenes.world_joints(sc.get("joints"), sc.get("mjcf"))
+    if j:
+        out["joints"] = j
+    cams = _scenes.world_cameras(sc.get("cameras"))
+    if cams:
+        out["cameras"] = cams
+    same = before is not None and "settle" not in sc and all(
+        json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+        for a, b in ((sc.get("objects"), before.get("objects")), (sc.get("extras") or [], before.get("extras") or []),
+                     (sc.get("mjcf"), before.get("mjcf")), (sc.get("joints") or {}, before.get("joints") or {})))
+    if same and isinstance(out["visible"], dict):                  # (only the target, or nothing, was changed)
+        if t != before.get("target"):
+            _settle(out, "none")
+        return out
+    return _settle(out, how)
+
+
 # ---------------------------------------------------------------------- the task
 _HOW = dict(
     medium="It lies on the table among the others, which touch it; it can be seen.",
@@ -991,8 +1209,10 @@ def model_xml(path, sc):
         b = ET.SubElement(wb, "body", name=f"obj_item_{k}", pos=f"{0.30 + 0.05 * k:.2f} 0.10 0.1")
         ET.SubElement(b, "freejoint", name=f"obj_item_{k}_free")
         _object_geoms(b, asset, f"item_{k}", o); new += 1
+    _fixed_extras(wb, sc, asset)
+    _scenes.add_mjcf(root, sc)                                      # (a world's own bodies: the last of all)
     key = root.find("keyframe").find("key")                         # (the new bodies are the last: their qpos too)
-    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * new)
+    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * new + _scenes.mjcf_qpos(sc))
     return ET.tostring(root, encoding="unicode")
 
 

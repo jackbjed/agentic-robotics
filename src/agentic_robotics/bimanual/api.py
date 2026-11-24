@@ -29,6 +29,67 @@ class TimeUp(Exception):
     """The episode's robot time is spent: no further command runs."""
 
 
+DEPTH_BINS = (0, 400, 700, 1000, 1500, 100000)                    # mm: the distances depth_report gives the noise for
+
+
+def _plane_rms(d, ok, k, step):
+    """The RMS (mm) of the depth about its local plane in k x k windows (every `step` px) that have depth everywhere
+    and no depth step -> (the windows' centre depths, their RMS)."""
+    H, W = d.shape; h = k // 2
+    v, u = np.mgrid[-h:h + 1, -h:h + 1]
+    A = np.c_[u.ravel(), v.ravel(), np.ones(k * k)]; P = np.linalg.pinv(A)
+    zs, rs = [], []
+    for y in range(h, H - h, step):
+        for x in range(h, W - h, step):
+            if not ok[y - h:y + h + 1, x - h:x + h + 1].all():
+                continue
+            w = d[y - h:y + h + 1, x - h:x + h + 1].ravel()
+            z = float(w.mean())
+            r = w - A @ (P @ w)
+            if float(np.abs(r).max()) > 0.04 * z:                   # (a depth step or an edge: not noise)
+                continue
+            zs.append(z); rs.append(float(np.sqrt((r ** 2).mean())))
+    return np.array(zs), np.array(rs)
+
+
+def depth_report(depth):
+    """Numbers that describe a depth image (H, W; mm; nan or 0 = no depth) as a sensor's output, the same for a real
+    camera's and the simulator's (a program: frame.depth_report(); a session: read_real_depth):
+      valid                 the part of the pixels that have depth
+      left_band_px          the columns at the image's left without depth (a stereo camera's blind band)
+      valid_right_of_band   the part with depth, right of that band
+      holes, hole_px        the regions without depth right of the band (of 20 px and more): how many, their median size
+      speckle               the part of the pixels right of the band that are holes of under 5 px
+      nearest_mm            the nearest depth (the 0.5 % quantile)
+      noise_mm              by distance (mm): [windows, fine, coarse]: the median RMS of the depth about its local plane
+                            in 7 x 7 px windows (the pixel-to-pixel noise) and in 31 x 31 px windows (with the noise
+                            that is smooth over a few pixels), over flat surfaces; None where under 5 windows."""
+    import cv2
+    d = np.asarray(depth, float)
+    ok = np.isfinite(d) & (d > 0)
+    H, W = d.shape
+    col = ok.mean(0)
+    band = int(np.argmax(col > 0.5)) if (col > 0.5).any() else W
+    right = ok[:, band:]
+    out = dict(valid=round(float(ok.mean()), 3), left_band_px=band, valid_right_of_band=round(float(right.mean()), 3) if right.size else 0.0)
+    if right.size:
+        _, _, st, _ = cv2.connectedComponentsWithStats((~right).astype(np.uint8), connectivity=8)
+        areas = st[1:, cv2.CC_STAT_AREA]
+        big = areas[areas >= 20]
+        out.update(holes=int(len(big)), hole_px=int(np.median(big)) if len(big) else 0, speckle=round(float(areas[areas < 5].sum()) / right.size, 4))
+    out["nearest_mm"] = round(float(np.quantile(d[ok], 0.005)), 0) if ok.any() else None
+    dz = np.where(ok, d, 0.0)
+    fine, coarse = _plane_rms(dz, ok, 7, 6), _plane_rms(dz, ok, 31, 12)
+    noise = {}
+    for lo, hi in zip(DEPTH_BINS[:-1], DEPTH_BINS[1:]):
+        a, b = (fine[0] >= lo) & (fine[0] < hi), (coarse[0] >= lo) & (coarse[0] < hi)
+        key = f"{lo}-{hi}" if hi < 100000 else f"{lo}+"
+        noise[key] = [int(a.sum()), round(float(np.median(fine[1][a])), 2) if a.sum() >= 5 else None,
+                      round(float(np.median(coarse[1][b])), 2) if b.sum() >= 5 else None]
+    out["noise_mm"] = noise
+    return out
+
+
 class Frame:
     """One camera frame. rgb (H, W, 3 uint8); depth (H, W) mm along the optical axis, nan = none; fx, fy, cx, cy;
     eye (mm) and R (3x3, camera to table frame; camera axes x right, y down, z forward): the camera's pose as the robot
@@ -59,6 +120,11 @@ class Frame:
         """Pixels (N, 2) and depths (N, mm) of table-frame points (mm) in this frame."""
         c = (np.atleast_2d(np.asarray(xyz, float)) - self.eye) @ self.R; z = c[:, 2]
         return np.c_[self.fx * c[:, 0] / z + self.cx, self.fy * c[:, 1] / z + self.cy], z
+
+    def depth_report(self):
+        """Numbers that describe this frame's depth image as a sensor's output (valid part, blind band, holes,
+        noise by distance): api.depth_report; the same numbers a real look's read_real_depth gives."""
+        return depth_report(self.depth)
 
     def with_pixels(self, rgb=None, depth=None):
         """This frame with other pixels (a world's code: practice.py): rgb (H, W, 3 uint8) and/or depth (H, W; mm,

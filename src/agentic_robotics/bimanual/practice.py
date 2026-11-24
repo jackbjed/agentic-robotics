@@ -83,7 +83,8 @@ SLOTS = 14                                                      # sandboxed epis
                                                                 # with EGL: beyond about 16 at once, framebuffers fail)
 
 
-WORLD_FUNCTIONS = ("scene", "robot")                             # what a world's code may define (at least one)
+WORLD_FUNCTIONS = ("scene", "robot", "goal", "success")          # what a world's code may define (at least one)
+GOAL_CHARS = 6000                                                # a world's goal(): the task text's length
 
 
 def check_world(code):
@@ -101,8 +102,11 @@ def check_program(code, needs=None):
         return [f"line {e.lineno}: syntax error: {e.msg}"]
     bad = []
     if needs:
-        if not any(isinstance(n, ast.FunctionDef) and n.name in needs for n in tree.body):
-            bad.append("it defines neither scene(scene, rng) nor robot(robot, rng, kit)")
+        has = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in needs}
+        if not has:
+            bad.append("it defines none of scene(scene, rng), robot(robot, rng, kit), goal(scene, rng) and success(state)")
+        if ("goal" in has) != ("success" in has):
+            bad.append("goal(scene, rng) and success(state) come together: a task of the world's own has its text and its check")
     elif not any(isinstance(n, ast.FunctionDef) and n.name == "run" for n in tree.body):
         bad.append("it does not define run(robot, task)")
     for n in ast.walk(tree):
@@ -129,8 +133,12 @@ def truth(ep):
     bottle's: the centre of the bottom), the stick's top, the bottle's cap."""
     S = ep.S
     if ep.scene is not None and hasattr(scene_module(ep.scene), "truth"):
-        return scene_module(ep.scene).truth(ep)
+        out = scene_module(ep.scene).truth(ep)
+        out.update(S.world_truth() if ep.scene.get("mjcf") else {})
+        return out
     out = {n: _mm(S.object_pose(n)[0]) for n in ep.layout}
+    if ep.scene is not None and ep.scene.get("mjcf"):               # (a world's own bodies and joints)
+        out.update(S.world_truth())
     if "stick_stand" in out:
         out["stick_top"] = _mm(S.stick_top()[0])
         out.update({f"stick_top_{k}": _mm(t[0]) for k, t in enumerate(S.stick_tops()) if k})     # (a real-like scene's other sticks)
@@ -194,6 +202,96 @@ class _WorldError(Exception):
     pass
 
 
+def world_state(ep, start, ended=None):
+    """What a world's success(state) gets: the TRUE state of the episode's simulation, read only.
+      state.scene, state.start, state.ended, state.time_s   the scene (a dict), truth() at the start, how the program
+                                                            ended (None while it runs), the robot time
+      state.truth()                 the TRUE positions (mm) and a world's joints (slide: mm, hinge: degrees), as robot.truth()
+      state.pos(name), state.rot(name)   a body's position (mm) and its axes (3 x 3: the columns are its x, y, z)
+      state.points(name)            the positions (mm) of a composite's bodies (a soft body's particles, loose particles)
+      state.joint(name)             a slide or hinge joint of the world's MJCF: mm, degrees
+      state.speed(name)             a body's speed, mm/s
+      state.touching(name)          {"robot": {arm: [parts]}, "others": [bodies]} in contact with that body
+      state.held(name)              a hand touches it and nothing else does
+      state.simulator()             the simulator's own judge of the session's task (a dict with "ok")
+    Bodies are named as in truth() (cylinder, stick_stand, item_3, extra_0, w_drawer, ...)."""
+    import mujoco
+    from types import SimpleNamespace
+    S, m, d = ep.S, ep.S.m, ep.S.d
+
+    def bodies(name):
+        """A name of truth() -> its body ids (a composite: all of its bodies)."""
+        name = str(name)
+        if name in S.objects:
+            return [S.objects[name]]
+        if name in S.groups:
+            return [int(b) for b in S.groups[name]]
+        b = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, name)
+        if b <= 0 or not name.startswith("w_") or b in S.group_of:
+            raise KeyError(f"no body {name!r}: there are {sorted(S.layout) + [n for n in S.world_truth() if n in S.groups or mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, n) > 0]}")
+        return [b]
+
+    def body(name):
+        ids = bodies(name)
+        if len(ids) != 1:
+            raise KeyError(f"{name!r} is a composite of {len(ids)} bodies: it has a centre (pos), its bodies' places (points), no axes")
+        return ids[0]
+
+    def joint(name):
+        k = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, str(name))
+        if k < 0 or not str(name).startswith("w_") or m.jnt_type[k] not in (mujoco.mjtJoint.mjJNT_SLIDE, mujoco.mjtJoint.mjJNT_HINGE):
+            raise KeyError(f"no slide or hinge joint {name!r} in the world's MJCF")
+        q = float(d.qpos[m.jnt_qposadr[k]])
+        return q * 1000 if m.jnt_type[k] == mujoco.mjtJoint.mjJNT_SLIDE else float(np.degrees(q))
+
+    def speed(name):
+        out = 0.0
+        for b in bodies(name):                                      # (a composite: its fastest body)
+            v = np.zeros(6); mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_BODY, b, v, 0)
+            out = max(out, float(np.linalg.norm(v[3:]) * 1000))
+        return out
+
+    def touching(name):
+        ids = bodies(name)
+        robot, others = {}, set()
+        for b in ids:
+            parts, other = S.touching(b)
+            for k, v in parts.items():
+                robot.setdefault({"R": "right", "L": "left"}[k], set()).update(v)
+            others |= {S.group_of.get(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, n), n) for n in other}
+        mine = S.group_of.get(ids[0]) if len(ids) > 1 else None
+        return dict(robot={k: sorted(v) for k, v in robot.items()}, others=sorted(n.removeprefix("obj_") for n in others if n != mine))
+
+    def held(name):
+        t = touching(name)
+        return bool(t["robot"]) and not t["others"]
+
+    return SimpleNamespace(
+        scene=_plain(ep.scene) if ep.scene is not None else None, start=_plain(start), ended=ended, time_s=round(float(ep.robot.time_s()), 1),
+        truth=lambda: _plain(truth(ep)), pos=lambda name: _mm(d.xpos[bodies(name)].mean(0)),
+        points=lambda name: [_mm(d.xpos[b]) for b in bodies(name)],
+        rot=lambda name: [[round(float(v), 5) for v in row] for row in d.xmat[body(name)].reshape(3, 3)],
+        joint=joint, speed=speed, touching=touching, held=held, simulator=lambda: _plain(ep.task.judge(S)))
+
+
+def world_check(fn, state):
+    """A world's success(state) called -> its verdict as a dict with "ok" (a bool or a dict with "ok" is what it
+    returns; its exception: ok False, with the error)."""
+    try:
+        r = fn(state)
+        if isinstance(r, (bool, np.bool_)):
+            r = dict(ok=bool(r))
+        if not isinstance(r, dict) or not isinstance(r.get("ok"), (bool, np.bool_)):
+            raise ValueError('success(state) returns True or False, or a dict with "ok": True or False (and what else it measured)')
+        r = json.loads(json.dumps(r, default=lambda x: x.tolist() if hasattr(x, "tolist") else str(x)))
+        if len(json.dumps(r)) > 4000:
+            r = dict(ok=r["ok"], cut="the rest of what success() returned was over 4000 characters")
+        return dict(r, ok=bool(r["ok"]))
+    except (Exception, SystemExit) as e:
+        traceback.print_exc(limit=-6)
+        return dict(ok=False, error=f"the world's success() failed: {type(e).__name__}: {str(e)[:300]}")
+
+
 class ProgramRobot:
     """What a program gets of the robot: the documented calls of api.Robot and show(), nothing else. With a trace
     file, every command is logged there with its result, the arm's TRUE tool position and the TRUE position of
@@ -201,7 +299,8 @@ class ProgramRobot:
     traced episode is the untraced one). practice: truth() and judge() give the simulation's TRUE state (a session's
     practice; in an evaluation they give None)."""
 
-    def __init__(self, ep, out, trace=None, practice=False, asker=None):
+    def __init__(self, ep, out, trace=None, practice=False, asker=None, judge=None):
+        """judge: a world's own check of its own task (-> a dict with "ok"), in place of the simulator's judge."""
         robot, S = ep.robot, ep.S
         names = ["look", "state", "move", "turn", "home", "wait", "time_s"]
         names += ["set_gripper"] if robot.kind == "grippers" else ["set_joints", "fingertips"]
@@ -212,7 +311,9 @@ class ProgramRobot:
         def moved():
             now = {n: v for n, v in truth(ep).items() if n not in last or _differs(v, last[n])}
             last.update(now)
-            return " ".join(f"{n} {_fmt(v)}" for n, v in now.items())
+            mine = [n for n in now if n.startswith("w_")]            # (a world's many bodies: the first of them)
+            more = f" (+{len(mine) - 14} more of the world's bodies)" if len(mine) > 14 else ""
+            return " ".join(f"{n} {_fmt(v)}" for n, v in now.items() if n not in mine[14:]) + more
         if trace is not None:
             trace.write(f"# TRUE positions at the start (mm): {moved()}\n")
 
@@ -289,7 +390,7 @@ class ProgramRobot:
             object.__setattr__(self, "ask", ask)
         object.__setattr__(self, "show", show)
         object.__setattr__(self, "truth", lambda: truth(ep) if practice else None)
-        object.__setattr__(self, "judge", lambda: _plain(ep.task.judge(S)) if practice else None)
+        object.__setattr__(self, "judge", lambda: (_plain(ep.task.judge(S)) if judge is None else judge()) if practice else None)
         object.__setattr__(self, "counts", lambda: dict(counts))
 
     def __setattr__(self, k, v):
@@ -390,10 +491,13 @@ def _world(path, scene, seed, log):
             ns = {"__name__": "world"}
             exec(compile(code, "world.py", "exec"), ns)
             if "scene" in ns:
-                if scene is None or scene_module(scene) is not scenes:
-                    raise ValueError("a world's scene() changes the scenes of the cylinder and the stick only")
+                mod = scene_module(scene) if scene is not None else None
+                if mod is None or not hasattr(mod, "world_scene"):
+                    raise ValueError("a world's scene() changes the scenes of the cylinder and the stick and the heaps only")
                 sc = ns["scene"](json.loads(json.dumps(scene)), np.random.default_rng([int(seed), 77]))
-                scene = scenes.world_scene(sc)
+                scene = mod.world_scene(sc, scene)
+                if mod is not scenes:                               # (a heap's scene: what the world made of it, at rest)
+                    print("# the world's scene: " + mod.describe(scene))
             return ns, scene, None
         except (Exception, SystemExit) as e:
             traceback.print_exc(limit=-6)
@@ -430,8 +534,21 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
                          segmenter=SocketSegmenter(seg_socket) if seg_socket else None, scene=scene)
         start = truth(ep)
         bad = check_program(code)
+        own = wns is not None and not w_why and "success" in wns     # (a world's own task: its text and its check)
+        check = (lambda ended=None: world_check(wns["success"], world_state(ep, start, ended))) if own else None
+        text = ep.text
+        if own:
+            with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+                try:
+                    text = wns["goal"](json.loads(json.dumps(ep.scene)), np.random.default_rng([int(seed), 79]))
+                    if not isinstance(text, str) or not text.strip() or len(text) > GOAL_CHARS:
+                        raise ValueError(f"goal(scene, rng) returns the task's text (at most {GOAL_CHARS} characters)")
+                    log.write("# the world's own task: " + " ".join(text.split()) + "\n")
+                except (Exception, SystemExit) as e:
+                    traceback.print_exc(limit=-6)
+                    w_why = f"its goal() failed ({type(e).__name__}: {str(e)[:200]})"
         robot = ProgramRobot(ep, out, log if trace else None, practice=practice,
-                             asker=SocketAsker(ask_socket, ask_token) if ask_socket else None)
+                             asker=SocketAsker(ask_socket, ask_token) if ask_socket else None, judge=check)
         if w_why:
             how = "world: " + w_why
         elif bad:
@@ -451,7 +568,7 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
                             raise _WorldError(f"world: its robot() failed ({type(e).__name__}: {str(e)[:200]})")
                     ns = {"__name__": "program"}
                     exec(compile(code, "program.py", "exec"), ns)
-                    ns["run"](given, ep.text)
+                    ns["run"](given, text)
                     how = "returned"
                 except _WorldError as e:
                     how = str(e)
@@ -460,9 +577,17 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
                 except (Exception, SystemExit) as e:                # the program's own failure: the scene is judged as it is
                     traceback.print_exc(limit=-6)
                     how = f"error: {type(e).__name__}: {str(e)[:200]}"
+        sim = ep.finish()                                           # (1 s at rest, then the simulator's judge)
+        mine = None
+        if own:                                                     # the world's own check, on the scene at rest
+            with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+                mine = dict(ok=False, error="the world failed: " + w_why) if w_why else check(how)
+            log.write(f"# the world's success(): {json.dumps(mine)}\n")
     c = robot.counts()
-    v = dict(ep.finish(), mode="program", ended=how, sensors=sensors, commands=c["commands"], shown=c["shown"],
+    v = dict(sim, mode="program", ended=how, sensors=sensors, commands=c["commands"], shown=c["shown"],
              true_start_mm=start, true_end_mm=truth(ep), wall_s=round(time.time() - t0, 1))
+    if mine is not None:                                            # judged by the world: the simulator's verdict is kept beside it
+        v.update(ok=mine["ok"], judged_by="world", world_check=mine, simulator_ok=bool(sim["ok"]), task_text=text)
     if ask_socket:
         v.update(model_calls=c["asks"], model_usd=round(c["ask_usd"], 4), model_wait_s=round(c["ask_wait_s"], 1))
     if ep.scene is not None:

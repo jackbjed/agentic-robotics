@@ -13,7 +13,8 @@ Per episode, in <pack>/<name>/: episode.json (the facts: verdict, the operator's
 moves until contact as the program saw them and the arm's own server recorded its guarded lines, the images' names),
 output.txt (the program's prints and every command with its result and the arm's MEASURED tool position), program.py
 (what ran), images/ (what the program's cameras gave it at each look, the same with the pixels WITHOUT depth marked,
-each look's depth as a picture, the images the program handed over with robot.show, and frames of the two videos),
+each look's depth as a picture, the images the program handed over with robot.show, the images of its robot.ask
+calls, and frames of the two videos),
 depth/ (each look's depth as the camera gave it: 16-bit PNG, mm, 0 = no depth). Nothing of the run is changed; the
 pack holds copies. Only the listed runs go in. An episode the operator stopped (no result.json) goes in without a
 verdict."""
@@ -100,6 +101,26 @@ def _contact_moves(run):
     return seen, lines
 
 
+def _asks(run, out):
+    """The program's model calls (robot.ask: events.jsonl) -> [dict(n, t, question, effort, images, ok, answer, usd, wait_s)];
+    the images it sent (asked/NN_k.png) go to images/ as asked_NN_k."""
+    ev, asks, req = run / "events.jsonl", [], None
+    for l in (ev.read_text(errors="replace").splitlines() if ev.exists() else []):
+        if not l.strip():
+            continue
+        e = json.loads(l)
+        if e.get("what") == "ask request":
+            req = e
+        elif e.get("what") == "ask reply" and req is not None:
+            n, d, r, names = len(asks) + 1, req.get("data") or {}, e.get("data") or {}, []
+            for p in sorted((run / "asked").glob(f"{n:02d}_*.png")):
+                shutil.copy(p, out / "images" / f"asked_{p.name}"); names.append(f"asked_{p.stem}")
+            asks.append(dict(n=n, t=round(float(req.get("t") or 0.0), 1), question=d.get("question", ""), effort=d.get("effort"), images=names,
+                             ok=r.get("ok"), answer=r.get("text"), usd=r.get("usd"), wait_s=r.get("wait_s")))
+            req = None
+    return asks
+
+
 def episode(e, pack, root):
     run = (root / e["run"]).resolve()
     out = pack / e["name"]
@@ -151,6 +172,9 @@ def episode(e, pack, root):
                 robot_time_s=res.get("robot_time_s") or (times[-1] if times else None), program_ended=ended,
                 moves_until_contact=moves, server_guarded_lines=lines, looks=looks, shown=shown, video_frames=videos,
                 output_lines=len(text.splitlines()))
+    asks = _asks(run, out)
+    if asks:
+        meta["asks"] = asks
     if e.get("version") is not None:
         meta["version"] = e["version"]
     (out / "episode.json").write_text(json.dumps(meta, indent=1) + "\n")
@@ -174,7 +198,7 @@ def main():
     for e in M["episodes"]:
         m = episode(e, mf.parent, Path(a.root).resolve())
         print(f"{m['name']}: {m['run']}: {m['verdict']} ({m['operator_note'][:60]}); {len(m['looks'])} looks, {len(m['shown'])} shown, "
-              f"{sum(len(x) for x in m['video_frames'].values())} video frames, {len(m['moves_until_contact'])} moves until contact "
+              f"{sum(len(x) for x in m['video_frames'].values())} video frames, {len(m.get('asks') or [])} model calls, {len(m['moves_until_contact'])} moves until contact "
               f"({len(m['server_guarded_lines'])} guarded lines)")
     (mf.parent / "pack.json").write_text(json.dumps(dict(episodes=names), indent=1) + "\n")
 

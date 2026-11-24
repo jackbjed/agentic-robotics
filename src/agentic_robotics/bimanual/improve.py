@@ -39,6 +39,7 @@ the model said, called and got), session.jsonl (the same, as data, with every tu
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import pickle
 import shutil
@@ -215,7 +216,8 @@ list_real_episodes            without `episodes`: the real robot (what it is, an
                               and one line per episode (the version that ran, the operator's verdict and note, the
                               setup, which setting of the moves until contact it ran with). With `episodes` (at most 4
                               names): each one in full: its moves until contact as the program saw them and as the
-                              arm's own server recorded its guarded lines, its looks, and the names of its images
+                              arm's own server recorded its guarded lines, its looks, its model calls (robot.ask:
+                              the question, the answer), and the names of its images
 read_real_output              a real episode's output: what the program printed and, on lines starting with "#", every
                               robot command with its result and the arm's MEASURED tool position after it (the real
                               robot has no truth)
@@ -223,8 +225,9 @@ view_real_images              images of a real episode: look_NN_<camera> (the co
                               program at its NN-th look), look_NN_<camera>_depth (that look's depth as a picture:
                               near red, far blue, the scale on top; black = NO depth), look_NN_<camera>_nodepth (the
                               colour image with the pixels that had no depth in magenta), shown_... (what the
-                              program handed over with robot.show), and video_scene_<t>s / video_wrist_<t>s (frames
-                              of the two cameras' videos, t the rig's time)
+                              program handed over with robot.show), asked_NN_k (the k-th image of the program's
+                              NN-th robot.ask), and video_scene_<t>s / video_wrist_<t>s (frames of the two cameras'
+                              videos, t the rig's time)
 read_real_depth               the depth a real camera gave at a look, as numbers: the values (mm along the camera's
                               axis, as a Frame's depth; 0 = no depth) on a grid over a window of pixels, and the
                               window's statistics; with the camera's intrinsics
@@ -244,7 +247,7 @@ the plain simulator does not have (other objects, other sensors, another arm). T
 write_world, edit_world       save a new version of a world (w0, w1, ...), as write_program and edit_program do
                               for the skill; a world can also be an experiment
 read_world                    a world's text, with line numbers
-run_episodes                  with "world": k the episodes run in world wk; without it, in the plain simulator. A
+run_episodes                  with "world": k the episodes run in world wk; without it (or null, or -1), in the plain simulator. A
                               version's results in a world are kept apart (the scene is then named s3@w1)
 read_output, view_images      take "world" too
 
@@ -273,9 +276,110 @@ def scene(scene, rng):
     #                                       reference point, which stands at xy_mm, z_mm above the table.
     #                                       "fixed": True: part of the table, it never moves; False: a free object
     #                                       (truth() names it extra_k)
+    #   o["friction"] = 0.3                 on the cylinder, the stand, a distractor or an extra: its sliding friction ({friction}; the
+    #                                       simulator's own: 1.0, and 1.5 for the fingers' pads)
+    #   o["contact"] = {{"time_ms": 5, "damping": 1, "impedance": [0.95, 0.99, 0.5]}}
+    #                                       on the same: how hard its contacts are, in MuJoCo's terms: solref's time
+    #                                       constant ({contact_ms} ms) and damping ratio, and solimp's d0, d1 and
+    #                                       width (mm); each can be left out; the simulator's own: 20, 1,
+    #                                       [0.9, 0.95, 1]. A shorter time and a narrower width: a harder contact,
+    #                                       which gives way less. An object that says friction or contact takes
+    #                                       precedence in its contacts: with the table, the fingers and objects that
+    #                                       say neither, the contact has ITS friction and hardness (the simulator
+    #                                       otherwise takes the larger friction of the two); between two objects
+    #                                       that both say them: the larger friction, a mix of the hardness.
+    #   a part {{"type": "hull", "points_mm": [[x, y, z], ...], "pos_mm": [0, 0, 0], "euler_deg": [0, 0, 0], "rgb": [r, g, b]}}
+    #                                       among an extra's parts: the convex hull of {hull} points
+    #                                       given in the part's own frame (a convex mesh): a wedge, a prism, a
+    #                                       tapered or rounded body. A shape that is not convex is several hulls.
+    #                                       Its mass is its density times the hull's volume.
     #   scene["arm"] = "left"               the left arm alone, within the real arm's safety limits; the right arm
     #                                       stands parked: a move of it to its parking place (y below -280) is
     #                                       answered as done, any other use of it is an error
+    #   scene["mjcf"] = "<mujoco> ... </mujoco>"
+    #                                       bodies of your own in MuJoCo's own language (MJCF), for what the fields
+    #                                       above cannot describe: anything rigid that MJCF can, e.g. a drawer on a
+    #                                       slide joint, a door or a lid on a hinge, a lever, a button on a spring,
+    #                                       a latch, a box with a sliding lid, a rack, a mesh of your own. The text
+    #                                       has a <worldbody> with your bodies and, as needed, <asset> (meshes by
+    #                                       their vertex attribute, materials, built-in textures), <default>
+    #                                       (classes of your own), <equality>, <tendon>, <contact> (pair, exclude).
+    #                                       - bodies in bodies, each with geoms (box, sphere, capsule, cylinder,
+    #                                         ellipsoid, mesh), joints (slide, hinge, ball, free; range, damping,
+    #                                         frictionloss, stiffness, springref, armature), sites, lights; a body
+    #                                         without a joint is fixed where it is;
+    #                                       - MJCF's units: metres, kilograms, radians. Positions are in the
+    #                                         robot's frame (the one of every position here), z = 0 at the table's
+    #                                         top;
+    #                                       - every name, and every reference to a name, starts with "w_" (w_drawer,
+    #                                         w_slide): the simulator's own bodies cannot be named or changed;
+    #                                       - soft and loose things are MuJoCo's <composite> (this is MuJoCo 2.3.7: no
+    #                                         flex), each with a prefix of its own (prefix="w_sponge"): type box,
+    #                                         cylinder or ellipsoid (a soft body: a sponge, a cushion; inside a body
+    #                                         that has a <freejoint/>), grid (a cloth: a towel; in the worldbody, placed
+    #                                         by its offset), cable (a rope, a wire), particle (loose grains). Its
+    #                                         count and spacing, the <geom> of its elements (size, mass, friction) and
+    #                                         <joint kind="main" .../> or <tendon .../> set its size, weight and
+    #                                         stiffness; <skin .../> gives it a surface in the images. truth() gives a
+    #                                         composite as ONE entry under its prefix, the centre of its bodies
+    #                                         (state.points(prefix) in success(): each body's place). Many loose things
+    #                                         of a kind (beans, crumbs) can also be bodies of their own (w_bean_0, ...);
+    #                                       - not possible: files (a mesh is its list of vertices), actuators, sensors,
+    #                                         plugins, cameras, the model's settings; at most 450 bodies, 900 geoms and
+    #                                         1400 degrees of freedom, the composites' included (they slow the
+    #                                         simulation: a cloth of 13 x 13 nodes runs slower than real time);
+    #                                       - a geom that says nothing of its contacts has MuJoCo's defaults
+    #                                         (friction 1, condim 3); the fingers' pads have friction 1.5.
+    #                                       MuJoCo compiles the text before the episode; if it does not, its error
+    #                                       message is the episode's result. truth() then also has each named body
+    #                                       of yours (its frame's origin, mm) and each named slide or hinge joint
+    #                                       (mm, degrees), and the trace shows them when they move. The robot's
+    #                                       moves take your bodies for obstacles like any other. A move stops at
+    #                                       40 N on the arm (SAFETY STOP), a stop_on_contact move at 4 N: a
+    #                                       mechanism the robot is to work must give way to less (a drawer: a
+    #                                       frictionloss of a few N).
+    #   scene["joints"] = {{"w_slide": 40}}   where slide and hinge joints of your MJCF start (mm, degrees; left out:
+    #                                       at MJCF's 0)
+    #   scene["cameras"] = {{"depth": {{"noise_px": 0.1}}, "scene": {{"depth": {{"table_holes": None}}}},
+    #                       "left_wrist": {{"pose_error": {{"shift_mm": 3, "turn_deg": 1}}}}}}
+    #                                       the cameras. "depth": the depth cameras' error model, for all of them,
+    #                                       or under "scene", "left_wrist", "right_wrist" for that one. Its
+    #                                       parameters, each of which can be left out (the simulator's own value):
+    #                                         noise_px (0.18): the stereo matching noise in pixels of disparity;
+    #                                           the depth's noise is noise_px * z^2 / (focal_px * baseline_mm)
+    #                                         noise_smooth (0.9), noise_smooth_px (8): the part of the noise that
+    #                                           is smooth over that many pixels (the rest is pixel to pixel)
+    #                                         scale (0.005): a depth scale error per camera and episode, up to it
+    #                                         fatten_px (4), fatten_step_mm (10): a nearer surface spreads that
+    #                                           many pixels over a farther one where the depth steps by more
+    #                                         flying (0.03), flying_step_mm (20): the part of the pixels at such a
+    #                                           step that get a depth between its two sides
+    #                                         dark_below (0.2), dark_holes (0.08), blob_px (4): objects darker than
+    #                                           that (0..1) lose that part of their pixels, in blobs of that size
+    #                                         table_holes ([0.2, 1100, 1.0, 0.6]) or None: the scene camera on the
+    #                                           table: the part without depth up to a distance (mm), how much
+    #                                           more per metre beyond it, the most
+    #                                         dropout (0.002): single pixels without depth
+    #                                         left_band_px (30) or None: the blind band at the image's left is
+    #                                           focal_px * baseline_mm / z + this many pixels wide
+    #                                         shadow (True): no depth where the second imager does not see
+    #                                         min_mm (275): nothing nearer than this
+    #                                         focal_px (625), baseline_mm (55): the depth sensor's own
+    #                                       "ideal": True under a camera: its depth as the simulator renders it,
+    #                                       without any of this (for a model of your own, in robot()'s look).
+    #                                       "pose_error" under a camera: its TRUE pose differs from the one its
+    #                                       frames give (eye, R) by {{"shift_mm": 5, "turn_deg": 1}} in a direction
+    #                                       drawn per episode (the simulator's own: scene 5 mm and 1 deg, wrists
+    #                                       3 mm and 1 deg), or with three numbers each by exactly that.
+    #                                       frame.depth_report(), in a program, gives numbers that describe a
+    #                                       frame's depth as a sensor's output: the part with depth, the blind
+    #                                       band, the holes, the noise by distance. read_real_depth gives the
+    #                                       same numbers for a real look: with both, a world's depth model can be
+    #                                       fitted to the real cameras and checked against looks it was not
+    #                                       fitted to.
+    #   scene["without"] = ["cylinder", "stand", "distractors"]
+    #                                       what is NOT on the table in this scene (any of the three): for a task of
+    #                                       your own (goal and success, below)
     # rng: a numpy Generator, the same for the same scene.
     return scene
 
@@ -303,12 +407,45 @@ what the "#" trace of output.txt shows and what the judge judges. A world keeps 
 imports, no files); what it prints goes to output.txt. If a world fails (an exception, a scene outside the bounds,
 a scene the simulator cannot build) the program is not run and the episode's result says "world: ...".
 
+A world can also set a TASK OF ITS OWN, with these two functions together:
+
+def goal(scene, rng):
+    # -> the task's text: what the program gets as `task` in this world, in place of the simulator's. Say in it what
+    # is asked and what a program needs to know of the scene, as the task text above does for its task: the program
+    # has only this text and the robot.
+    return "Task: open the drawer of the cabinet on the table by at least 80 mm, then let go of it. ..."
+
+def success(state):
+    # -> True or False, or a dict with "ok" and whatever else you measured (the result shows it): YOUR check of that
+    # task, called on the TRUE state when the program has ended and the scene has been at rest for 1 s. state has:
+    #   state.truth()                     the TRUE positions (mm) and your joints (mm, degrees), as robot.truth()
+    #   state.start                       the same at the start of the episode
+    #   state.pos(name), state.rot(name)  a body's position (mm) and its axes (3 x 3: the columns are its x, y, z)
+    #   state.joint(name)                 a slide or hinge joint of your MJCF (mm, degrees)
+    #   state.points(name)                each body's place (mm) of a composite (a soft body, loose particles)
+    #   state.speed(name)                 a body's speed (mm/s)
+    #   state.touching(name)              {{"robot": {{arm: [parts]}}, "others": [bodies]}}: what touches that body
+    #   state.held(name)                  a hand touches it and nothing else does
+    #   state.simulator()                 the simulator's own judge of its own task (a dict with "ok")
+    #   state.scene, state.ended, state.time_s   the scene, how the program ended, the robot time
+    # Bodies are named as in truth().
+    open_mm = state.joint("w_slide")
+    return {{"ok": open_mm >= 80 and not state.touching("w_drawer")["robot"], "open_mm": open_mm}}
+
+In such a world an episode's SUCCESS or FAILED is your success(): the result says so and gives what it returned (the
+simulator's own verdict stays beside it, as simulator_ok), and robot.judge() in practice returns your check of the
+state at that moment. Nothing checks your check but you, and the people who read the results rely on it. So make it
+strict (the end state that the task's text asks for, measured on the true state, the robot's hands off unless the
+task is to hold), and test it both ways: a program that does nothing must FAIL, and the final image of a success
+must show the task done. Say in the world's note what its task is.
+
 A world is YOUR claim about the real robot, and nothing checks it but you. A world is good when the version that
 ran on the real robot does in it what it did there: the same failures at the same steps, about the same times,
 the same kind of numbers in its output. A world that only makes practice harder teaches nothing. So build it from
 the real episodes (their outputs, images, depth, the arm's records), check it against them, and say in a world's
 note what it models and what it leaves out. The skill is judged on the real robot and in the plain simulator, never
-in a world of yours: it must not come to rely on anything that only your world has.
+in a world of yours: it must not come to rely on anything that only your world has. (A task of your own exists only in
+your world: its results are reported as that world's.)
 """
 
 _SUMMARY = """
@@ -336,7 +473,179 @@ now be set up "like the real robot": add "real": true to it in define_scenes. In
   "real": {{"false_stops": false}} (and likewise scatter, thin_depth) switches one off, to see what it does.
 These effects are models made by hand from few real episodes: they are not the real robot."""
 
+# ---- a session on a task of the model's own making (--own-task): the task is a world's goal() and success()
+ASK_OWN = """THIS SESSION IS ABOUT A NEW TASK, which the simulator does not have. What is asked:
+
+{ask}
+
+You make the task yourself, as a WORLD (described below), and then the skill for it:
+- the world's scene() takes the simulator's own objects off the table (scene["without"]) and puts there what the task
+  needs (scene["mjcf"]: bodies, joints, mechanisms of your own); its goal() gives the task's text and its success()
+  checks, on the true state, that the task was done;
+- the skill is one program run(robot, task) that does the task in your world's episodes, from the cameras and the
+  arm's own measurements only, as every program here.
+Vary the task inside the world with its rng (places, sizes, colours, the start state), over ranges you say in the
+world's note, so that the skill is not written for one layout: each scene (define_scenes with empty specs gives s1,
+s2, ...) is then one episode of your task with its own draw. Build the objects the size and weight they would have on
+a real table in front of this robot, within the arm's reach.
+
+The text below was written for the simulator's own task: \""""
+
+_OWN = """
+IN THIS SESSION the simulator's own task (the cylinder and the stick) is not asked for, and what the texts above say
+of its evaluation does not apply. Your result is the version you submit TOGETHER WITH THE WORLD that sets your task:
+the final submit names it ("world": k; it must have goal() and success()). After the session that version is run in
+that world, without you, on scenes with new seeds, with video, and the people who run the robot look at what it
+does: by your success() first, then by what they see. A task that your world makes easy (a check that passes too
+soon, objects that cannot be missed, no variation) is a poor result however many episodes succeed. Your final
+summary also describes the task as you built it: the objects and their sizes, what varies, what success() measures.
+"""
+
 _NO_PROGRAM = ("There is no program\nyet, and nothing", "This session continues an earlier one, whose versions you have,\nand nothing")
+_NO_PROGRAM_CLUTTER = ("There is no program\nyet. The practice", "This session continues an earlier one, whose versions you have.\nThe practice")
+
+# ---- worlds for the heaps (a ClutterSession with --worlds): _WORLDS with the heap's scene(scene, rng)
+_CLUTTER_WORLD_SCENE = """    # -> the scene the simulator builds. `scene` is the scene as sample_scenes or define_scenes made it, a dict:
+    #   scene["objects"]    the heap's objects, each {{"shape", "size_mm", "color", "rgb": [r, g, b], "density",
+    #                       "pos_mm": [x, y, z] (its centre), "quat": [w, x, y, z]}}; item_k is objects[k]
+    #   scene["target"]     the index of the target in it; the task text names it by its "color" and its shape
+    #   scene["level"]      (it stays what it is)
+    # Change it and return it. It is NOT held to the limits of define_scenes, only to what the simulation can hold
+    # (lengths in mm): up to {n} objects; any size {size}; densities {density} kg/m3; places x {x}, y {y}, z {z}.
+    # It can also have what define_scenes has not:
+    #   other shapes        "ring": [outer diameter, height, hole diameter], a cylinder with a hole along its axis
+    #                       ("sides": 6 makes its outline and its hole polygons of that many sides); "pill":
+    #                       [diameter, whole length]; "hexagon": [across the flats, height]; "L" and "cross": [arm
+    #                       length, arm width, height]; "steps": [length, width, height]; "T": [bar, stem, width,
+    #                       height]; "custom" with "parts" as in define_scenes (up to {parts} parts)
+    #   o["name"] = "cylinder"          what the task text calls the object, instead of its shape's own word: on
+    #                       the real robot the operator names the target (a ring can be "the blue cylinder" there)
+    #   o["euler_deg"] = [rx, ry, rz]   in place of o["quat"] (delete "quat")
+    #   scene["target"] = k             another object as the target
+    #   scene["extras"] = [{{"name": "book", "fixed": True, "xy_mm": [x, y], "z_mm": 0, "yaw_deg": 0,
+    #                       "parts": [{{"type": "box", "size_mm": [200, 150, 25], "pos_mm": [0, 0, 12.5],
+    #                                  "euler_deg": [0, 0, 0], "rgb": [60, 90, 60]}}]}}]
+    #                       bodies of your own that are part of the table and never move (up to {extras}, each of up
+    #                       to {eparts} parts: box (three sides), cylinder and capsule (diameter, length along its own
+    #                       z), ball (diameter)). pos_mm is the part's centre from the extra's reference point,
+    #                       which stands at xy_mm, z_mm above the table. A thing that can move is an object.
+    #   o["friction"] = 0.3                 on an object or an extra: its sliding friction ({friction}; the
+    #                                       simulator's own: 0.7 for a heap's objects, 1.0 for the table and the extras, and 1.5 for the fingers' pads)
+    #   o["contact"] = {{"time_ms": 5, "damping": 1, "impedance": [0.95, 0.99, 0.5]}}
+    #                                       on the same: how hard its contacts are, in MuJoCo's terms: solref's time
+    #                                       constant ({contact_ms} ms) and damping ratio, and solimp's d0, d1 and
+    #                                       width (mm); each can be left out; the simulator's own: 20, 1,
+    #                                       [0.9, 0.95, 1]. A shorter time and a narrower width: a harder contact,
+    #                                       which gives way less. An object that says friction or contact takes
+    #                                       precedence in its contacts: with the table, the fingers and objects that
+    #                                       say neither, the contact has ITS friction and hardness (the simulator
+    #                                       otherwise takes the larger friction of the two); between two objects
+    #                                       that both say them: the larger friction, a mix of the hardness.
+    #   a part {{"type": "hull", "points_mm": [[x, y, z], ...], "pos_mm": [0, 0, 0], "euler_deg": [0, 0, 0]}}
+    #                                       among the parts of a "custom" object or of an extra (there with "rgb"): the convex hull of {hull} points
+    #                                       given in the part's own frame (a convex mesh): a wedge, a prism, a
+    #                                       tapered or rounded body. A shape that is not convex is several hulls.
+    #                                       Its mass is its density times the hull's volume.
+    #   scene["settle"]     if you changed the objects or the extras, the heap is brought to rest again before the
+    #                       episode: "together" (the default: every object set at its pose at once: for other
+    #                       sizes and shapes in a heap as it is; what overlaps is pushed apart), "in_order" (set
+    #                       one after another in the list's order, each left to fall for 0.5 s: for a heap that
+    #                       you build from the bottom up, each pose a little above where the object should lie)
+    #                       or "none" (taken as given). The episode's output then starts with "# the world's
+    #                       scene: ..." (what it became), and the result's TRUE positions at the start are its.
+    #   scene["mjcf"] = "<mujoco> ... </mujoco>"
+    #                       bodies of your own in MuJoCo's own language (MJCF), for what the fields
+    #                       above cannot describe: anything rigid that MJCF can, e.g. a drawer on a
+    #                       slide joint, a door or a lid on a hinge, a lever, a button on a spring,
+    #                       a latch, a box with a sliding lid, a rack, a mesh of your own. The text
+    #                       has a <worldbody> with your bodies and, as needed, <asset> (meshes by
+    #                       their vertex attribute, materials, built-in textures), <default>
+    #                       (classes of your own), <equality>, <tendon>, <contact> (pair, exclude).
+    #                       - bodies in bodies, each with geoms (box, sphere, capsule, cylinder,
+    #                         ellipsoid, mesh), joints (slide, hinge, ball, free; range, damping,
+    #                         frictionloss, stiffness, springref, armature), sites, lights; a body
+    #                         without a joint is fixed where it is;
+    #                       - MJCF's units: metres, kilograms, radians. Positions are in the
+    #                         robot's frame (the one of every position here), z = 0 at the table's
+    #                         top;
+    #                       - every name, and every reference to a name, starts with "w_" (w_drawer,
+    #                         w_slide): the simulator's own bodies cannot be named or changed;
+    #                       - soft and loose things are MuJoCo's <composite> (this is MuJoCo 2.3.7: no
+    #                         flex), each with a prefix of its own (prefix="w_sponge"): type box,
+    #                         cylinder or ellipsoid (a soft body: a sponge, a cushion; inside a body
+    #                         that has a <freejoint/>), grid (a cloth: a towel; in the worldbody, placed
+    #                         by its offset), cable (a rope, a wire), particle (loose grains). Its
+    #                         count and spacing, the <geom> of its elements (size, mass, friction) and
+    #                         <joint kind="main" .../> or <tendon .../> set its size, weight and
+    #                         stiffness; <skin .../> gives it a surface in the images. truth() gives a
+    #                         composite as ONE entry under its prefix, the centre of its bodies
+    #                         (state.points(prefix) in success(): each body's place). Many loose things
+    #                         of a kind (beans, crumbs) can also be bodies of their own (w_bean_0, ...);
+    #                       - not possible: files (a mesh is its list of vertices), actuators, sensors,
+    #                         plugins, cameras, the model's settings; at most 450 bodies, 900 geoms and
+    #                         1400 degrees of freedom, the composites' included (they slow the
+    #                         simulation: a cloth of 13 x 13 nodes runs slower than real time);
+    #                       - a geom that says nothing of its contacts has MuJoCo's defaults
+    #                         (friction 1, condim 3); the fingers' pads have friction 1.5.
+    #                       MuJoCo compiles the text before the episode; if it does not, its error
+    #                       message is the episode's result. truth() then also has each named body
+    #                       of yours (its frame's origin, mm) and each named slide or hinge joint
+    #                       (mm, degrees), and the trace shows them when they move. The robot's
+    #                       moves take your bodies for obstacles like any other. A move stops at
+    #                       40 N on the arm (SAFETY STOP), a stop_on_contact move at 4 N: a
+    #                       mechanism the robot is to work must give way to less (a drawer: a
+    #                       frictionloss of a few N).
+    #   scene["joints"] = {{"w_slide": 40}}
+    #                       where slide and hinge joints of your MJCF start (mm, degrees; left out:
+    #                       at MJCF's 0)
+    #                       In a heap's scene your bodies are there while the heap is brought to rest; they do not
+    #                       count as its objects (the target is one of scene["objects"]).
+    #   scene["cameras"] = {{"depth": {{"noise_px": 0.1}}, "scene": {{"depth": {{"table_holes": None}}}},
+    #       "left_wrist": {{"pose_error": {{"shift_mm": 3, "turn_deg": 1}}}}}}
+    #                       the cameras. "depth": the depth cameras' error model, for all of them,
+    #                       or under "scene", "left_wrist", "right_wrist" for that one. Its
+    #                       parameters, each of which can be left out (the simulator's own value):
+    #                         noise_px (0.18): the stereo matching noise in pixels of disparity;
+    #                           the depth's noise is noise_px * z^2 / (focal_px * baseline_mm)
+    #                         noise_smooth (0.9), noise_smooth_px (8): the part of the noise that
+    #                           is smooth over that many pixels (the rest is pixel to pixel)
+    #                         scale (0.005): a depth scale error per camera and episode, up to it
+    #                         fatten_px (4), fatten_step_mm (10): a nearer surface spreads that
+    #                           many pixels over a farther one where the depth steps by more
+    #                         flying (0.03), flying_step_mm (20): the part of the pixels at such a
+    #                           step that get a depth between its two sides
+    #                         dark_below (0.2), dark_holes (0.08), blob_px (4): objects darker than
+    #                           that (0..1) lose that part of their pixels, in blobs of that size
+    #                         table_holes ([0.2, 1100, 1.0, 0.6]) or None: the scene camera on the
+    #                           table: the part without depth up to a distance (mm), how much
+    #                           more per metre beyond it, the most
+    #                         dropout (0.002): single pixels without depth
+    #                         left_band_px (30) or None: the blind band at the image's left is
+    #                           focal_px * baseline_mm / z + this many pixels wide
+    #                         shadow (True): no depth where the second imager does not see
+    #                         min_mm (275): nothing nearer than this
+    #                         focal_px (625), baseline_mm (55): the depth sensor's own
+    #                       "ideal": True under a camera: its depth as the simulator renders it,
+    #                       without any of this (for a model of your own, in robot()'s look).
+    #                       "pose_error" under a camera: its TRUE pose differs from the one its
+    #                       frames give (eye, R) by {{"shift_mm": 5, "turn_deg": 1}} in a direction
+    #                       drawn per episode (the simulator's own: scene 5 mm and 1 deg, wrists
+    #                       3 mm and 1 deg), or with three numbers each by exactly that.
+    #                       frame.depth_report(), in a program, gives numbers that describe a
+    #                       frame's depth as a sensor's output: the part with depth, the blind
+    #                       band, the holes, the noise by distance. read_real_depth gives the
+    #                       same numbers for a real look: with both, a world's depth model can be
+    #                       fitted to the real cameras and checked against looks it was not
+    #                       fitted to.
+    # rng: a numpy Generator, the same for the same scene.
+    return scene
+
+"""
+_W_HEAD, _W_REST = _WORLDS.split("def scene(scene, rng):\n", 1)
+_WORLDS_CLUTTER = (_W_HEAD.replace('run_episodes                  with "world": k', 'run_episodes, run_set         with "world": k')
+                   + "def scene(scene, rng):\n" + _CLUTTER_WORLD_SCENE + "def robot(robot, rng, kit):\n"
+                   + _W_REST.split("def robot(robot, rng, kit):\n", 1)[1].replace("show, truth, judge.", "show, truth, judge, ask."))
+assert "run_set         with" in _WORLDS_CLUTTER and "judge, ask." in _WORLDS_CLUTTER
 
 _CONTINUED = """
 
@@ -554,7 +863,9 @@ TOOLS = [
           {"version": _VER, "start_line": {"type": "integer"}, "end_line": {"type": "integer"}}),
     _spec("submit", "Name the version that is your result (it replaces an earlier submission). final = true ends the session.",
           {"version": _VER, "final": {"type": "boolean"}, "note": {"type": "string"},
-           "summary": {"type": "string", "description": "with final = true, where the instructions ask for it: the summary of the session"}}, ["final"]),
+           "summary": {"type": "string", "description": "with final = true, where the instructions ask for it: the summary of the session"},
+           "world": {"type": "integer", "description": "with final = true, in a session on a task of your own: the world that sets the task"}},
+          ["final"]),
 ]
 
 
@@ -1001,6 +1312,8 @@ class Session:
         res = dict(ended=st["ended"], submitted=st["submitted"], result_version=sub, turns=st["turn"], versions=st["versions"],
                    task=self.task.name, env=self.env, sensors=self.sensors, budget_usd=self.budget, spent_usd=round(self.spent(), 4),
                    compactions=st["compactions"], wall_s=st["wall_s"], effort=self.effort)
+        if st.get("task_world") is not None:                        # (--own-task: the world that sets the session's task)
+            res["task_world"] = st["task_world"]
         (self.dir / "result.json").write_text(json.dumps(res, indent=1) + "\n")
         self._md(f"## The session ended: {st['ended']}. Result: {'v' + str(sub) if sub is not None else 'none'}; ${self.spent():.2f} spent.")
         return st["ended"]
@@ -1043,7 +1356,8 @@ REAL_TOOLS = [
     _spec("view_real_images", "Images of a real episode, by the names list_real_episodes gives (at most 6 a call).",
           {"episode": _EPISODE, "names": {"type": "array", "items": {"type": "string"}}}, ["episode", "names"]),
     _spec("read_real_depth", "The depth of a real look as numbers (mm, 0 = no depth): a grid of at most 24 x 18 values over a window of pixels "
-          "(each the pixel at the grid point), and the window's statistics.",
+          "(each the pixel at the grid point), the window's statistics, and the whole look's depth report (the part with depth, the blind "
+          "band, the holes, the noise by distance: the numbers frame.depth_report() gives for a simulated frame).",
           {"episode": _EPISODE, "look": {"type": "string", "description": "a look's name, such as look_03_left_wrist"},
            "u0": {"type": "integer", "description": "the window's left column (default 0)"}, "v0": {"type": "integer", "description": "its top row (default 0)"},
            "u1": {"type": "integer", "description": "its right column (default 639)"}, "v1": {"type": "integer", "description": "its bottom row (default 479)"}},
@@ -1053,7 +1367,7 @@ _REAL_SPEC = {"anyOf": [{"type": "boolean"}, _obj(false_stops={"type": "boolean"
               "description": "a scene like the real robot (the instructions: The real robot)"}
 
 
-_WORLD = {"type": "integer", "description": "a world's number (left out: the plain simulator)"}
+_WORLD = {"type": ["integer", "null"], "description": "a world's number (left out, null or -1: the plain simulator)"}
 WORLD_TOOLS = [
     _spec("write_world", "Save a new version of a world: the whole file (scene(scene, rng) and/or robot(robot, rng, kit)).",
           {"code": {"type": "string", "description": "the whole Python file"},
@@ -1103,7 +1417,7 @@ class SceneSession(Session):
     _EP = "scene"
 
     def __init__(self, *a, eval_set=False, tables=False, real=None, real_scenes=False, continue_from=None, ask=None, summary=False,
-                 worlds=False, **k):
+                 worlds=False, own_task=False, **k):
         """real: a pack of real-robot episodes (scripts/real_feedback_pack.py) that the model can study; real_scenes:
         its scenes can be "like the real rig" (scenes.py REAL: hand-written); continue_from: an ended session's
         directory: this one starts with its versions, scenes, episode results and notes (that one is not changed)."""
@@ -1112,6 +1426,9 @@ class SceneSession(Session):
         self.source = Path(continue_from).resolve() if continue_from else None
         self.more, self.want_summary = (str(ask).strip() if ask else ""), bool(summary)   # (--ask: more that is asked for; --summary)
         self.worlds = bool(worlds)                                  # (--worlds: the model writes worlds, practice.py: world)
+        self.own_task = bool(own_task)                              # (--own-task: the task is a world's goal() and success())
+        if self.own_task and not (self.worlds and self.more and self.want_summary):
+            raise ValueError("a task of the model's own needs worlds, what is asked (ask) and the summary")
         self.episodes = {}
         if self.real is not None:
             names = json.loads((self.real / "pack.json").read_text())["episodes"]
@@ -1120,7 +1437,7 @@ class SceneSession(Session):
         (self.dir / "worlds").mkdir(exist_ok=True)
         self.state.setdefault("worlds", [])
         for key, now in (("real", str(self.real) if self.real else None), ("real_scenes", self.real_scenes), ("ask", self.more),
-                         ("summary", self.want_summary), ("worlds_on", self.worlds)):
+                         ("summary", self.want_summary), ("worlds_on", self.worlds), ("own_task", self.own_task)):
             if self.state.setdefault(key, now) != now:
                 raise ValueError(f"this session was started with {key} = {self.state[key]!r}")
         if self.state.get("tables", self.tables) != self.tables:
@@ -1136,7 +1453,8 @@ class SceneSession(Session):
             return ""
         W, rr = scenes.WORLD, lambda v: f"{v[0]:g}..{v[1]:g}"
         return _WORLDS.format(**{k: rr(W[k]) for k in ("cyl_d", "cyl_h", "hole", "stick_d", "stick_h", "board", "board_t", "size", "density", "x", "y")},
-                              distractors=W["distractors"], extras=W["extras"], parts=W["parts"])
+                              distractors=W["distractors"], extras=W["extras"], parts=W["parts"], friction=rr(W["friction"]),
+                              contact_ms=rr(W["contact_ms"]), hull=rr(W["hull"]))
 
     def _wpath(self, k):
         return self.dir / "worlds" / f"w{int(k):02d}.py"
@@ -1144,6 +1462,8 @@ class SceneSession(Session):
     def _world(self, a, key="world", default_newest=False):
         """The world a call names -> its number, or None (the plain simulator)."""
         k, n = a.get(key), len(self.state["worlds"])
+        if key == "world" and isinstance(k, int) and not isinstance(k, bool) and k < 0:
+            k = None                                                # (-1: the plain simulator, as left out)
         if k is None:
             if not default_newest:
                 return None
@@ -1228,11 +1548,32 @@ class SceneSession(Session):
             **{key: r(key) for key in ("cyl_d", "cyl_h", "density", "stick_d", "stick_h", "yaw", "clearance", "board", "board_t", "dis_size",
                                        "dis_h", "x", "y", "dis_x", "dis_y")}).replace(
             *(_NO_PROGRAM if self.state.get("continued") else ("", ""))) + self._worlds_closing() + self._real_closing() + (
-            _SUMMARY if self.want_summary and self.real is None else "")
+            _SUMMARY if self.want_summary and self.real is None else "") + (_OWN if self.own_task else "")
 
     def _intro(self):
+        if self.own_task:
+            return (ASK_OWN.format(ask=self.more) + self.task.text + " " + ASK_VARIED + '"'
+                    + (ASK_REAL if self.real is not None else ""))
         return (self.task.text + " " + ASK_VARIED + (ASK_TABLES if self.tables else "") + (ASK_REAL if self.real is not None else "")
                 + ("\n\n" + self.more if self.more else ""))
+
+    def _t_submit(self, a):
+        if self.own_task and a.get("final"):                        # (the world that sets the task goes with the result)
+            if a.get("world") is None:
+                return [text('The session has NOT ended: in this session final = true needs "world": the world that sets your task.')]
+            k = self._world(a)
+            tree = ast.parse(self._wpath(k).read_text())
+            if not {"goal", "success"} <= {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}:
+                return [text(f"The session has NOT ended: w{k} has no goal() and success(): it does not set a task.")]
+            self.state["task_world"] = k
+        return super()._t_submit(a)
+
+    def _same_kind(self, src):
+        return ("scenes" in src and "levels" not in src and bool(src.get("tables")) == self.tables and bool(src.get("eval_set")) == self.eval_set
+                and bool(src.get("own_task")) == self.own_task)
+
+    def _kind_state(self):
+        return dict(eval_set=self.eval_set, tables=self.tables)
 
     def _continue(self):
         """The first message of a session that continues an ended one (self.source): its versions, scenes, episode
@@ -1240,19 +1581,20 @@ class SceneSession(Session):
         st, src = self.state, json.loads((self.source / "state.json").read_text())
         if not src.get("ended") or src.get("submitted") is None:
             raise ValueError(f"{self.source}: not an ended session with a submitted version (a stopped one goes on with --resume)")
-        if "scenes" not in src or bool(src.get("tables")) != self.tables or bool(src.get("eval_set")) != self.eval_set:
-            raise ValueError(f"{self.source}: not a session of this kind (scenes, --tables, --eval-set)")
+        if not self._same_kind(src):
+            raise ValueError(f"{self.source}: not a session of this kind (scenes, --tables, --eval-set; or the levels and the arm)")
         for f in sorted((self.source / "versions").glob("v*.py")):
             shutil.copy(f, self.dir / "versions" / f.name)
         if (self.source / "runs").exists() and not (self.dir / "runs").exists():
             shutil.copytree(self.source / "runs", self.dir / "runs", ignore=shutil.ignore_patterns("*.mp4"))
         sub_ = int(src["submitted"])
         if (self.source / "worlds").exists():
+            (self.dir / "worlds").mkdir(parents=True, exist_ok=True)   # (a continued session takes the worlds over as well)
             for f in sorted((self.source / "worlds").glob("w*.py")):
                 shutil.copy(f, self.dir / "worlds" / f.name)
             st["worlds"] = list(src.get("worlds") or [])
         st.update(versions=src["versions"], scenes=src["scenes"], n_scenes=src["n_scenes"], notes=src.get("notes", ""), submitted=sub_,
-                  eval_set=self.eval_set, tables=self.tables,
+                  **self._kind_state(),
                   continued=dict(source=str(self.source), submitted=sub_, versions=len(src["versions"]), usd=src.get("usd")))
         vs = "\n".join(f"v{v} ({m['lines']} lines{', from v' + str(m['base']) if m['base'] is not None else ''}): {m['note']} | practice: "
                        + (self._practice(m["runs"]) or "not run") for v, m in enumerate(st["versions"]))
@@ -1358,7 +1700,7 @@ class SceneSession(Session):
             for n, e in self.episodes.items():
                 out.append(f"\n{head(n, e)}\n  Setup: {e['setup']}\n  Moves until contact: {e.get('contact') or 'as the rig text says'}\n"
                            f"  The program {e['program_ended'] or 'ended'} after {secs(e)} of the rig's time; {len(e['moves_until_contact'])} moves until contact; "
-                           f"output.txt has {e['output_lines']} lines.")
+                           + (f"{len(e['asks'])} model calls; " if e.get("asks") else "") + f"output.txt has {e['output_lines']} lines.")
             return [text("\n".join(out))]
         out = []
         for n in want:
@@ -1377,9 +1719,18 @@ class SceneSession(Session):
             server = (f"{len(L)} guarded lines: {len(L) - len(st)} ran to their end, {len(st)} were stopped by the server"
                       + (f" (the hand {rng('hand_behind_mm')} mm behind, force change {rng('force_change_n')} N, after {rng('came_down_mm')} mm of way down)" if st else "")
                       + ("; lag allowed " + ", ".join(sorted({format(x["lag_allowed_mm"], "g") for x in L})) + " mm" if L else ""))
+            asks, seen_q = "", []
+            for k, q in enumerate(e.get("asks") or []):
+                new = q["question"] not in seen_q
+                seen_q += [q["question"]] if new else []
+                asks += (f"\n    ask {q['n']} at t {q['t']:g} s, {len(q['images'])} images ({', '.join(q['images'])}), effort {q.get('effort')}: "
+                         + (f"question {seen_q.index(q['question']) + 1}" + (f": {q['question'][:1500]!r}" if new else " again"))
+                         + f" -> {q['answer']!r}" + (f" (${q['usd']:.3f}, {q['wait_s']:g} s)" if q.get("usd") is not None else ""))
+                imgs += q["images"]
             out.append(f"{head(n, e)}\n  Setup: {e['setup']}\n  Moves until contact: {e.get('contact') or 'as the rig text says'}\n"
                        f"  The program {e['program_ended'] or 'ended'} after {secs(e)} of the rig's time; output.txt has {e['output_lines']} lines.\n"
-                       f"  Its moves until contact, as the program saw them:\n{moves}\n  The arm's server: {server}\n  Its looks: {looks}\n  Images: {', '.join(imgs)}")
+                       f"  Its moves until contact, as the program saw them:\n{moves}\n  The arm's server: {server}\n  Its looks: {looks}\n"
+                       + (f"  Its model calls (robot.ask):{asks}\n" if asks else "") + f"  Images: {', '.join(imgs)}")
         return [text("\n\n".join(out))]
 
     def _t_read_real_output(self, a):
@@ -1414,7 +1765,9 @@ class SceneSession(Session):
                 + (f"{100 * (1 - len(ok) / win.size):.0f}% of its pixels without depth; of the others: nearest {int(ok.min())}, 5% {int(np.percentile(ok, 5))}, "
                    f"median {int(np.median(ok))}, 95% {int(np.percentile(ok, 95))}, farthest {int(ok.max())} mm." if len(ok) else "no pixel has depth."))
         grid = "\n".join([" v \\ u " + "".join(f"{u:5d}" for u in us)] + [f"{v:6d} " + "".join(f"{int(dep[v, u]):5d}" for u in us) for v in vs])
-        return [text(head + "\n" + grid)]
+        from .api import depth_report
+        rep = depth_report(np.where(dep > 0, dep.astype(float), np.nan))
+        return [text(head + "\n" + grid + "\nThe whole look's depth report (what frame.depth_report() gives for a simulated frame): " + json.dumps(rep))]
 
     def _t_view_real_images(self, a):
         n, d = self._real_episode(a)
@@ -1500,8 +1853,9 @@ _CLUTTER_OBJECT = _obj(
 _NAMES = {"type": "array", "items": {"type": "string", "description": "a scene's name, or a range such as s10..s49"}}
 
 
-def _clutter_tools(levels):
+def _clutter_tools(levels, real=False, worlds=False):
     keep = {s["name"]: s for s in TOOLS}
+    w = {"world": _WORLD} if worlds else {}
     lv = {"type": "string", "enum": list(levels)}
     scene = _obj("a scene (the instructions: Scenes of your own); every field but level can be left out, or be null",
                  level=lv, seed=_opt({"type": "integer"}), n_objects=_opt({"type": "integer"}),
@@ -1517,14 +1871,15 @@ def _clutter_tools(levels):
            _spec("list_scenes", "What is in scenes: every object's shape, sizes, colour, density and place (without names, or for more "
                                 "than 12 scenes: one line a scene).", {"names": _NAMES}),
            _spec("run_episodes", f"Run a version on scenes, one episode each, with the whole result of each (at most {AT_ONCE_SCENES} new "
-                                 "ones a call, run at the same time; some minutes).", {"scenes": _NAMES, "version": _VER}, ["scenes"]),
+                                 "ones a call, run at the same time; some minutes).", {"scenes": _NAMES, "version": _VER, **w}, ["scenes"]),
            _spec("run_set", f"Run a version on many scenes (at most {SET_N} a call): one line per episode, and the totals by level.",
-                 {"scenes": _NAMES, "version": _VER}, ["scenes"])]
+                 {"scenes": _NAMES, "version": _VER, **w}, ["scenes"])]
     for name in ("read_output", "view_images"):
         p = keep[name]["parameters"]
         props = {("scene" if k == "seed" else k): (_NAME if k == "seed" else x) for k, x in p["properties"].items()}
+        props.update(w)
         out.append(_spec(name, keep[name]["description"], props, ["scene" if k == "seed" else k for k in p["required"]]))
-    return out + [keep["read_program"], keep["submit"]]
+    return out + (WORLD_TOOLS if worlds else []) + (REAL_TOOLS if real else []) + [keep["read_program"], keep["submit"]]
 
 
 class ClutterSession(SceneSession):
@@ -1537,14 +1892,16 @@ class ClutterSession(SceneSession):
 
     _WALL = practice.WALL_S
 
-    def __init__(self, out, env, levels, vlm, ask=None, arm=None, **k):
-        """arm="left": the one-armed robot's environments (clutter_one_arm.py)."""
+    def __init__(self, out, env, levels, vlm, ask=None, arm=None, more=None, **k):
+        """arm="left": the one-armed robot's environments (clutter_one_arm.py). ask: label -> the model client of one
+        episode's robot.ask. more: more that is asked of the skill (--ask). k: also SceneSession's real (a pack of
+        real episodes), continue_from (an ended clutter session), summary and worlds."""
         self.levels, self.ask, self.arm = tuple(levels), ask, arm
         if not self.levels or any(l not in ("medium", "hard") for l in self.levels):
             raise ValueError("levels: medium, hard")
         if arm not in clutter.ARMS or (arm and env != "sim_bimanual_grippers"):
             raise ValueError('arm: "left" (the one-armed robot, in sim_bimanual_grippers) or none')
-        super().__init__(out, env, self._task(self.levels[0]), vlm, **k)
+        super().__init__(out, env, self._task(self.levels[0]), vlm, ask=more, **k)
         if tuple(self.state.get("levels", self.levels)) != self.levels:
             raise ValueError(f"this session was started with the levels {', '.join(self.state['levels'])}")
         if self.state.get("arm", arm) != arm:
@@ -1554,7 +1911,21 @@ class ClutterSession(SceneSession):
         return clutter_one_arm.task(level) if self.arm else f"pick_clutter_{level}"
 
     def _specs(self):
-        return _clutter_tools(self.levels)
+        return _clutter_tools(self.levels, real=self.real is not None, worlds=self.worlds)
+
+    def _same_kind(self, src):
+        return "scenes" in src and tuple(src.get("levels") or ()) == self.levels and src.get("arm") == self.arm
+
+    def _kind_state(self):
+        return dict(eval_set=False, tables=False, levels=list(self.levels), arm=self.arm)
+
+    def _worlds_closing(self):
+        if not self.worlds:
+            return ""
+        W, rr = clutter.WORLD, lambda v: f"{v[0]:g}..{v[1]:g}"
+        return _WORLDS_CLUTTER.format(n=W["n"][1], size=rr(W["size"]), density=rr(W["density"]), x=rr(W["x"]), y=rr(W["y"]), z=rr(W["z"]),
+                                      parts=W["parts"], extras=scenes.WORLD["extras"], eparts=scenes.WORLD["parts"],
+                                      friction=rr(scenes.WORLD["friction"]), contact_ms=rr(scenes.WORLD["contact_ms"]), hull=rr(scenes.WORLD["hull"]))
 
     def _eval_names(self):
         return []
@@ -1580,14 +1951,18 @@ class ClutterSession(SceneSession):
             x=r(P["x"]), y=r(P["y"]), ruler=r(clutter.RULER), density=r(T["density"]), colours=", ".join(clutter.COLOURS),
             tb="28..58", tcd="28..58", tch="28..65", tball="32..58", ob="25..80 x 25..80 x 20..80", ocd="25..75", och="20..90", oball="28..65",
             size=r(L["size"]), dens=r(L["density"]), n_own=r(L["n"]), own_x=r(O["x"]), own_y=r(O["y"]), parts=L["parts"],
-            tries=clutter.BUILD_TRIES)
+            tries=clutter.BUILD_TRIES).replace(*(_NO_PROGRAM_CLUTTER if self.state.get("continued") else ("", ""))) + (
+            self._worlds_closing() + self._real_closing() + (_SUMMARY if self.want_summary and self.real is None else ""))
 
     def _intro(self):
         T = clutter_one_arm.TEXT if self.arm else clutter.TEXT
         t = "\n\n".join(f"The {l} level. {T[l]}" for l in self.levels)
-        return f"Picking from clutter{' with one arm' if self.arm else ''}, at two levels.\n\n" + t + "\n\n" + ASK_CLUTTER
+        return (f"Picking from clutter{' with one arm' if self.arm else ''}, at two levels.\n\n" + t + "\n\n" + ASK_CLUTTER
+                + (ASK_REAL if self.real is not None else "") + ("\n\n" + self.more if self.more else ""))
 
     def _first(self):
+        if self.source is not None:
+            return self._continue()
         st = self.state
         st["eval_set"], st["tables"], st["levels"], st["arm"] = False, False, list(self.levels), self.arm
         st["scenes"] = {f"example_{l}": clutter.sample(l, CLUTTER_EXAMPLE, self.arm) for l in self.levels}
@@ -1600,19 +1975,22 @@ class ClutterSession(SceneSession):
         return [{"role": "user", "content": content}], images
 
     def _level(self, name):
-        return self.state["scenes"][str(name)]["level"]
+        return self.state["scenes"][str(name).split("@")[0]]["level"]
 
     def _by_level(self, runs):
         """runs {scene: [ok, robot_s, model calls, $]} -> text: by level, successes/episodes (mean robot time of the
-        successes, mean model calls an episode)."""
-        parts = []
-        for l in self.levels:
-            rs = [r for s, r in runs.items() if s in self.state["scenes"] and self._level(s) == l]
-            if rs:
-                ok = [r[1] for r in rs if r[0]]
-                calls = [r[2] for r in rs if len(r) > 2]
-                extra = ([f"{sum(ok) / len(ok):.0f} s"] if ok else []) + ([f"{sum(calls) / len(calls):.1f} calls"] if calls else [])
-                parts.append(f"{l} {len(ok)}/{len(rs)}" + (f" ({', '.join(extra)})" if extra else ""))
+        successes, mean model calls an episode); the episodes in a world (scene@wK) apart, after the plain ones."""
+        parts, sc = [], self.state["scenes"]
+        worlds = sorted({s.split("@")[1] for s in runs if "@" in s}, key=lambda w: int(w[1:]) if w[1:].isdigit() else 0)
+        for w in [None] + worlds:
+            for l in self.levels:
+                rs = [r for s, r in runs.items() if s.split("@")[0] in sc and self._level(s) == l
+                      and (s.split("@")[1] if "@" in s else None) == w]
+                if rs:
+                    ok = [r[1] for r in rs if r[0]]
+                    calls = [r[2] for r in rs if len(r) > 2]
+                    extra = ([f"{sum(ok) / len(ok):.0f} s"] if ok else []) + ([f"{sum(calls) / len(calls):.1f} calls"] if calls else [])
+                    parts.append((f"in {w} " if w else "") + f"{l} {len(ok)}/{len(rs)}" + (f" ({', '.join(extra)})" if extra else ""))
         return ", ".join(parts)
 
     def results_line(self):
@@ -1692,20 +2070,24 @@ class ClutterSession(SceneSession):
         full = bool(a.get("names")) and len(names) <= 12
         return [text("\n".join(f"{n} (seed {sc[n]['seed']}): " + (clutter.describe(sc[n]) if full else clutter.brief(sc[n])) for n in names))]
 
-    def _run(self, v, names):
-        new = [n for n in names if not (self._run_dir(v, n) / "result.json").exists()]
-        if not new:
-            return
-        if self.segmenter and self.bridge is None:
-            self.bridge = practice.SegmenterBridge()
-        if self.ask is not None and self.asker is None:
-            self.asker = practice.AskBridge(self.ask, dir=self.bridge.dir if self.bridge is not None else None)
-        sc = self.state["scenes"]
-        with ThreadPoolExecutor(len(new)) as ex:                    # (practice.SLOTS bounds how many run at the same time)
-            list(ex.map(lambda n: practice.run_sandboxed(
-                self.env, self._task(sc[n]["level"]), sc[n]["seed"], self._path(v), self._run_dir(v, n), sensors=self.sensors,
-                trace=True, bridge=self.bridge, wall_s=self._WALL, scene=sc[n], practice=True, asker=self.asker,
-                ask_label=f"v{v}_{n}"), new))
+    def _run(self, v, names, world=None):
+        """Run version v on the scenes `names` (those not yet run), in the plain simulator or in world w<world> (the
+        episode is then kept as <scene>@w<world>) -> the episodes' names."""
+        key = (lambda n: n) if world is None else (lambda n: f"{n}@w{world}")
+        new = [n for n in names if not (self._run_dir(v, key(n)) / "result.json").exists()]
+        if new:
+            if self.segmenter and self.bridge is None:
+                self.bridge = practice.SegmenterBridge()
+            if self.ask is not None and self.asker is None:
+                self.asker = practice.AskBridge(self.ask, dir=self.bridge.dir if self.bridge is not None else None)
+            sc = self.state["scenes"]
+            wf = None if world is None else self._wpath(world)
+            with ThreadPoolExecutor(len(new)) as ex:                # (practice.SLOTS bounds how many run at the same time)
+                list(ex.map(lambda n: practice.run_sandboxed(
+                    self.env, self._task(sc[n]["level"]), sc[n]["seed"], self._path(v), self._run_dir(v, key(n)), sensors=self.sensors,
+                    trace=True, bridge=self.bridge, wall_s=self._WALL, scene=sc[n], practice=True, asker=self.asker,
+                    ask_label=f"v{v}_{key(n).replace('@', '_')}", world=wf), new))
+        return [key(n) for n in names]
 
     def _totals(self, v, names):
         runs = self.state["versions"][v]["runs"]
@@ -1714,21 +2096,21 @@ class ClutterSession(SceneSession):
                     + f"; their model calls cost ${usd:.3f}.")
 
     def _t_run_episodes(self, a):
-        v, names = self._version(a), self._names(a["scenes"])
+        v, names, world = self._version(a), self._names(a["scenes"]), self._world(a)
         if not names:
             raise ValueError(f"scenes: which? There are {self._scene_names()}")
-        if sum(not (self._run_dir(v, n) / "result.json").exists() for n in names) > AT_ONCE_SCENES:
+        key = (lambda n: n) if world is None else (lambda n: f"{n}@w{world}")
+        if sum(not (self._run_dir(v, key(n)) / "result.json").exists() for n in names) > AT_ONCE_SCENES:
             raise ValueError(f"at most {AT_ONCE_SCENES} new episodes a call (run_set runs many, with one line per episode)")
-        self._run(v, names)
-        return self._results(v, names)
+        return self._results(v, self._run(v, names, world))
 
     def _t_run_set(self, a):
-        v, names = self._version(a), self._names(a["scenes"])
+        v, names, world = self._version(a), self._names(a["scenes"]), self._world(a)
         if not 1 <= len(names) <= SET_N:
             raise ValueError(f"scenes: 1 to {SET_N} scenes a call")
-        self._run(v, names)
-        items = self._results(v, names, brief=True)
-        return items[:-1] + [self._totals(v, names), items[-1]]
+        keys = self._run(v, names, world)
+        items = self._results(v, keys, brief=True)
+        return items[:-1] + [self._totals(v, keys), items[-1]]
 
 
 def _said(r):
@@ -1775,7 +2157,12 @@ def _printed(d, head=12, tail=25):
 
 
 _BOOK = ("ok", "task", "env", "seed", "robot_s", "mode", "ended", "sensors", "commands", "shown", "true_start_mm", "true_end_mm", "wall_s",
-         "scene", "model_calls", "model_usd", "model_wait_s")
+         "scene", "model_calls", "model_usd", "model_wait_s", "task_text", "judged_by")
+
+
+def _by_world(r):
+    """" (the world's success())" for an episode judged by its world's own check."""
+    return " (the world's success())" if r.get("judged_by") == "world" else ""
 
 
 def _asked(r, brief=False):
@@ -1799,7 +2186,9 @@ def _episode_line(v, s, r, d, ep="seed"):
     j = {k: x for k, x in r.items() if k in ("on_stick", "released", "stand_upright", "off_axis_mm", "stick_through_mm",
                                              "held", "height_mm", "held_by", "touches", "fallen")}
     level = _level_of(r)
-    return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s{_asked(r, True)}; the program "
+    if r.get("judged_by") == "world":
+        j = r.get("world_check")
+    return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}{_by_world(r)}, {r['robot_s']} s{_asked(r, True)}; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])[:160]}" + ("" if r["ok"] else f"; judge: {json.dumps(j)}"))
 
 
@@ -1808,10 +2197,11 @@ def _episode_text(v, s, r, d, ep="seed"):
     shown = sorted(p.name for p in (Path(d) / "shown").glob("*.png")) if (Path(d) / "shown").exists() else []
     n_lines = len((Path(d) / "output.txt").read_text(errors="replace").splitlines())
     level = _level_of(r)
-    return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}, {r['robot_s']} s of robot time, {r['commands']} robot commands"
+    return (f"v{v} {ep} {s}{level}: {'SUCCESS' if r['ok'] else 'FAILED'}{_by_world(r)}, {r['robot_s']} s of robot time, {r['commands']} robot commands"
             f"{_asked(r)}; the program "
             f"{'returned' if r['ended'] == 'returned' else 'ended by ' + str(r['ended'])}\n"
-            f"  judge: {json.dumps({k: x for k, x in r.items() if k not in _BOOK})}\n"
+            + (f"  the world's success(): {json.dumps(r.get('world_check'))}; the simulator's own task: {'done' if r.get('simulator_ok') else 'not done'}\n"
+               if r.get("judged_by") == "world" else f"  judge: {json.dumps({k: x for k, x in r.items() if k not in _BOOK})}\n") +
             f"  TRUE positions (mm) at the start: {pos(r['true_start_mm'])}\n  TRUE positions at the end: {pos(r['true_end_mm'])}"
             + (f"\n  shown: {', '.join(shown)}" if shown else "") + f"\n  output.txt: {n_lines} lines with the trace" + _printed(d))
 
@@ -1840,13 +2230,17 @@ def main(argv=None):
     ap.add_argument("--eval-episodes", type=int, default=10, help="how many episodes the model is told its result is judged on")
     ap.add_argument("--out", required=True)
     ap.add_argument("--resume", action="store_true", help="go on with the session in --out")
-    ap.add_argument("--continue-from", help="a session on varied scenes that has ended: this one starts with its versions, scenes, results "
-                                             "and notes (--eval-set and --tables are taken from it)")
+    ap.add_argument("--continue-from", help="a session on varied scenes, or on picking from clutter, that has ended: this one starts with "
+                                             "its versions, scenes, results and notes (--eval-set and --tables are taken from it)")
     ap.add_argument("--real-feedback", help="a pack of real-robot episodes (scripts/real_feedback_pack.py) for the model to study")
     ap.add_argument("--ask", help="more that is asked of the skill, added to the task's text (a session on varied scenes)")
     ap.add_argument("--summary", action="store_true", help="the final submit must carry the model's own summary of the session (kept as summary.md)")
     ap.add_argument("--worlds", action="store_true",
                     help="the model writes its own changes to the simulator (worlds: scenes, objects, sensors, the robot's answers)")
+    ap.add_argument("--own-task", action="store_true",
+                    help="insert_varied: the session is about a NEW task, given in --ask: the model builds it as a world (its "
+                         "objects as MJCF, its text goal(), its check success()) and writes the skill for it (implies --worlds "
+                         "and --summary; the result is the submitted version with that world)")
     ap.add_argument("--real-scenes", action="store_true",
                     help="with --real-feedback: scenes can be set up like the real rig (scenes.py REAL: hand-written effects)")
     a = ap.parse_args(argv)
@@ -1861,11 +2255,16 @@ def main(argv=None):
     kw = dict(budget_usd=a.budget_usd, sensors=a.sensors, segmenter=bool(a.segmenter), effort=a.effort, max_output_tokens=a.max_output_tokens,
               n_eval=a.eval_episodes, max_hours=a.max_hours, spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
     if a.task in ("pick_clutter", "pick_clutter_one_arm"):
-        if a.start or a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes or a.worlds:
-            ap.error("--start, --eval-set, --tables, --continue-from, --real-feedback, --real-scenes: not for pick_clutter")
+        if a.start or a.eval_set or a.tables or a.real_scenes or a.own_task:
+            ap.error("--start, --eval-set, --tables, --real-scenes, --own-task: not for pick_clutter")
+        if a.resume:                                                # (what the session was started with)
+            st0 = json.loads((out / "state.json").read_text())
+            a.real_feedback, a.continue_from = st0.get("real"), None
+            a.ask, a.summary, a.worlds = st0.get("ask") or None, bool(st0.get("summary")), bool(st0.get("worlds_on"))
         ask = lambda label: V.VLM(dict(model=a.model, max_calls_per_episode=practice.ASK["calls"], max_usd_per_episode=practice.ASK["reserve_usd"],
                                        run_usd=a.budget_usd - ASK_KEEP), tag=f"{tag}:ask:{label}")
-        s = ClutterSession(out, a.env, a.levels, vlm, ask=ask, arm=clutter_one_arm.ARM if a.task == "pick_clutter_one_arm" else None, **kw)
+        s = ClutterSession(out, a.env, a.levels, vlm, ask=ask, arm=clutter_one_arm.ARM if a.task == "pick_clutter_one_arm" else None,
+                           more=a.ask, real=a.real_feedback, continue_from=a.continue_from, summary=a.summary, worlds=a.worlds, **kw)
     elif TASKS[a.task].scene:
         if a.start:
             ap.error("--start: a session on a task with varied scenes starts from nothing (--continue-from: from an ended session)")
@@ -1876,13 +2275,19 @@ def main(argv=None):
             a.eval_set, a.tables = st0.get("eval_set", a.eval_set), st0.get("tables", a.tables)
             a.real_feedback, a.real_scenes = st0.get("real"), st0.get("real_scenes", False)
             a.ask, a.summary, a.worlds = st0.get("ask") or None, bool(st0.get("summary")), bool(st0.get("worlds_on"))
+            a.own_task = bool(st0.get("own_task"))
             a.continue_from = None                                  # (its versions are here already)
         elif a.continue_from:
             src = json.loads((Path(a.continue_from) / "state.json").read_text())
             a.eval_set, a.tables = bool(src.get("eval_set")), bool(src.get("tables"))
+        if a.own_task:
+            if a.task != "insert_varied" or not a.ask or a.eval_set or a.tables:
+                ap.error("--own-task: with --task insert_varied (whose scenes the world rebuilds) and --ask (the new task), "
+                         "without --eval-set and --tables")
+            a.worlds = a.summary = True
         s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, tables=a.tables, real=a.real_feedback, real_scenes=a.real_scenes,
-                         continue_from=a.continue_from, ask=a.ask, summary=a.summary, worlds=a.worlds, **kw)
-    elif a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes or a.worlds:
+                         continue_from=a.continue_from, ask=a.ask, summary=a.summary, worlds=a.worlds, own_task=a.own_task, **kw)
+    elif a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes or a.worlds or a.own_task:
         ap.error("--eval-set, --tables, --continue-from, --real-feedback, --real-scenes: only for a task with varied scenes")
     else:
         s = Session(out, a.env, a.task, vlm, start=a.start, **kw)

@@ -741,3 +741,157 @@ def test_one_arm_clutter_session_with_a_stub_model(tmp_path):
         improve.ClutterSession(tmp_path / "a", GRIPPERS, ["medium", "hard"], dev, budget_usd=5.0, log=lambda *a: None)
     with pytest.raises(ValueError, match="arm:"):
         improve.ClutterSession(tmp_path / "b", DEXTEROUS, ["medium"], dev, arm="left", budget_usd=5.0, log=lambda *a: None)
+
+
+_DRAWER = """
+<mujoco>
+  <worldbody>
+    <body name="w_cabinet" pos="-0.20 0.02 0">
+      <geom type="box" size="0.11 0.09 0.006" pos="0 0 0.006"/>
+      <geom type="box" size="0.11 0.09 0.006" pos="0 0 0.094"/>
+      <geom type="box" size="0.11 0.006 0.05" pos="0 0.084 0.05"/>
+      <geom type="box" size="0.11 0.006 0.05" pos="0 -0.084 0.05"/>
+      <body name="w_drawer" pos="0 0 0.05">
+        <joint name="w_slide" type="slide" axis="-1 0 0" range="0 0.16" damping="4" frictionloss="1.5"/>
+        <geom type="box" size="0.09 0.07 0.004" pos="0 0 -0.032" mass="0.2"/>
+        <geom type="box" size="0.005 0.076 0.037" pos="-0.105 0 0" mass="0.1"/>
+        <geom name="w_handle" type="box" size="0.025 0.008 0.02" pos="-0.135 0 0" mass="0.03" friction="1.5 0.02 0.005" condim="4"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
+"""
+_DRAWER_WORLD = "MJCF = '''" + _DRAWER + """'''
+
+def scene(s, rng):
+    s["arm"] = "left"; s["without"] = ["cylinder", "stand", "distractors"]; s["mjcf"] = MJCF; s["joints"] = {"w_slide": 10}
+    return s
+
+def goal(s, rng):
+    return "Task: open the drawer by at least 80 mm and let go of it."
+
+def success(state):
+    return {"ok": bool(state.joint("w_slide") >= 80 and not state.touching("w_drawer")["robot"]), "open_mm": round(state.joint("w_slide"), 1)}
+"""
+_DRAWER_PROGRAM = """
+import numpy as np
+
+def run(robot, task):
+    print("TASK", task)
+    h = np.array(robot.truth()["w_drawer"]) + np.array([-147.0, 0.0, 0.0])
+    if "PULL" in "%s":
+        robot.set_gripper("left", 60)
+        robot.move("left", [h[0], h[1], h[2] + 120], (0, 0, -1), (0, 1, 0))
+        robot.move("left", [h[0], h[1], h[2] + 2], (0, 0, -1), (0, 1, 0))
+        robot.set_gripper("left", 0)
+        robot.move("left", [h[0] - 90, h[1], h[2] + 2], (0, 0, -1), (0, 1, 0))
+        print("held:", robot.judge())
+        robot.set_gripper("left", 70)
+        robot.move("left", [h[0] - 90, h[1], h[2] + 150], (0, 0, -1), (0, 1, 0))
+"""
+
+
+def test_a_worlds_own_mujoco_bodies():
+    """scenes.world_mjcf: what a world's MJCF may hold; a scene with it (joints at their start values, the simulator's
+    own objects off the table, on another table) and a heap with it."""
+    from agentic_robotics.bimanual import clutter, practice, scenes
+    assert scenes.world_mjcf(_DRAWER) == _DRAWER
+    for bad, why in ((_DRAWER.replace('name="w_cabinet"', 'name="obj_cylinder"'), 'starts with "w_"'),
+                     (_DRAWER.replace("<worldbody>", '<asset><mesh name="w_m" file="/etc/hostname"/></asset><worldbody>'), "file is not allowed"),
+                     (_DRAWER.replace("</mujoco>", '<actuator><motor joint="w_slide"/></actuator></mujoco>'), "actuators are not supported"),
+                     (_DRAWER.replace("</mujoco>", '<equality><weld body1="w_drawer" body2="L_link7"/></equality></mujoco>'), 'starts with "w_"'),
+                     (_DRAWER.replace("<worldbody>", '<option timestep="0.1"/><worldbody>'), "not one of its sections"),
+                     (_DRAWER.replace("<worldbody>", '<!-- x --><worldbody>'), "no comments"),
+                     (_DRAWER.replace('size="0.11 0.09 0.006" pos="0 0 0.006"', 'size="-1 0 0"'), "does not compile"),
+                     (_DRAWER.replace('<geom name="w_handle"', '<composite type="box" count="3 3 3" spacing="0.02"/><geom name="w_handle"'), "prefix of its own"),
+                     (_DRAWER.replace('<geom name="w_handle"', '<flexcomp name="w_f"/><geom name="w_handle"'), "no flex bodies")):
+        with pytest.raises(ValueError, match=why):
+            scenes.world_mjcf(bad)
+    with pytest.raises(ValueError, match="outside the joint's range"):
+        scenes.world_joints({"w_slide": 500}, _DRAWER)
+    sc = scenes.sample(8101)                                        # (a scene on another table)
+    w = scenes.world_scene(dict(sc, mjcf=_DRAWER, joints={"w_slide": 30}, without=["cylinder", "stand", "distractors"]))
+    ep = Episode("sim_bimanual_grippers", "insert_varied", seed=1, scene=w)
+    t = practice.truth(ep)
+    assert set(t) == {"w_cabinet", "w_drawer", "w_slide"} and abs(t["w_slide"] - 30) < 1.5
+    assert abs(t["w_cabinet"][2] - sc["table"]["height_mm"]) < 0.2 and "w_slide (slide)" in scenes.describe(w)
+    st = practice.world_state(ep, t)
+    assert abs(st.joint("w_slide") - t["w_slide"]) < 0.1 and st.touching("w_drawer")["robot"] == {} and not st.simulator()["ok"]
+    with pytest.raises(KeyError):
+        st.pos("L_link7")
+    h0 = clutter.sample("medium", 12, "left")
+    h = clutter.world_scene(dict(h0, mjcf=_DRAWER.replace('pos="-0.20 0.02 0"', 'pos="-0.05 0.30 0"'), joints={"w_slide": 30}), h0)
+    ep = Episode("sim_bimanual_grippers", "pick_clutter_one_arm_medium", seed=12, scene=h)
+    t = practice.truth(ep)
+    assert abs(t["w_slide"] - 30) < 1.5 and t["target"] == f"item_{h['target']}" and "w_drawer" in clutter.describe(h)
+
+
+@pytest.mark.skipif(shutil.which("bwrap") is None, reason="bubblewrap is not installed")
+def test_a_worlds_own_task(tmp_path):
+    """practice.py: a world with goal() and success(): the program gets the world's text, the episode is judged by the
+    world's check (the simulator's verdict beside it), and a program that does nothing fails."""
+    from agentic_robotics.bimanual import practice, scenes
+    assert practice.check_world(_DRAWER_WORLD) == []
+    assert "come together" in practice.check_world(_DRAWER_WORLD.split("def success")[0])[0]
+    (tmp_path / "world.py").write_text(_DRAWER_WORLD)
+    res = {}
+    for how in ("PULL", "nothing"):
+        (tmp_path / f"{how}.py").write_text(_DRAWER_PROGRAM % how)
+        res[how] = practice.run_sandboxed("sim_bimanual_grippers", "insert_varied", 3, tmp_path / f"{how}.py", tmp_path / how, trace=True,
+                                          scene=scenes.sample(3), practice=True, world=tmp_path / "world.py")
+    r, out = res["PULL"], (tmp_path / "PULL" / "output.txt").read_text()
+    assert r["ok"] and r["judged_by"] == "world" and r["world_check"]["open_mm"] > 80 and r["simulator_ok"] is False, r
+    assert "TASK Task: open the drawer" in out and "held: {'ok': False" in out and "# the world's success(): {\"ok\": true" in out
+    assert "w_slide" in r["true_end_mm"] and "cylinder" not in r["true_end_mm"]
+    r = res["nothing"]
+    assert not r["ok"] and r["judged_by"] == "world" and r["world_check"]["open_mm"] < 20 and r["ended"] == "returned", r
+
+
+_SPONGE = """
+<mujoco>
+  <worldbody>
+    <body name="w_sponge_core" pos="-0.30 0.10 0.03">
+      <freejoint/>
+      <composite type="box" count="5 4 3" spacing="0.02" prefix="w_sponge">
+        <geom type="sphere" size="0.0095" rgba="0.95 0.85 0.2 1" mass="0.001"/>
+        <skin rgba="0.95 0.85 0.2 1" inflate="0.006"/>
+      </composite>
+    </body>
+    <body name="w_bean_0" pos="-0.30 -0.05 0.006"><freejoint/><geom type="ellipsoid" size="0.007 0.0045 0.004" density="1200"/></body>
+  </worldbody>
+</mujoco>
+"""
+
+
+def test_a_worlds_soft_bodies_and_cameras():
+    """A world's composite (a soft box: one entry of truth(), its bodies as state.points), its cameras (the depth
+    model's parameters per camera, a camera without depth errors, a fixed pose error) and api.depth_report."""
+    from agentic_robotics.bimanual import api, practice, scenes
+    sc = scenes.sample(2001)
+    own = lambda **k: scenes.world_scene(dict(sc, **k))
+    w = own(mjcf=_SPONGE, without=["cylinder", "stand", "distractors"])
+    ep = Episode("sim_bimanual_grippers", "insert_varied", seed=2, scene=w)
+    t = practice.truth(ep)
+    assert set(t) == {"w_sponge", "w_bean_0"} and 15 < t["w_sponge"][2] < 35 and "composite box" in scenes.describe(w)
+    st = practice.world_state(ep, t)
+    assert len(st.points("w_sponge")) == len(ep.S.groups["w_sponge"]) > 40 and st.touching("w_sponge") == {"robot": {}, "others": ["world"]}
+    with pytest.raises(KeyError):
+        st.rot("w_sponge")
+    f = ep.robot.look(["left_wrist"])["left_wrist"]                 # (the skin and the bodies render; the depth model runs)
+    assert np.isfinite(f.depth).mean() > 0.5
+    look = lambda cams: Episode("sim_bimanual_grippers", "insert_varied", seed=2, scene=own(cameras=cams) if cams else sc).robot.look(["scene", "left_wrist"])
+    rep = lambda fr: fr.depth_report()
+    base, clean = look(None), look({"depth": {"noise_px": 0, "dropout": 0, "table_holes": None, "dark_holes": 0, "flying": 0, "scale": 0,
+                                              "left_band_px": None, "shadow": False, "fatten_px": 0}})
+    b, c = rep(base["scene"]), rep(clean["scene"])
+    assert b["left_band_px"] > 30 and c["left_band_px"] == 0 and c["valid"] > b["valid"] + 0.1
+    assert c["noise_mm"]["700-1000"][1] < 0.3 < b["noise_mm"]["700-1000"][1]
+    one = look({"left_wrist": {"depth": {"dropout": 0.3}}, "scene": {"ideal": True, "pose_error": {"shift_mm": [20, 0, 0], "turn_deg": [0, 0, 0]}}})
+    assert rep(one["left_wrist"])["valid"] < rep(base["left_wrist"])["valid"] - 0.15 and rep(one["scene"])["left_band_px"] == 0
+    assert np.allclose(one["scene"].eye, base["scene"].eye)        # (what the robot believes of the camera stays)
+    for bad, why in (({"depth": {"noise_px": 9}}, "outside"), ({"top": {}}, "unknown field"),
+                     ({"scene": {"pose_error": {"shift_mm": [1, 2, 3], "turn_deg": 1}}}, "both")):
+        with pytest.raises(ValueError, match=why):
+            scenes.world_cameras(bad)
+    r = api.depth_report(np.full((480, 640), np.nan))
+    assert r["valid"] == 0 and r["left_band_px"] == 640 and r["nearest_mm"] is None

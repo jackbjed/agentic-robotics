@@ -29,6 +29,7 @@ painted by table_texture). No session has seen a table other than the dark grey 
 """
 from __future__ import annotations
 
+import json
 import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -65,8 +66,21 @@ REAL_EFFECTS = ("false_stops", "scatter", "thin_depth")         # (= core.RIG_EF
 #   arm        "left": the left arm alone, within the real rig's limits (core.BiCore.only)
 WORLD = dict(cyl_d=(8, 160), cyl_h=(4, 160), hole=(3, 130), wall=1.5, sides=(3, 24), stick_d=(3, 60), stick_h=(10, 400), sticks=(1, 5),
              spacing=(10, 300), board=(20, 450), board_t=(2, 80), z=(0, 300), size=(3, 400), density=(30, 9000), x=(-700, 150), y=(-600, 600),
-             distractors=8, extras=12, parts=10, part=(1, 500), pos=(-400, 400))
+             distractors=8, extras=12, parts=10, part=(1, 500), pos=(-400, 400),
+             friction=(0.02, 4.0), contact_ms=(4.0, 200.0), contact_damping=(0.1, 5.0), impedance=(0.3, 0.9999), contact_width=(0.01, 50.0),
+             hull=(4, 48), hull_volume=20.0)
 PARTS = dict(box=3, cylinder=2, ball=1, capsule=2)              # an extra's parts: how many sizes each has (mm)
+HULL = "hull"                                                   # a part given by its corner points: their convex hull (a convex mesh)
+# what an object of a world's scene can also say about its contacts (world_contact, contact_attrs):
+#   friction   its sliding friction coefficient (the simulator's own: 1.0 for the wooden parts, 0.7 for a heap's objects,
+#              1.5 for the fingers' pads)
+#   contact    {"time_ms", "damping", "impedance": [d0, d1, width_mm]}: how hard its contacts are (MuJoCo's solref time
+#              constant and damping ratio, and solimp d0, dmax, width; the simulator's own: 20 ms, 1, [0.9, 0.95, 1])
+# An object that says either takes precedence in its contacts (geom priority 1): with the table, the fingers and any
+# object that says neither, the contact has ITS friction and hardness (MuJoCo otherwise takes the larger friction of
+# the two and mixes the hardness); between two objects that both say them: the larger friction, the mixed hardness.
+CONTACT_KEYS = ("friction", "contact")
+WITHOUT = ("cylinder", "stand", "distractors")                   # a world's scene["without"]: these are not on the table
 DIS_SIZES = dict(box=3, cylinder=2, ball=1, pill=2, L=3, steps=3)
 
 
@@ -83,20 +97,473 @@ def _xy(v, what):
     return [_num(dict(v=v[0]), "v", W["x"], what + ".xy_mm x"), _num(dict(v=v[1]), "v", W["y"], what + ".xy_mm y")]
 
 
-def world_scene(sc):
+def world_contact(src, what):
+    """The contact fields of an object of a world's scene (CONTACT_KEYS), checked -> those it gives."""
+    W, out = WORLD, {}
+    if src.get("friction") is not None:
+        out["friction"] = _num(src, "friction", W["friction"], what + ".friction")
+    c = src.get("contact")
+    if c is not None:
+        _known(c, ("time_ms", "damping", "impedance"), what + ".contact")
+        cc = dict(time_ms=_num(c, "time_ms", W["contact_ms"], what + ".contact.time_ms", 20.0),
+                  damping=_num(c, "damping", W["contact_damping"], what + ".contact.damping", 1.0))
+        imp = c.get("impedance")
+        if imp is not None:
+            if not isinstance(imp, (list, tuple)) or len(imp) != 3:
+                raise ValueError(f"{what}.contact.impedance: [d0, d1, width_mm]")
+            d0, d1 = (_num(dict(v=v), "v", W["impedance"], what + ".contact.impedance d") for v in imp[:2])
+            if d0 > d1:
+                raise ValueError(f"{what}.contact.impedance: d0 <= d1")
+            cc["impedance"] = [d0, d1, _num(dict(v=imp[2]), "v", W["contact_width"], what + ".contact.impedance width_mm")]
+        out["contact"] = cc
+    return out
+
+
+def contact_attrs(geoms, o):
+    """A world's contact fields of the object o (world_contact) onto its geoms (MJCF elements): its friction, solref and
+    solimp, and a priority above the simulator's own geoms', so that they hold in its contacts."""
+    fr, c = o.get("friction"), o.get("contact")
+    if fr is None and not c:
+        return
+    for g in geoms:
+        if fr is not None:
+            g.set("friction", " ".join([f"{fr:g}"] + (g.get("friction") or "1 0.005 0.0001").split()[1:]))
+        if c:
+            g.set("solref", f"{c['time_ms'] / 1000:g} {c['damping']:g}")
+            if c.get("impedance"):
+                d0, d1, w = c["impedance"]
+                g.set("solimp", f"{d0:g} {d1:g} {w / 1000:g}")
+        g.set("priority", str(int(g.get("priority", "0")) + 1))
+
+
+def hull_points(q, what):
+    """A hull part's corner points (points_mm: [[x, y, z], ...] in the part's frame), checked -> the points."""
+    W, P = WORLD, q.get("points_mm")
+    if q.get("size_mm") is not None:
+        raise ValueError(f"{what}: a hull has points_mm, no size_mm")
+    if not isinstance(P, (list, tuple)) or not W["hull"][0] <= len(P) <= W["hull"][1] or any(not isinstance(p, (list, tuple)) or len(p) != 3 for p in P):
+        raise ValueError(f"{what}.points_mm: {W['hull'][0]} to {W['hull'][1]} points [x, y, z]")
+    pts = [[round(_num(dict(v=v), "v", W["pos"], what + ".points_mm"), 3) for v in p] for p in P]
+    try:
+        from scipy.spatial import ConvexHull
+        vol = float(ConvexHull(np.array(pts)).volume)
+    except Exception:
+        vol = 0.0
+    if vol < W["hull_volume"]:
+        raise ValueError(f"{what}.points_mm: the points span no volume (they lie in a plane, or too close together)")
+    return pts
+
+
+def part_text(q):
+    """A part of an extra or of a custom object, in a line of describe()."""
+    return f"hull of {len(q['points_mm'])} points" if q["type"] == HULL else f"{q['type']} {' x '.join(f'{v:g}' for v in q['size_mm'])}"
+
+
+def hull_geom(body, asset, name, q, rgb, density, **kw):
+    """A hull part as a mesh geom (MuJoCo takes the convex hull of a mesh's vertices, to collide and to show). Its mass
+    is given outright, density x the hull's volume: this MuJoCo's own mass of a mesh that is not symmetric is too large
+    (a tetrahedron's by 39 %); its centre of mass is right."""
+    from scipy.spatial import ConvexHull
+    ET.SubElement(asset, "mesh", name=name + "_hull", vertex=" ".join(f"{v / 1000:.6f}" for p in q["points_mm"] for v in p))
+    mass = float(density) * float(ConvexHull(np.array(q["points_mm"], float)).volume) * 1e-9
+    a = dict(name=name, type="mesh", mesh=name + "_hull", pos=" ".join(f"{v / 1000:.5f}" for v in q["pos_mm"]), rgba=_rgba(rgb), mass=f"{mass:.7f}")
+    return ET.SubElement(body, "geom", {**a, **kw})
+
+
+def world_extras(ex):
+    """A world's extras as its code gave them -> checked against WORLD (ValueError with the reason)."""
+    W, ex = WORLD, ex or []
+    if not isinstance(ex, list) or len(ex) > W["extras"]:
+        raise ValueError(f"extras: a list of at most {W['extras']}")
+    out_e = []
+    for k, e in enumerate(ex):
+        what = f"extras[{k}]"
+        if not isinstance(e, dict):
+            raise ValueError(f"{what}: a dict")
+        _known(e, ("name", "parts", "xy_mm", "yaw_deg", "z_mm", "density", "fixed") + CONTACT_KEYS, what)
+        parts = e.get("parts")
+        if not isinstance(parts, list) or not 1 <= len(parts) <= W["parts"]:
+            raise ValueError(f"{what}.parts: a list of 1 to {W['parts']} parts")
+        ps = []
+        for i, q in enumerate(parts):
+            w2 = f"{what}.parts[{i}]"
+            if not isinstance(q, dict) or q.get("type") not in tuple(PARTS) + (HULL,):
+                raise ValueError(f"{w2}: a dict whose type is one of {', '.join(PARTS)}, {HULL}")
+            _known(q, ("type", "size_mm", "points_mm", "pos_mm", "euler_deg", "rgb"), w2)
+            pos, eul = q.get("pos_mm", [0, 0, 0]), q.get("euler_deg", [0, 0, 0])
+            if not isinstance(pos, (list, tuple)) or len(pos) != 3 or not isinstance(eul, (list, tuple)) or len(eul) != 3:
+                raise ValueError(f"{w2}: pos_mm and euler_deg are three numbers each")
+            if q["type"] == HULL:
+                shape = dict(points_mm=hull_points(q, w2))
+            else:
+                z = q.get("size_mm")
+                if q.get("points_mm") is not None or not isinstance(z, (list, tuple)) or len(z) != PARTS[q["type"]]:
+                    raise ValueError(f"{w2}.size_mm: {PARTS[q['type']]} numbers for a {q['type']} (box: three sides; cylinder, capsule: diameter, length; ball: diameter)")
+                shape = dict(size_mm=[_num(dict(v=v), "v", W["part"], w2 + ".size_mm") for v in z])
+            ps.append(dict(type=q["type"], **shape, pos_mm=[_num(dict(v=v), "v", W["pos"], w2 + ".pos_mm") for v in pos],
+                           euler_deg=[_num(dict(v=v), "v", (-360, 360), w2 + ".euler_deg") for v in eul], rgb=_rgb3(q.get("rgb"), w2)))
+        out_e.append(dict(name=str(e.get("name") or f"extra {k}")[:40], parts=ps, xy_mm=_xy(e.get("xy_mm"), what),
+                          yaw_deg=_num(e, "yaw_deg", (-360, 360), what + ".yaw_deg", 0.0), z_mm=_num(e, "z_mm", W["z"], what + ".z_mm", 0.0),
+                          density=_num(e, "density", W["density"], what + ".density", 600.0), fixed=bool(e.get("fixed", False))))
+        out_e[-1].update(world_contact(e, what))
+    return out_e
+
+
+# A world's own MuJoCo bodies (scene["mjcf"]): MJCF text of the session's world code, merged into the model. It may
+# hold what MJCF can describe of rigid bodies: bodies in bodies, every joint type with its limits, springs, damping
+# and friction loss, every geom type (meshes by their vertices), sites, lights, materials and built-in textures,
+# default classes, equality constraints, tendons, contact pairs and exclusions, and MuJoCo's composite bodies (soft
+# boxes, cylinders and ellipsoids, cloth as a grid, cables, loose particles). Not: files, plugins, actuators, sensors,
+# the model's own settings. Every name starts with "w_": nothing of the simulator's own (the robot, the table, the
+# session's objects) can be named, so nothing of it can be changed.
+MJCF = dict(chars=300_000, bodies=450, geoms=900, joints=80, dofs=1400, tendons=800, numbers=60_000, prefix="w_")
+COMPOSITES = ("particle", "grid", "cloth", "rope", "loop", "cable", "box", "cylinder", "ellipsoid")
+_MJCF_TAGS = dict(
+    mujoco=("asset", "default", "worldbody", "equality", "tendon", "contact"),
+    asset=("mesh", "texture", "material"),
+    default=("default", "geom", "joint", "site", "mesh", "material", "tendon", "equality", "pair"),
+    worldbody=("body", "geom", "site", "light", "composite"),
+    body=("body", "geom", "site", "light", "joint", "freejoint", "inertial", "composite"),
+    composite=("joint", "tendon", "geom", "site", "skin", "pin"),
+    equality=("connect", "weld", "joint", "tendon"),
+    tendon=("fixed", "spatial"), fixed=("joint",), spatial=("site", "geom", "pulley"),
+    contact=("pair", "exclude"))
+_MJCF_NAMES = ("name", "class", "childclass", "material", "mesh", "texture", "body1", "body2", "joint", "joint1", "joint2", "site",
+               "site1", "site2", "geom", "geom1", "geom2", "tendon", "tendon1", "tendon2", "sidesite", "target", "prefix")
+_MJCF_NOT = ("file", "content_type", "plugin", "instance", "mocap", "user", "hfield", "fluidshape", "fluidcoef")
+_MJCF_UNSUPPORTED = dict(flexcomp="this MuJoCo (2.3.7) has no flex bodies: a deformable body is a <composite>",
+                         flex="this MuJoCo (2.3.7) has no flex bodies: a deformable body is a <composite>",
+                         actuator="actuators are not supported: a joint's own stiffness, springref, damping and frictionloss move it",
+                         sensor="sensors are not supported: success(state) reads the true state",
+                         include="files are not read", camera="the cameras are the robot's", hfield="height fields are not supported",
+                         plugin="plugins are not supported", extension="plugins are not supported")
+
+
+def _mjcf_root(text):
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError('mjcf: MJCF text ("<mujoco> ... </mujoco>")')
+    if len(text) > MJCF["chars"]:
+        raise ValueError(f"mjcf: at most {MJCF['chars']} characters")
+    if "<!" in text or "<?" in text:
+        raise ValueError("mjcf: no comments, declarations or processing instructions (<!...>, <?...?>)")
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError as e:
+        raise ValueError(f"mjcf: not well-formed XML ({e})")
+    if root.tag != "mujoco":
+        raise ValueError("mjcf: its root element is <mujoco>")
+    return root
+
+
+def _mjcf_fragment(root):
+    """The world's MJCF as a model of its own (for the compiler's verdict and its joints' start values)."""
+    alone = ET.Element("mujoco", model="world")
+    ET.SubElement(alone, "compiler", angle="radian", autolimits="true")
+    for sec in root:
+        alone.append(sec)
+    return ET.tostring(alone, encoding="unicode")
+
+
+def world_mjcf(text):
+    """A world's MJCF text -> the same, checked (ValueError with the reason): only the elements of _MJCF_TAGS, no
+    attribute of _MJCF_NOT, every name and every reference to a name starts with "w_", within MJCF's limits, and
+    the simulator compiles it on its own."""
+    root = _mjcf_root(text)
+    pre, n = MJCF["prefix"], dict(body=0, geom=0, joint=0, numbers=0)
+
+    def walk(e, where):
+        for c in e:
+            if not isinstance(c.tag, str):
+                raise ValueError("mjcf: elements only")
+            if c.tag in _MJCF_UNSUPPORTED:
+                raise ValueError(f"mjcf: <{c.tag}>: {_MJCF_UNSUPPORTED[c.tag]}")
+            if c.tag not in _MJCF_TAGS[where]:
+                raise ValueError(f"mjcf: <{c.tag}> cannot be in <{e.tag}> here; in it: {', '.join(_MJCF_TAGS[where])}")
+            what = f"mjcf: <{c.tag}" + (f' name="{c.get("name")}"' if c.get("name") else "") + ">"
+            for k, v in c.attrib.items():
+                if k in _MJCF_NOT:
+                    raise ValueError(f"{what}: the attribute {k} is not allowed")
+                if k in _MJCF_NAMES and not v.startswith(pre):
+                    raise ValueError(f'{what}: {k}="{v}": every name in a world\'s MJCF starts with "{pre}" (your own bodies; the '
+                                     "simulator's own cannot be named)")
+                n["numbers"] += v.count(" ") + 1 if k in ("vertex", "face", "normal", "texcoord") else 0
+            if c.tag == "texture" and c.get("builtin", "none") == "none":
+                raise ValueError(f"{what}: a built-in texture (builtin = gradient, checker or flat)")
+            if c.tag == "mesh" and where == "asset" and not c.get("vertex"):
+                raise ValueError(f"{what}: a mesh is given by its vertex attribute (no file)")
+            if c.tag == "composite":
+                if c.get("type") not in COMPOSITES:
+                    raise ValueError(f"{what}: its type is one of {', '.join(COMPOSITES)}")
+                if not c.get("prefix"):
+                    raise ValueError(f'{what}: a composite has a prefix of its own (prefix="w_sponge"): its bodies are named by it')
+                if any(o is not c and o.get("prefix") and (o.get("prefix").startswith(c.get("prefix")) or c.get("prefix").startswith(o.get("prefix")))
+                       for o in root.iter("composite")):
+                    raise ValueError(f"{what}: no composite's prefix begins with another's")
+            if c.tag in ("body",):
+                n["body"] += 1
+            if c.tag == "geom" and where != "default" and e.tag != "spatial":
+                n["geom"] += 1
+            if c.tag in ("joint", "freejoint") and where == "body":
+                n["joint"] += 1
+            if c.tag in _MJCF_TAGS and not (c.tag == "joint" or c.tag == "geom" or c.tag == "tendon" or c.tag == "equality") and e.tag != "composite":
+                walk(c, c.tag)
+            elif c.tag in ("joint", "geom", "tendon", "equality", "mesh", "material", "site", "pair") and len(c):
+                raise ValueError(f"{what}: it has no elements inside")
+    seen = set()
+    for sec in root:
+        if sec.tag in _MJCF_UNSUPPORTED:
+            raise ValueError(f"mjcf: <{sec.tag}>: {_MJCF_UNSUPPORTED[sec.tag]}")
+        if sec.tag not in _MJCF_TAGS["mujoco"]:
+            raise ValueError(f"mjcf: <{sec.tag}> is not one of its sections: {', '.join(_MJCF_TAGS['mujoco'])}")
+        if sec.tag in seen:
+            raise ValueError(f"mjcf: one <{sec.tag}> section")
+        seen.add(sec.tag)
+        if sec.attrib:
+            raise ValueError(f"mjcf: <{sec.tag}> has no attributes")
+        if sec.tag == "default" and any(c.tag != "default" for c in sec):
+            raise ValueError('mjcf: in <default>, give your settings in classes of your own (<default class="w_...">): the main '
+                             "class is the simulator's")
+        walk(sec, sec.tag)
+    if root.find("worldbody") is None or not len(root.find("worldbody")):
+        raise ValueError("mjcf: a <worldbody> with your bodies")
+    for k, lim in (("joint", "joints"), ("numbers", "numbers")):
+        if n[k] > MJCF[lim]:
+            raise ValueError(f"mjcf: {n[k]} {'joints written out' if k == 'joint' else 'numbers in its meshes'}; at most {MJCF[lim]}")
+    import mujoco
+    try:
+        m = mujoco.MjModel.from_xml_string(_mjcf_fragment(_mjcf_root(text)))
+    except Exception as e:
+        raise ValueError(f"mjcf: MuJoCo does not compile it: {str(e)[:600]}")
+    if m.nu or m.nmocap or m.nkey:
+        raise ValueError("mjcf: no actuators, mocap bodies or keyframes")
+    for have, lim, what in ((m.nbody - 1, "bodies", "bodies"), (m.ngeom, "geoms", "geoms"), (m.nv, "dofs", "degrees of freedom"),
+                            (m.ntendon, "tendons", "tendons")):          # (as compiled: a composite's bodies count)
+        if have > MJCF[lim]:
+            raise ValueError(f"mjcf: {have} {what} (the composites' included); at most {MJCF[lim]}")
+    return text
+
+
+def mjcf_groups(text):
+    """The composites of a world's MJCF -> {prefix: its type}: the bodies MuJoCo makes for one are named by its prefix
+    (a soft box's particles, a cloth's nodes, loose particles), and truth() gives the whole as one."""
+    return {c.get("prefix"): c.get("type") for c in _mjcf_root(text).iter("composite")} if text else {}
+
+
+# A world's cameras (scene["cameras"]): the depth cameras' model (vendor d415_model.py: its parameters, here in mm and
+# px) and each camera's true pose error. DEPTH: a world's name -> (the model's name, the range, the factor to the
+# model's unit); the values the simulator has by itself are d415_model.P's.
+CAMERAS = ("scene", "left_wrist", "right_wrist")
+DEPTH = dict(noise_px=("subpx", (0.0, 3.0), 1.0), noise_smooth=("corr", (0.0, 1.0), 1.0), noise_smooth_px=("corr_px", (0.5, 80.0), 1.0),
+             scale=("scale", (0.0, 0.08), 1.0), fatten_px=("fatten_px", (0, 25), 1), fatten_step_mm=("fat_jump", (0.5, 300.0), 0.001),
+             flying=("flying", (0.0, 1.0), 1.0), flying_step_mm=("jump", (0.5, 300.0), 0.001), dark_below=("dark_lum", (0.0, 1.0), 1.0),
+             dark_holes=("dark_holes", (0.0, 0.95), 1.0), blob_px=("blob_px", (0.5, 60.0), 1.0), dropout=("dropout", (0.0, 0.6), 1.0),
+             focal_px=("f_depth", (100.0, 3000.0), 1.0), baseline_mm=("baseline", (5.0, 300.0), 0.001))
+DEPTH_MORE = ("table_holes", "left_band_px", "shadow", "min_mm")   # (checked by hand below)
+POSE_ERROR = dict(shift_mm=(0.0, 60.0), turn_deg=(0.0, 10.0))
+
+
+def _world_depth(dp, what):
+    """A world's depth settings -> {the model's parameter: value} (and "min_z": m)."""
+    _known(dp, tuple(DEPTH) + DEPTH_MORE, what)
+    out = {}
+    for k, (name, r, f) in DEPTH.items():
+        if dp.get(k) is not None:
+            v = _num(dp, k, r, f"{what}.{k}")
+            out[name] = int(round(v)) if k == "fatten_px" else v * f
+    if "table_holes" in dp:                                         # (the scene camera's glancing view of the table)
+        t = dp["table_holes"]
+        if t is None or t is False:
+            out["table_holes"] = None
+        else:
+            if not isinstance(t, (list, tuple)) or len(t) != 4:
+                raise ValueError(f"{what}.table_holes: null, or [the part without depth up to a distance, that distance (mm), "
+                                 "how much more per metre beyond it, the most]")
+            d = dict(a=t[0], b=t[1], c=t[2], d=t[3])
+            out["table_holes"] = (_num(d, "a", (0, 0.99), what + ".table_holes[0]"), _num(d, "b", (0, 5000), what + ".table_holes[1]") / 1000,
+                                  _num(d, "c", (0, 20), what + ".table_holes[2]"), _num(d, "d", (0, 0.99), what + ".table_holes[3]"))
+    if "left_band_px" in dp:
+        out["band_extra"] = None if dp["left_band_px"] is None or dp["left_band_px"] is False else int(_num(dp, "left_band_px", (-300, 400), what + ".left_band_px"))
+    if "shadow" in dp:
+        if not isinstance(dp["shadow"], bool):
+            raise ValueError(f"{what}.shadow: true or false")
+        out["shadow"] = dp["shadow"]
+    if dp.get("min_mm") is not None:
+        out["min_z"] = _num(dp, "min_mm", (0.0, 2000.0), what + ".min_mm") / 1000
+    return out
+
+
+def world_cameras(c):
+    """A world's scene["cameras"] -> the same, checked (ValueError with the reason):
+       {"depth": {...}, "scene" | "left_wrist" | "right_wrist": {"depth": {...}, "ideal": bool, "pose_error": {...}}}"""
+    if c is None:
+        return None
+    _known(c, ("depth",) + CAMERAS, "cameras")
+    out = {}
+    if c.get("depth") is not None:
+        _world_depth(c["depth"], "cameras.depth"); out["depth"] = dict(c["depth"])
+    for cam in CAMERAS:
+        v = c.get(cam)
+        if v is None:
+            continue
+        what = f"cameras.{cam}"
+        _known(v, ("depth", "ideal", "pose_error"), what)
+        o = {}
+        if v.get("depth") is not None:
+            _world_depth(v["depth"], what + ".depth"); o["depth"] = dict(v["depth"])
+        if v.get("ideal") is not None:
+            if not isinstance(v["ideal"], bool):
+                raise ValueError(f"{what}.ideal: true or false")
+            o["ideal"] = v["ideal"]
+        e = v.get("pose_error")
+        if e is not None:
+            _known(e, tuple(POSE_ERROR), what + ".pose_error")
+            pe = {}
+            for k, r in POSE_ERROR.items():
+                x = e.get(k, 0.0)
+                if isinstance(x, (list, tuple)):                    # a fixed error: three numbers
+                    if len(x) != 3:
+                        raise ValueError(f"{what}.pose_error.{k}: a number (its size, in a direction drawn per episode) or three (the error itself)")
+                    pe[k] = [_num(dict(v=q), "v", (-r[1], r[1]), f"{what}.pose_error.{k}") for q in x]
+                else:
+                    pe[k] = _num(dict(v=x), "v", r, f"{what}.pose_error.{k}")
+            if isinstance(pe["shift_mm"], list) != isinstance(pe["turn_deg"], list):
+                raise ValueError(f"{what}.pose_error: shift_mm and turn_deg are both sizes (numbers) or both the error itself (three numbers each)")
+            o["pose_error"] = pe
+        if o:
+            out[cam] = o
+    return out or None
+
+
+def camera_models(sc, base, min_z, calib):
+    """For core.BiCore: a scene's cameras -> ({camera: the depth model's parameters}, {camera: min_z}, {camera: ideal},
+    the calibration errors' sizes {camera: (m, deg)}, the fixed errors {camera: (dpos m, drot deg)}). base: the
+    model's own parameters, calib: the simulator's own sizes; camera: a name of CAMERAS."""
+    c = (sc or {}).get("cameras") or {}
+    P, Z, I, C, F = {}, {}, {}, {}, {}
+    for cam in CAMERAS:
+        v = c.get(cam) or {}
+        p = dict(base, **_world_depth(c.get("depth") or {}, "cameras.depth"), **_world_depth(v.get("depth") or {}, f"cameras.{cam}.depth"))
+        Z[cam] = p.pop("min_z", min_z); P[cam] = p; I[cam] = bool(v.get("ideal"))
+        C[cam] = calib[cam]
+        e = v.get("pose_error")
+        if e is not None and isinstance(e["shift_mm"], list):
+            F[cam] = (np.array(e["shift_mm"], float) / 1000, np.array(e["turn_deg"], float)); C[cam] = (0.0, 0.0)
+        elif e is not None:
+            C[cam] = (e["shift_mm"] / 1000, e["turn_deg"])
+    return P, Z, I, C, F
+
+
+def world_joints(j, mjcf):
+    """A world's scene["joints"] ({joint of its MJCF: start value; a slide joint's in mm, a hinge's in degrees}) ->
+    the same, checked against the MJCF's joints and their ranges."""
+    if j is None:
+        return {}
+    if not isinstance(j, dict) or not mjcf:
+        raise ValueError("joints: {a joint's name in your mjcf: its start value (slide: mm, hinge: degrees)}")
+    import mujoco
+    m = mujoco.MjModel.from_xml_string(_mjcf_fragment(_mjcf_root(mjcf)))
+    out = {}
+    for name, v in j.items():
+        k = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, str(name))
+        if k < 0 or m.jnt_type[k] not in (mujoco.mjtJoint.mjJNT_SLIDE, mujoco.mjtJoint.mjJNT_HINGE):
+            raise ValueError(f"joints: {name!r} is not a slide or hinge joint of your mjcf")
+        slide = m.jnt_type[k] == mujoco.mjtJoint.mjJNT_SLIDE
+        v = _num(dict(v=v), "v", (-1e5, 1e5), f"joints[{name!r}]")
+        q = v / 1000 if slide else math.radians(v)
+        if m.jnt_limited[k] and not m.jnt_range[k][0] - 1e-6 <= q <= m.jnt_range[k][1] + 1e-6:
+            lo, hi = (m.jnt_range[k] * 1000 if slide else np.degrees(m.jnt_range[k]))
+            raise ValueError(f"joints[{name!r}]: {v:g} is outside the joint's range {lo:g}..{hi:g} {'mm' if slide else 'deg'}")
+        out[str(name)] = v
+    return out
+
+
+def mjcf_text(sc):
+    """What a scene's own MJCF holds, in a few words (describe)."""
+    if not sc.get("mjcf"):
+        return ""
+    root = _mjcf_root(sc["mjcf"])
+    bodies = [b.get("name") or "?" for b in root.iter("body")] + [f"{c.get('prefix')} (composite {c.get('type')} {c.get('count', '')})"
+                                                                   for c in root.iter("composite")]
+    joints = [f"{j.get('name') or '?'} ({j.get('type', 'hinge') if j.tag == 'joint' else 'free'})" for b in root.iter("body") for j in b
+              if j.tag in ("joint", "freejoint")]
+    out = f"; your MJCF: bodies {', '.join(bodies[:12]) or 'none'}" + (f" and {len(bodies) - 12} more" if len(bodies) > 12 else "")
+    out += (f"; joints {', '.join(joints[:12])}" + (f" and {len(joints) - 12} more" if len(joints) > 12 else "")) if joints else ""
+    if sc.get("joints"):
+        out += "; started at " + ", ".join(f"{k} {v:g}" for k, v in sc["joints"].items())
+    return out
+
+
+def cameras_text(sc):
+    return ("; cameras of your own: " + json.dumps(sc["cameras"], separators=(",", ":"))[:300]) if sc.get("cameras") else ""
+
+
+def add_mjcf(root, sc, table_z=0.0):
+    """Merge a scene's own MJCF (sc["mjcf"], checked by world_mjcf) into the model's XML tree: its bodies last in the
+    worldbody (their z from the table top, which is at table_z m in the robot's frame), its other sections into the
+    model's. -> the number of qpos values its joints add (0 without)."""
+    if not sc.get("mjcf"):
+        return 0
+    frag = _mjcf_root(sc["mjcf"])
+    for sec in frag:
+        if sec.tag == "worldbody":
+            for c in sec:
+                if table_z and c.tag == "composite":
+                    x, y, z = (list(map(float, c.get("offset", "0 0 0").split())) + [0.0, 0.0, 0.0])[:3]
+                    c.set("offset", f"{x:.6g} {y:.6g} {z + table_z:.6g}")
+                elif table_z and c.get("fromto"):
+                    f = list(map(float, c.get("fromto").split()))
+                    f[2] += table_z; f[5] += table_z
+                    c.set("fromto", " ".join(f"{v:.6g}" for v in f))
+                elif table_z:
+                    x, y, z = (list(map(float, c.get("pos", "0 0 0").split())) + [0.0, 0.0, 0.0])[:3]
+                    c.set("pos", f"{x:.6g} {y:.6g} {z + table_z:.6g}")
+                root.find("worldbody").append(c)
+        elif sec.tag == "default":                                  # (its classes: into the model's main default class)
+            main = root.find("default")
+            if main is None:
+                main = ET.SubElement(root, "default")
+            for c in sec:
+                main.append(c)
+        else:
+            into = root.find(sec.tag)
+            if into is None:
+                into = ET.SubElement(root, sec.tag)
+            for c in sec:
+                into.append(c)
+    import mujoco
+    m = mujoco.MjModel.from_xml_string(_mjcf_fragment(_mjcf_root(sc["mjcf"])))
+    return int(m.nq)
+
+
+def mjcf_qpos(sc):
+    """The start values of the qpos of a scene's own MJCF (its joints, in the model's order: they are the last),
+    with scene["joints"] set -> the text to append to the keyframe's qpos."""
+    if not sc.get("mjcf"):
+        return ""
+    import mujoco
+    m = mujoco.MjModel.from_xml_string(_mjcf_fragment(_mjcf_root(sc["mjcf"])))
+    q = m.qpos0.copy()
+    for name, v in (sc.get("joints") or {}).items():
+        k = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)
+        q[m.jnt_qposadr[k]] = v / 1000 if m.jnt_type[k] == mujoco.mjtJoint.mjJNT_SLIDE else math.radians(v)
+    return "".join(f" {v:.9g}" for v in q)
+
+
+def world_scene(sc, before=None):
     """A scene as a world's code returned it -> the scene the simulation builds: every value checked against WORLD
-    (ValueError with the reason), unknown fields refused, nothing else changed."""
+    (ValueError with the reason), unknown fields refused, nothing else changed. (before: the scene the world's code
+    got; not used here.)"""
     W = WORLD
     if not isinstance(sc, dict):
         raise ValueError("a world's scene(...) returns the scene: a dict")
-    _known(sc, ("seed", "cylinder", "stand", "distractors", "ood", "table", "extras", "arm", "rig"), "scene")
+    _known(sc, ("seed", "cylinder", "stand", "distractors", "ood", "table", "extras", "arm", "rig", "mjcf", "joints", "without", "cameras"), "scene")
     out = dict(seed=int(sc.get("seed", 0)), ood=list(sc.get("ood") or []))
     c, s_ = sc.get("cylinder"), sc.get("stand")
     if not isinstance(c, dict) or not isinstance(s_, dict):
         raise ValueError("the scene has a cylinder and a stand")
-    _known(c, ("diameter_mm", "height_mm", "hole_mm", "color", "rgb", "density", "xy_mm", "sides", "z_mm"), "cylinder")
+    _known(c, ("diameter_mm", "height_mm", "hole_mm", "color", "rgb", "density", "xy_mm", "sides", "z_mm") + CONTACT_KEYS, "cylinder")
     _known(s_, ("board_mm", "stick_diameter_mm", "stick_height_mm", "color", "rgb", "stick_color", "stick_rgb", "density", "xy_mm", "yaw_deg",
-                "sticks", "stick_spacing_mm", "z_mm"), "stand")
+                "sticks", "stick_spacing_mm", "z_mm") + CONTACT_KEYS, "stand")
     need = lambda d, k, r, what: _num(d, k, r, what) if d.get(k) is not None else (_ for _ in ()).throw(ValueError(f"{what} is missing"))
     cyl = dict(diameter_mm=need(c, "diameter_mm", W["cyl_d"], "cylinder.diameter_mm"), height_mm=need(c, "height_mm", W["cyl_h"], "cylinder.height_mm"),
                hole_mm=need(c, "hole_mm", W["hole"], "cylinder.hole_mm"), color=str(c.get("color", "")), rgb=_rgb3(c.get("rgb"), "cylinder"),
@@ -125,6 +592,7 @@ def world_scene(sc):
     for d, src, what in ((cyl, c, "cylinder"), (stand, s_, "stand")):
         if src.get("z_mm"):
             d["z_mm"] = _num(src, "z_mm", W["z"], what + ".z_mm")
+        d.update(world_contact(src, what))
     dis = sc.get("distractors") or []
     if not isinstance(dis, list) or len(dis) > W["distractors"]:
         raise ValueError(f"distractors: a list of at most {W['distractors']}")
@@ -133,7 +601,7 @@ def world_scene(sc):
         what = f"distractors[{k}]"
         if not isinstance(d, dict) or d.get("shape") not in DIS_SIZES:
             raise ValueError(f"{what}: a dict whose shape is one of {', '.join(DIS_SIZES)}")
-        _known(d, ("shape", "size_mm", "color", "rgb", "density", "xy_mm", "yaw_deg", "z_mm"), what)
+        _known(d, ("shape", "size_mm", "color", "rgb", "density", "xy_mm", "yaw_deg", "z_mm") + CONTACT_KEYS, what)
         z = d.get("size_mm")
         if not isinstance(z, (list, tuple)) or len(z) != DIS_SIZES[d["shape"]]:
             raise ValueError(f"{what}.size_mm: {DIS_SIZES[d['shape']]} numbers for a {d['shape']}")
@@ -142,37 +610,9 @@ def world_scene(sc):
                  yaw_deg=_num(d, "yaw_deg", (-360, 360), what + ".yaw_deg", 0.0))
         if d.get("z_mm"):
             o["z_mm"] = _num(d, "z_mm", W["z"], what + ".z_mm")
+        o.update(world_contact(d, what))
         out_d.append(o)
-    ex = sc.get("extras") or []
-    if not isinstance(ex, list) or len(ex) > W["extras"]:
-        raise ValueError(f"extras: a list of at most {W['extras']}")
-    out_e = []
-    for k, e in enumerate(ex):
-        what = f"extras[{k}]"
-        if not isinstance(e, dict):
-            raise ValueError(f"{what}: a dict")
-        _known(e, ("name", "parts", "xy_mm", "yaw_deg", "z_mm", "density", "fixed"), what)
-        parts = e.get("parts")
-        if not isinstance(parts, list) or not 1 <= len(parts) <= W["parts"]:
-            raise ValueError(f"{what}.parts: a list of 1 to {W['parts']} parts")
-        ps = []
-        for i, q in enumerate(parts):
-            w2 = f"{what}.parts[{i}]"
-            if not isinstance(q, dict) or q.get("type") not in PARTS:
-                raise ValueError(f"{w2}: a dict whose type is one of {', '.join(PARTS)}")
-            _known(q, ("type", "size_mm", "pos_mm", "euler_deg", "rgb"), w2)
-            z = q.get("size_mm")
-            if not isinstance(z, (list, tuple)) or len(z) != PARTS[q["type"]]:
-                raise ValueError(f"{w2}.size_mm: {PARTS[q['type']]} numbers for a {q['type']} (box: three sides; cylinder, capsule: diameter, length; ball: diameter)")
-            pos, eul = q.get("pos_mm", [0, 0, 0]), q.get("euler_deg", [0, 0, 0])
-            if not isinstance(pos, (list, tuple)) or len(pos) != 3 or not isinstance(eul, (list, tuple)) or len(eul) != 3:
-                raise ValueError(f"{w2}: pos_mm and euler_deg are three numbers each")
-            ps.append(dict(type=q["type"], size_mm=[_num(dict(v=v), "v", W["part"], w2 + ".size_mm") for v in z],
-                           pos_mm=[_num(dict(v=v), "v", W["pos"], w2 + ".pos_mm") for v in pos],
-                           euler_deg=[_num(dict(v=v), "v", (-360, 360), w2 + ".euler_deg") for v in eul], rgb=_rgb3(q.get("rgb"), w2)))
-        out_e.append(dict(name=str(e.get("name") or f"extra {k}")[:40], parts=ps, xy_mm=_xy(e.get("xy_mm"), what),
-                          yaw_deg=_num(e, "yaw_deg", (-360, 360), what + ".yaw_deg", 0.0), z_mm=_num(e, "z_mm", W["z"], what + ".z_mm", 0.0),
-                          density=_num(e, "density", W["density"], what + ".density", 600.0), fixed=bool(e.get("fixed", False))))
+    out_e = world_extras(sc.get("extras"))
     out.update(cylinder=cyl, stand=stand, distractors=out_d)
     if out_e:
         out["extras"] = out_e
@@ -184,6 +624,19 @@ def world_scene(sc):
         out["arm"] = "left"
     if sc.get("rig") is not None:                                   # (a scene like the real rig stays one: scenes.REAL)
         out["rig"] = dict(sc["rig"])
+    if sc.get("mjcf"):                                              # (bodies of the world's own, as MJCF)
+        out["mjcf"] = world_mjcf(sc["mjcf"])
+    j = world_joints(sc.get("joints"), sc.get("mjcf"))
+    if j:
+        out["joints"] = j
+    cams = world_cameras(sc.get("cameras"))
+    if cams:
+        out["cameras"] = cams
+    wo = sc.get("without") or []
+    if not isinstance(wo, (list, tuple)) or set(wo) - set(WITHOUT):
+        raise ValueError(f"without: a list of {', '.join(WITHOUT)} (what is not on the table in this scene)")
+    if wo:
+        out["without"] = [n for n in WITHOUT if n in wo]
     return out
 
 
@@ -639,8 +1092,11 @@ def describe(sc):
             out += f"; {what} stands {o['z_mm']:g} above the table"
     for k, e in enumerate(sc.get("extras") or []):
         out += (f"; extra_{k} \"{e['name']}\" ({'fixed' if e['fixed'] else 'free'}: "
-                + " + ".join(f"{q['type']} {' x '.join(f'{v:g}' for v in q['size_mm'])}" for q in e["parts"])
+                + " + ".join(part_text(q) for q in e["parts"])
                 + f") at ({e['xy_mm'][0]:g}, {e['xy_mm'][1]:g}, {e['z_mm']:g})")
+    if sc.get("without"):
+        out += "; NOT on the table in this scene: " + ", ".join(sc["without"])
+    out += mjcf_text(sc) + cameras_text(sc)
     if sc.get("rig") is not None:
         on = [k for k in REAL_EFFECTS if sc["rig"].get(k)]
         out += "; like the real robot (the left arm alone" + ("".join(", " + k for k in on) if on else ", no effects") + ")"
@@ -661,8 +1117,13 @@ def layout(sc):
             return (x, y, yaw)
         h = math.radians(yaw) / 2
         return (x, y, o["z_mm"] / 1000 + 0.0005, math.cos(h), 0.0, 0.0, math.sin(h))
-    out = {"stick_stand": at(sc["stand"], sc["stand"]["yaw_deg"]), "cylinder": at(sc["cylinder"], 0.0)}
-    for k, d in enumerate(sc["distractors"]):
+    wo = sc.get("without") or ()                                    # (a world's scene: not on the table; reset parks them)
+    out = {}
+    if "stand" not in wo:
+        out["stick_stand"] = at(sc["stand"], sc["stand"]["yaw_deg"])
+    if "cylinder" not in wo:
+        out["cylinder"] = at(sc["cylinder"], 0.0)
+    for k, d in enumerate(sc["distractors"] if "distractors" not in wo else ()):
         out[f"distractor_{k}"] = at(d, d["yaw_deg"])
     for k, e in enumerate(sc.get("extras") or []):
         if not e["fixed"]:
@@ -713,15 +1174,20 @@ def _cylinder(body, c):
                   priority="1", solref="0.004 1")
 
 
-def _extra_geoms(body, k, e):
+def _extra_geoms(body, k, e, asset=None):
     """A world's extra: its parts as geoms of `body`, each at its own pose in the extra's frame (pos_mm: the part's
-    centre from the extra's reference point, which stands at xy_mm, z_mm above the table)."""
+    centre from the extra's reference point, which stands at xy_mm, z_mm above the table; a hull's points are in the
+    part's frame). asset: the model's <asset> (a hull is a mesh there). The extra's contact fields go onto its geoms."""
     for i, q in enumerate(e["parts"]):
+        if q["type"] == HULL:
+            hull_geom(body, asset, f"extra{k}_{i}", q, q["rgb"], e["density"], euler=" ".join(f"{math.radians(v):.5f}" for v in q["euler_deg"]), **WOOD)
+            continue
         z = [v / 1000 for v in q["size_mm"]]
         size = {"box": tuple(v / 2 for v in z), "cylinder": (z[0] / 2, z[-1] / 2), "ball": (z[0] / 2,),
                 "capsule": (z[0] / 2, max(z[-1] - z[0], 0.001) / 2)}[q["type"]]
         _geom(body, f"extra{k}_{i}", {"ball": "sphere"}.get(q["type"], q["type"]), size, [v / 1000 for v in q["pos_mm"]], q["rgb"], e["density"],
               euler=" ".join(f"{math.radians(v):.5f}" for v in q["euler_deg"]))
+    contact_attrs(body.findall("geom"), e)
 
 
 def _distractor_geoms(body, k, d):
@@ -761,21 +1227,23 @@ def model_xml(path, sc):
         for g in bodies[name].findall("geom"):
             bodies[name].remove(g)
         make(bodies[name], spec)
+        contact_attrs(bodies[name].findall("geom"), spec)
     for k, d in enumerate(sc["distractors"]):
         b = ET.SubElement(wb, "body", name=f"obj_distractor_{k}", pos=f"{0.30 + 0.15 * k:.2f} 0.10 0.0005")
         ET.SubElement(b, "freejoint", name=f"obj_distractor_{k}_free")
         _distractor_geoms(b, k, d)
+        contact_attrs(b.findall("geom"), d)
     free = 0
     th = float(sc["table"]["height_mm"]) / 1000 if sc.get("table") else 0.0
     for k, e in enumerate(sc.get("extras") or []):                  # (a world's scene)
         if e["fixed"]:                                              # part of the table: a body without a joint
             b = ET.SubElement(wb, "body", name=f"fixed_extra_{k}", pos=f"{e['xy_mm'][0] / 1000:.5f} {e['xy_mm'][1] / 1000:.5f} {e['z_mm'] / 1000 + th:.5f}",
                               euler=f"0 0 {math.radians(e['yaw_deg']):.5f}")
-            _extra_geoms(b, k, e)
+            _extra_geoms(b, k, e, root.find("asset"))
         else:
             b = ET.SubElement(wb, "body", name=f"obj_extra_{k}", pos=f"{0.30 + 0.15 * k:.2f} 0.40 0.0005")
             ET.SubElement(b, "freejoint", name=f"obj_extra_{k}_free")
-            _extra_geoms(b, k, e)
+            _extra_geoms(b, k, e, root.find("asset"))
             free += 1
     t = sc.get("table")
     if t:                                                           # another table: higher or lower, another colour or a pattern
@@ -795,6 +1263,7 @@ def model_xml(path, sc):
             ET.SubElement(asset, "texture", name="table", type="2d", builtin="flat", rgb1=_rgba(t["rgb"])[:-2], width=str(TEX), height=str(TEX))
             ET.SubElement(asset, "material", name="table", texture="table", specular="0.1", shininess="0.1")
             del top.attrib["rgba"]; top.set("material", "table")
+    add_mjcf(root, sc, th)                                          # (a world's own bodies: the last of all)
     key = root.find("keyframe").find("key")                         # (the new bodies are the last: their qpos too)
-    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * (len(sc["distractors"]) + free))
+    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * (len(sc["distractors"]) + free) + mjcf_qpos(sc))
     return ET.tostring(root, encoding="unicode")
