@@ -16,7 +16,7 @@ models:
     max_output_tokens: 6000
     price_per_mtok: {in: 8.0, cached: 0.4, out: 40.0}     # the provider's pricing page, 2026-11-21
 budget:
-  total_usd: 102.0    # hard cap on ALL model spending by this repository (runs/budget/openai.jsonl): $12.63 spent on
+  total_usd: 174.0    # hard cap on ALL model spending by this repository (runs/budget/openai.jsonl): $12.63 spent on
                       # the first key ($20 credit, 11-18 to 11-20) + $48.71 on the second ($50 credit on 2026-11-20,
                       # refilled; 2026-11-22: +5.4 for a $15 session the user approved with a refill) = $61.34;
                       # 2026-11-22: a third key ($68 credit, configs/local.yaml) and a $40 session the user approved
@@ -24,3 +24,15 @@ budget:
                       # (ledger $97.08 after it); 2026-11-23: that session's evaluation, which the user approved
                       # ($36 left on the third key): 200 episodes whose program calls the model, run under a cap of
                       # 110.0, cost $4.90 (ledger $101.98); the cap is back at what is spent: raise it for a new run
+                      # 2026-11-23: +40 for the one-armed clutter session the user asked for ($40 budget; about
+                      # $31 of credit was left on the third key when it started)
+                      # 2026-11-23, 16:25: that session ended at $37.34 (ledger $139.32); +12 for its evaluation,
+                      # which the user approved on a fourth key (secrets/openai_key_2026-11-23, about $58
+                      # when given; $11.95 of it went to a session booked in a worktree's own ledger)
+                      # 2026-11-23, 17:05: that evaluation cost $7.40 (ledger $146.72); the worktree session's $11.95
+                      # (bimanual_improve_varied_tables_real_1123) appended to the ledger: $158.66; the cap is
+                      # back at what is spent: raise it for a new run
+                      # 2026-11-23, 17:30: +2 for the one-arm clutter program's own model calls (robot.ask, at most
+                      # 4 an episode, about $0.02-0.06) in its real runs and rehearsals, which the user asked for
+                      # 2026-11-23, 18:50: the second continued insertion session ($13.14, from the worktree's
+                      # ledger) appended: ledger $171.90; the cap = that + the $2 of headroom above

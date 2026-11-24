@@ -24,6 +24,8 @@
         on the left arm's side. --backend sim: the rehearsal, the bimanual simulation's scene `seed` of the task (or
         --scene) standing in for the robot and judged by the task's judge. The clutter tasks (--task clutter --object
         ... --level ...) need both arms: for now not on the real robot (--backend twin only: the path's own test).
+        --task clutter_one_arm --object "red cylinder" [--level medium|hard] --ask: a one-armed clutter session's program
+        (bimanual/clutter_one_arm.py): the left arm takes the named object out of a heap; --backend sim rehearses it.
         No model call unless --ask (robot.ask: at most 4 calls an episode, ledger tag 'real:program').
   real/run verdict RESULTS_DIR success|fail [--knocked-off] [--intervened] [--note ...]
         the operator's verdict on a live robot episode, after it (or to correct it)
@@ -37,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -203,8 +206,20 @@ PROGRAM_MORE = {"insert_varied": """
   - it lowers the hand until contact (5 mm/s), closes on the cylinder, carries it over the stick and searches for the
       hole with small moves until contact: the stand may be pushed; be ready on the E-stop;
   - about 3 minutes when the first try goes in; up to 11 minutes when it has to search and grasp again.""",
-                "clutter": ""}
-HELD = {"insert_varied": "is the cylinder on the stick (the stick through its hole), let go by the robot, the stand upright on "
+                "clutter": "",
+                "clutter_one_arm": """
+  - THIS PROGRAM WAS WRITTEN IN SIMULATION (the one-armed robot's heaps, bimanual/clutter_one_arm.py); only the LEFT
+      arm moves:
+      the heap within the arm's reach (table frame: about x -360..-220 mm, y -120..+30 mm is where it practised), the
+      target named by --object among it; free table around the heap: the program puts the objects it clears away at
+      about (-400, 350), (-270, 410), (-480, 380), (-200, 300), (-400, -170), (-260, -250) mm: nothing may stand there;
+  - it lowers the open gripper onto an object until contact (5 mm/s), closes, lifts, and may push or drop objects: be
+      ready on the E-stop; light things only in the heap;
+  - it asks the model (robot.ask, --ask: at most 4 calls an episode) which object is the target and what it holds;
+  - several minutes: every pick is a slow descent."""}
+HELD = {"clutter_one_arm": "does the robot hold the named object up, at least 150 mm above the table, touching nothing else, and has "
+                           "nothing fallen off the table (the task's success)?",
+        "insert_varied": "is the cylinder on the stick (the stick through its hole), let go by the robot, the stand upright on "
                          "the table (the task's success)?"}
 
 
@@ -225,6 +240,15 @@ def run_program(a):
         if a.level not in clutter._HOW:
             raise SystemExit(f"--level is one of {', '.join(clutter._HOW)}")
         limit = 900.0 if a.level == "hard" else 600.0                         # (the simulation's limits)
+    elif a.task == "clutter_one_arm":                                         # (bimanual/clutter_one_arm.py: the left arm alone)
+        from agentic_robotics.bimanual import clutter_one_arm
+        if a.backend == "twin":
+            raise SystemExit("--task clutter_one_arm: on the robot, or --backend sim (the task's simulated heaps: a rehearsal)")
+        if a.level not in clutter_one_arm.LEVELS:
+            raise SystemExit(f"--level is one of {', '.join(clutter_one_arm.LEVELS)}")
+        if a.backend == "robot" and not (a.object or "").strip():
+            raise SystemExit('--object is needed on the robot: the target as the task names it, colour and shape ("red cylinder")')
+        limit = float(TASKS[clutter_one_arm.task(a.level)].time_limit_s)
     elif a.backend == "twin":
         raise SystemExit(f"--task {a.task}: the twin has no cylinder and no stand; its rehearsal is --backend sim")
     else:
@@ -240,10 +264,15 @@ def run_program(a):
     out = Path(a.out_root or RESULTS) / f"{stamp}_{a.backend}_{a.mode}_{tag}"
     prog_out = out / "program"; prog_out.mkdir(parents=True)
     task = sim = None
-    if a.backend == "robot":
+    one_arm = a.task == "clutter_one_arm"
+    if a.backend == "robot" and one_arm:                                      # (the task's text names the target: clutter.text)
+        name = re.sub(r"^the\s+", "", a.object.strip())
+        task = dict(kind=a.task, instruction=clutter._text(a.level, name, "left"), object=name, level=a.level)
+    elif a.backend == "robot":
         task = dict(kind=a.task, instruction=TASKS[a.task].text)
-    elif a.backend == "sim":
-        sim = dict(task=a.task, seed=a.seed, sensors=a.sensors, scene=json.loads(Path(a.scene).read_text()) if a.scene else None)
+    elif a.backend == "sim":                                                  # (the scene of the seed names its own target)
+        sim = dict(task=f"pick_clutter_one_arm_{a.level}" if one_arm else a.task, seed=a.seed, sensors=a.sensors,
+                   scene=json.loads(Path(a.scene).read_text()) if a.scene else None)
     A = None
     if a.ask:
         from agentic_robotics.perception.vlm import models_config
@@ -263,6 +292,7 @@ def run_program(a):
                 twin=dict(task_config=a.task_config, split=a.split, level=a.twin_level, idx=a.idx, seed=a.seed) if a.backend == "twin" else None,
                 sim=sim, skills=str(program), kind="program", program_time_limit_s=limit, robot_clock=a.robot_clock, program_task=a.task, level=a.level if a.task == "clutter" else None,
                 speed=a.speed, guard_speed=a.guard_speed, guard_dz=a.guard_dz, free_push=a.free_push, raw_force=a.raw_force,
+                confirm_contact=a.confirm_contact,
                 max_stops=a.max_stops, settle_all=not a.no_settle, platform=git_rev(), started=stamp)
     skill = out / "skill"; skill.mkdir()
     shutil.copy2(program, skill / "program.py")                               # (the sandbox sees this copy only)
@@ -272,6 +302,7 @@ def run_program(a):
                  "--program-limit", str(limit)] + (["--robot-clock"] if a.robot_clock else []) + (["--no-settle"] if a.no_settle else []) + \
         (["--clutter-level", a.level] if a.task == "clutter" else []) + (["--speed", str(a.speed)] if a.speed is not None else []) + \
         (["--guard-dz", str(a.guard_dz)] if a.guard_dz is not None else []) + (["--free-push"] if a.free_push else []) + \
+        (["--confirm-contact"] if a.confirm_contact else []) + \
         (["--raw-force"] if a.raw_force else [])
     launch(a, out, prog_out, spec, skill, "host_program.py", host_args, hi)
     txt = prog_out / "output.txt"                                             # the program's own prints (not the commands' log)
@@ -508,8 +539,9 @@ def main():
     s.add_argument("--idx", type=int, default=0); s.add_argument("--seed", type=int, default=13)
     s = sub.add_parser("program")
     s.add_argument("--program", required=True, help="a bimanual-environment session's program.py (run(robot, task))")
-    s.add_argument("--task", default="insert_varied", choices=("insert_varied", "clutter"),
-                   help="insert_varied: put the cylinder on the stick (one arm's work); clutter: twin backend only")
+    s.add_argument("--task", default="insert_varied", choices=("insert_varied", "clutter_one_arm", "clutter"),
+                   help="insert_varied: put the cylinder on the stick (one arm's work); clutter_one_arm: take --object out of a "
+                        "heap with the left arm alone (--level, --ask); clutter: twin backend only")
     s.add_argument("--mode", default="dry", choices=("dry", "live"))
     s.add_argument("--backend", default="robot", choices=("robot", "sim", "twin"),
                    help="sim: the bimanual simulation's scene of the task (a rehearsal); twin: --task clutter's test")
@@ -524,6 +556,9 @@ def main():
     s.add_argument("--speed", type=float, default=None, help="RealSim time scale (default rig.json's: 0.5)")
     s.add_argument("--guard-speed", type=float, default=0.005, help="m/s of the stop_on_contact moves (0.005: validated on the arm; simulation: 0.04)")
     s.add_argument("--guard-dz", type=float, default=None, help="m the hand is held up at a contact (default rig.json's 0.002; the arm server allows 0.001-0.01)")
+    s.add_argument("--confirm-contact", action="store_true",
+                   help="a move until contact that the arm stops WITHOUT force (under 2 N: joint friction, on this arm) is not "
+                        "reported as a contact: it goes on from where it stopped (bimanual/real.py CONFIRM; default off)")
     s.add_argument("--free-push", action="store_true",
                    help="send a push down after a contact as a plain 40 mm/s move (default: a 5 mm/s guarded one: 15 N / 10 mm)")
     s.add_argument("--raw-force", action="store_true", help="state()'s force as the arm reports it (default: minus its reading at the start)")
@@ -542,8 +577,8 @@ def main():
     s.add_argument("--seed", type=int, default=2001, help="sim: the task's scene (twin: the layout's seed)")
     s.add_argument("--scene", help="sim: a scene file (bimanual/scenes.py's dict) instead of the seed's")
     s.add_argument("--sensors", default="d415", choices=("d415", "ideal"), help="sim: the cameras' depth and calibration errors, or none")
-    s.add_argument("--object", help="clutter: unused (the twin's layout names its own target)")
-    s.add_argument("--level", default="medium", help="clutter: the task's text, medium | hard")
+    s.add_argument("--object", help='clutter_one_arm on the robot: the target, by colour and shape ("red cylinder"); clutter: unused')
+    s.add_argument("--level", default="medium", help="clutter, clutter_one_arm: the task's text, medium (the target can be seen) | hard (it lies under others)")
     s.add_argument("--task-config", default="configs/tasks/clutter_pick_A_rig.yaml", help="twin: the condition")
     s.add_argument("--split", default="val"); s.add_argument("--twin-level", type=int, default=1)
     s.add_argument("--idx", type=int, default=0)

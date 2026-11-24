@@ -35,6 +35,7 @@ def main():
     ap.add_argument("--guard-speed", type=float, default=0.005, help="m/s of the stop_on_contact moves")
     ap.add_argument("--guard-dz", type=float, default=None, help="m the hand is held up at a contact (default rig.json's)")
     ap.add_argument("--free-push", action="store_true", help="a push down after a contact: a plain move (default: guarded, slow)")
+    ap.add_argument("--confirm-contact", action="store_true", help="a guarded line's stop without force is not a contact (bimanual/real.py CONFIRM)")
     ap.add_argument("--max-stops", type=int, default=3, help="safety stops of the arm server before the episode ends")
     ap.add_argument("--raw-force", action="store_true", help="state()'s force_n as the arm reports it (default: minus its "
                     "reading at the start, the hand free and empty)")
@@ -76,7 +77,7 @@ def main():
                   f"model calls {'on' if hello.get('ask') else 'off'}\n")
         R = real.RealRobot(S, link, seg, out, hello, ask=bool(hello.get("ask")), guard_speed=a.guard_speed, guard_dz=a.guard_dz,
                            soft_push=not a.free_push, max_stops=a.max_stops, tare_force=not a.raw_force, sim_clock=not a.robot_clock, settle_all=not a.no_settle,
-                           program_limit_s=a.program_limit, trace=log)
+                           program_limit_s=a.program_limit, trace=log, confirm_contact=a.confirm_contact)
         if bad:
             how = "refused: " + "; ".join(bad)
         else:
@@ -106,10 +107,11 @@ def main():
     waited = sum(link.wait.values())
     result = dict(ended=how, commands=c["commands"], shown=c["shown"], model_calls=c["asks"], model_usd=round(c["ask_usd"], 4),
                   model_wait_s=round(c["ask_wait_s"], 1), safety_stops=c["stops"], refusals=c["refusals"],
-                  right_arm_commands=c["right_arm"])
+                  right_arm_commands=c["right_arm"], unconfirmed_stops=c["unconfirmed"])
     usage = dict(wall_s=round(wall, 3), setup_wall_s=round(w_setup, 3), waiting_on_world_s=round(waited, 3),
                  compute_wall_s=round(wall - waited - w_setup, 3), requests=dict(link.n), segment_calls=seg.calls,
                  speed=S.speed, guard_speed=a.guard_speed, guard=R.guard, push=None if a.free_push else real.PUSH,
+                 confirm_contact=real.CONFIRM if a.confirm_contact else None,
                  force_tare_n=None if R.tare is None else [round(float(v), 2) for v in R.tare], calib_keys=sorted(calib),
                  program_clock=dict(kind="robot" if a.robot_clock else "sim", limit_s=R.limit, behind_robot_s=round(R.saved, 1)))
     link.call("done", result=result, error=error, usage=usage)

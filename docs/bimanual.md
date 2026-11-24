@@ -493,6 +493,49 @@ for one arm (`write.one_arm`). Two changes apply to every clutter session from h
 - Each version records when it was saved (`state.json`: `versions[i].at` = turn, dollars, tokens, minutes; the copies
   are `versions/vNN.py`), and `scripts/session_progress.py` prints the table of versions with their practice results.
 
+**The session and its evaluation (2026-11-23).** The session ended "submitted" after 130 turns, 132 min and
+**$37.34 of $40**: v24 (412 lines; 26 versions, their table in `runs/bimanual/clutter_one_arm_astra_1123/versions.md`,
+made by `scripts/session_progress.py`). The evaluation (`scripts/eval_bimanual_ask.py`, cameras with realistic depth
+and SAM3 only, no truth; 200 episodes, **$7.40**, on a fourth key; `runs/bimanual/clutter_one_arm_astra_1123_eval`):
+
+| | medium ID | medium OOD | hard ID | hard OOD |
+|---|---|---|---|---|
+| one-arm reference (true poses) | 48/50 | 46/50 | 48/50 | 47/50 |
+| the two-armed session's program on the two-armed tasks | 48/50 | 47/50 | 47/50 | 38/50 |
+| **the one-arm session's program (v24)** | **48/50** | **47/50** | **45/50** | **40/50** |
+| robot time of its successes: mean (median) | 141 s (124 s) | 90 s (37 s) | 259 s (247 s) | 224 s (196 s) |
+| model calls an episode | 1.28 | 2.00 | 2.48 | 3.08 |
+| model cost an episode | $0.015 | $0.031 | $0.043 | $0.059 |
+
+**180 of 200** (ID 93/100, OOD 87/100), the two-armed program's total on its own tasks; with cameras only it
+matches the true-pose reference on medium and is below it on hard (ID 45 against 48, OOD 40 against 47). No model
+call failed. The 20 failures, from each episode's last lines and final state: 10 lifted another object and the
+program's check of what it held accepted it (the target still on the table); 8 used up their attempts or the time
+without a hold (grasps rejected as too shallow, a pick out of the arm's reach); 1 held the target at 243 mm at the
+end and was still judged a failure (not looked into); 1 returned after 2.6 s without a pick. The session's own
+last practice results (v23: 41/41 medium, 41/41 hard) overstated it, as the two-armed session's did.
+
+**On the real robot (prepared 2026-11-23, 17:35; not yet run there).** The user judged 180/200 good enough.
+`real/run program` now takes the one-arm clutter task (`real/run.py`: `--task clutter_one_arm`; the target is named by
+the operator, the task's text is `clutter._text(level, object, "left")`, the limits are the task's):
+
+```bash
+P=runs/bimanual/clutter_one_arm_astra_1123/program.py
+real/run program --program $P --task clutter_one_arm --object "red cylinder" --level medium --ask --tag NAME              # dry
+real/run program --program $P --task clutter_one_arm --object "red cylinder" --level medium --ask --tag NAME --mode live
+real/run program --program $P --task clutter_one_arm --level medium --ask --backend sim --seed 2003 --mode live          # rehearsal
+```
+
+`--ask` lets the program call the model (at most 4 calls an episode, about $0.02-0.06; ledger tag `real:program`;
+`budget.total_usd` has $2 of headroom for it). Rehearsed with the simulation as the robot (seed 2003, medium):
+success, 108 s, 2 model calls, $0.03; `tests/test_real_program.py` passes. **What to expect on the arm**: every pick
+of v24 is an ordinary move to max(150, top + 85) mm and then a move until contact down to the grasp height, 85 to
+125 mm of it. On this arm such a move stops falsely in its first millimetres (0.3b); v24 then finds the hand more
+than 35 mm above the object, prints "REJECT shallow grasp", opens, lifts and tries another plan, until it gives up.
+It was developed without any real episode. The way that worked for the insertion skill: real episodes into a
+continued session (`improve.py --continue-from --real-feedback`, today for `insert_varied` only: the clutter
+session does not take those options yet).
+
 ## On the real arm (2026-11-23)
 
 `src/agentic_robotics/bimanual/real.py` answers the program API on the real rig, which moves the left Panda only:
