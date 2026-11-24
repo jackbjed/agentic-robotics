@@ -236,6 +236,81 @@ those of the real episodes (the same kinds of objects, set out anew), and it is 
 on the simulated final evaluation described above, where it should do no worse than v{sub} did.
 """
 
+_WORLDS = """
+Worlds: the simulator is yours to change. A WORLD is a Python file of yours that changes what the simulator builds
+and how its robot answers, in the episodes you run in it: your own model of what the real robot's episodes show and
+the plain simulator does not have (other objects, other sensors, another arm). Tools:
+
+write_world, edit_world       save a new version of a world (w0, w1, ...), as write_program and edit_program do
+                              for the skill; a world can also be an experiment
+read_world                    a world's text, with line numbers
+run_episodes                  with "world": k the episodes run in world wk; without it, in the plain simulator. A
+                              version's results in a world are kept apart (the scene is then named s3@w1)
+read_output, view_images      take "world" too
+
+A world's file defines one or both of these functions:
+
+def scene(scene, rng):
+    # -> the scene the simulator builds. `scene` is the scene as define_scenes made it, a dict (list_scenes names its
+    # fields; colours are "rgb": [r, g, b], and the cylinder has "hole_mm"). Change it and return it. It is NOT held
+    # to the limits of define_scenes, only to what the simulation can hold (lengths in mm): the cylinder {cyl_d}
+    # across, {cyl_h} tall, its hole {hole}; a stick {stick_d} across, {stick_h} above its board; the board's sides
+    # {board}, its thickness {board_t}; any other size {size}; densities {density} kg/m3; places x {x}, y {y}.
+    # It can also have what define_scenes has not:
+    #   scene["cylinder"]["sides"] = 6      its outline and its hole are polygons of that many sides (absent: round)
+    #   scene["cylinder"]["z_mm"] = 20      its bottom stands that high above the table: on something, which you
+    #                                       put there as an extra (the same for the stand and for a distractor)
+    #   scene["stand"]["sticks"] = 3; scene["stand"]["stick_spacing_mm"] = 55
+    #                                       several sticks in a row along the board's first side; the cylinder on
+    #                                       any one of them is a success; truth() has stick_top, stick_top_1, ...
+    #   scene["distractors"]                up to {distractors}, of the shapes box, cylinder, ball, pill, L, steps
+    #   scene["extras"] = [{{"name": "pad", "fixed": True, "xy_mm": [x, y], "z_mm": 0, "yaw_deg": 0, "density": 600,
+    #                       "parts": [{{"type": "box", "size_mm": [75, 75, 20], "pos_mm": [0, 0, 10],
+    #                                  "euler_deg": [0, 0, 0], "rgb": [235, 235, 230]}}]}}]
+    #                                       bodies of your own (up to {extras}), each made of up to {parts} parts: box
+    #                                       (three sides), cylinder and capsule (diameter, length along its own
+    #                                       z), ball (diameter). pos_mm is the part's centre from the extra's
+    #                                       reference point, which stands at xy_mm, z_mm above the table.
+    #                                       "fixed": True: part of the table, it never moves; False: a free object
+    #                                       (truth() names it extra_k)
+    #   scene["arm"] = "left"               the left arm alone, within the real arm's safety limits; the right arm
+    #                                       stands parked: a move of it to its parking place (y below -280) is
+    #                                       answered as done, any other use of it is an error
+    # rng: a numpy Generator, the same for the same scene.
+    return scene
+
+def robot(robot, rng, kit):
+    # -> the robot the PROGRAM gets in this world. `robot` is the simulator's own (the interface above). kit.Robot is
+    # a class that passes every call on to it (as self.robot): subclass it, override what your world does
+    # differently, return an instance. kit.frame(f, rgb=None, depth=None) is the Frame f with other pixels (depth in
+    # mm, nan where there is none).
+    class Real(kit.Robot):
+        def move(self, arm, xyz, dir_a, dir_b, stop_on_contact=False):
+            r = self.robot.move(arm, xyz, dir_a, dir_b, stop_on_contact)   # or another move, another answer
+            self.robot.wait(2.0)                                           # e.g. what a real move costs
+            return r
+        def look(self, cameras=None):
+            out = self.robot.look(cameras)
+            for name, f in out.items():
+                d = f.depth.copy(); d[d < 280] = float("nan")             # e.g. what a real camera does not see
+                out[name] = kit.frame(f, depth=d)
+            return out
+    return Real(robot)
+
+Everything a program calls can be overridden: look, state, move, turn, home, wait, time_s, set_gripper, segment,
+show, truth, judge. What your world's robot returns is what the program sees; what the simulator really did is
+what the "#" trace of output.txt shows and what the judge judges. A world keeps the program's rules (the same
+imports, no files); what it prints goes to output.txt. If a world fails (an exception, a scene outside the bounds,
+a scene the simulator cannot build) the program is not run and the episode's result says "world: ...".
+
+A world is YOUR claim about the real robot, and nothing checks it but you. A world is good when the version that
+ran on the real robot does in it what it did there: the same failures at the same steps, about the same times,
+the same kind of numbers in its output. A world that only makes practice harder teaches nothing. So build it from
+the real episodes (their outputs, images, depth, the arm's records), check it against them, and say in a world's
+note what it models and what it leaves out. The skill is judged on the real robot and in the plain simulator, never
+in a world of yours: it must not come to rely on anything that only your world has.
+"""
+
 _SUMMARY = """
 When you are done, your final submit (final = true) must carry `summary`: your own summary of this session, for the
 people who run the robot. Say what you learned from the real episodes (name them), what you changed in the skill
@@ -791,7 +866,7 @@ class Session:
         t = (self._intro() + "\n\n"
              "This session started earlier; the conversation so far was cut to save budget. You keep your notes, the versions "
              "(read_program) and all episode results (read_output, view_images).\n\nThe versions:\n" + vs + "\n\n" + self.results_line()
-             + "\n\nYour notes:\n" + (st["notes"] or "(none)")
+             + "\n\nYour notes:\n" + (st["notes"] or "(none)") + (self._worlds_text() if hasattr(self, "_worlds_text") else "")
              + (f"\n\nv{newest}, the newest version:\n\n```python\n{self._path(newest).read_text()}```\n" if newest >= 0 else "")
              + ("\n\nThe result of your last tool call:\n" + pending[:8000] if pending else ""))
         self.inp, self.images = [{"role": "user", "content": [{"type": "input_text", "text": t}]}], []
@@ -853,6 +928,12 @@ class Session:
         note = f"[budget: ${self.budget - left:.2f} of ${self.budget:.0f} spent; that turn cost ${st['turn_usd']:.2f}]"
         if left < 0.2 * self.budget:
             note += " Little is left: make sure your best version is submitted" + ("." if st["submitted"] is not None else " (nothing is submitted yet).")
+        # the session ends, without a further turn, when a reply's worst case no longer fits: with a long conversation that
+        # is a few dollars before the cap (the session of 2026-11-23 that owed a summary ended at $13.14 of $15 without it)
+        need = self._plan([], [])[1] if st.get("prev") else 0.0
+        if st.get("summary") and left < max(2.0 * need, 0.12 * self.budget):
+            note += (f" THE SESSION IS ABOUT TO END: a turn now reserves up to ${need:.2f} and ${left:.2f} is left. Make your final submit NOW "
+                     "(final = true, with the summary): after one or two more turns it ends without it.")
         return note
 
     def _turn(self):
@@ -972,7 +1053,23 @@ _REAL_SPEC = {"anyOf": [{"type": "boolean"}, _obj(false_stops={"type": "boolean"
               "description": "a scene like the real robot (the instructions: The real robot)"}
 
 
-def _scene_tools(eval_set, tables=False, real=False, real_scenes=False):
+_WORLD = {"type": "integer", "description": "a world's number (left out: the plain simulator)"}
+WORLD_TOOLS = [
+    _spec("write_world", "Save a new version of a world: the whole file (scene(scene, rng) and/or robot(robot, rng, kit)).",
+          {"code": {"type": "string", "description": "the whole Python file"},
+           "note": {"type": "string", "description": "what this world models, from which real episodes, and what it leaves out"}}, ["code", "note"]),
+    _spec("edit_world", "Save a new version of a world: a world with pieces of its text replaced.",
+          {"edits": {"type": "array", "description": "applied in order",
+                     "items": {"type": "object", "additionalProperties": False, "required": ["old", "new"],
+                               "properties": {"old": {"type": "string", "description": "text that occurs exactly once in the world's file"},
+                                              "new": {"type": "string", "description": "what replaces it"}}}},
+           "note": {"type": "string"}, "base": {"type": "integer", "description": "the world to edit (default: the newest)"}}, ["edits", "note"]),
+    _spec("read_world", "A world's text with line numbers.",
+          {"world": {"type": "integer", "description": "default: the newest"}, "start_line": {"type": "integer"}, "end_line": {"type": "integer"}}),
+]
+
+
+def _scene_tools(eval_set, tables=False, real=False, real_scenes=False, worlds=False):
     keep = {s["name"]: s for s in TOOLS}
     scene = _SCENE_SPEC if tables else dict(_SCENE_SPEC, properties={k: v for k, v in _SCENE_SPEC["properties"].items() if k != "table"})
     if real_scenes:
@@ -985,14 +1082,16 @@ def _scene_tools(eval_set, tables=False, real=False, real_scenes=False):
            _spec("list_scenes", "What is in scenes (sizes, colours, densities, places); without names: all of them.",
                  {"names": {"type": "array", "items": _NAME}}),
            _spec("run_episodes", f"Run a version on scenes, one episode each (at most {AT_ONCE_SCENES} new ones a call, run at the same time; a few minutes).",
-                 {"scenes": {"type": "array", "items": _NAME}, "version": _VER}, ["scenes"])]
+                 dict({"scenes": {"type": "array", "items": _NAME}, "version": _VER}, **({"world": _WORLD} if worlds else {})), ["scenes"])]
     if eval_set:
         out.append(_spec("run_eval_set", "Run a version on the whole self-evaluation set (E0, E1, ...): one line per episode.", {"version": _VER}))
     for name in ("read_output", "view_images"):
         p = keep[name]["parameters"]
         props = {("scene" if k == "seed" else k): (_NAME if k == "seed" else x) for k, x in p["properties"].items()}
+        if worlds:
+            props["world"] = _WORLD
         out.append(_spec(name, keep[name]["description"], props, ["scene" if k == "seed" else k for k in p["required"]]))
-    return out + (REAL_TOOLS if real else []) + [keep["read_program"], keep["submit"]]
+    return out + (WORLD_TOOLS if worlds else []) + (REAL_TOOLS if real else []) + [keep["read_program"], keep["submit"]]
 
 
 class SceneSession(Session):
@@ -1003,7 +1102,8 @@ class SceneSession(Session):
     have one (scenes.build_table). Episodes are named by their scene."""
     _EP = "scene"
 
-    def __init__(self, *a, eval_set=False, tables=False, real=None, real_scenes=False, continue_from=None, ask=None, summary=False, **k):
+    def __init__(self, *a, eval_set=False, tables=False, real=None, real_scenes=False, continue_from=None, ask=None, summary=False,
+                 worlds=False, **k):
         """real: a pack of real-robot episodes (scripts/real_feedback_pack.py) that the model can study; real_scenes:
         its scenes can be "like the real rig" (scenes.py REAL: hand-written); continue_from: an ended session's
         directory: this one starts with its versions, scenes, episode results and notes (that one is not changed)."""
@@ -1011,13 +1111,16 @@ class SceneSession(Session):
         self.real, self.real_scenes = (Path(real).resolve() if real else None), bool(real_scenes)
         self.source = Path(continue_from).resolve() if continue_from else None
         self.more, self.want_summary = (str(ask).strip() if ask else ""), bool(summary)   # (--ask: more that is asked for; --summary)
+        self.worlds = bool(worlds)                                  # (--worlds: the model writes worlds, practice.py: world)
         self.episodes = {}
         if self.real is not None:
             names = json.loads((self.real / "pack.json").read_text())["episodes"]
             self.episodes = {n: json.loads((self.real / n / "episode.json").read_text()) for n in names}
         super().__init__(*a, **k)
+        (self.dir / "worlds").mkdir(exist_ok=True)
+        self.state.setdefault("worlds", [])
         for key, now in (("real", str(self.real) if self.real else None), ("real_scenes", self.real_scenes), ("ask", self.more),
-                         ("summary", self.want_summary)):
+                         ("summary", self.want_summary), ("worlds_on", self.worlds)):
             if self.state.setdefault(key, now) != now:
                 raise ValueError(f"this session was started with {key} = {self.state[key]!r}")
         if self.state.get("tables", self.tables) != self.tables:
@@ -1026,7 +1129,71 @@ class SceneSession(Session):
             raise ValueError("this session was started " + ("with" if self.state["eval_set"] else "without") + " the self-evaluation set")
 
     def _specs(self):
-        return _scene_tools(self.eval_set, self.tables, real=self.real is not None, real_scenes=self.real_scenes)
+        return _scene_tools(self.eval_set, self.tables, real=self.real is not None, real_scenes=self.real_scenes, worlds=self.worlds)
+
+    def _worlds_closing(self):
+        if not self.worlds:
+            return ""
+        W, rr = scenes.WORLD, lambda v: f"{v[0]:g}..{v[1]:g}"
+        return _WORLDS.format(**{k: rr(W[k]) for k in ("cyl_d", "cyl_h", "hole", "stick_d", "stick_h", "board", "board_t", "size", "density", "x", "y")},
+                              distractors=W["distractors"], extras=W["extras"], parts=W["parts"])
+
+    def _wpath(self, k):
+        return self.dir / "worlds" / f"w{int(k):02d}.py"
+
+    def _world(self, a, key="world", default_newest=False):
+        """The world a call names -> its number, or None (the plain simulator)."""
+        k, n = a.get(key), len(self.state["worlds"])
+        if k is None:
+            if not default_newest:
+                return None
+            if not n:
+                raise ValueError("there is no world yet: write_world first")
+            return n - 1
+        if not self.worlds or isinstance(k, bool) or not isinstance(k, int) or not 0 <= k < n:
+            raise ValueError(f"there is no world w{k}: " + (f"the worlds are w0 to w{n - 1}" if n else "write_world makes the first"))
+        return k
+
+    def _new_world(self, code, note, base=None):
+        bad = practice.check_world(code)
+        if bad:
+            return [text("NOT saved, the world is not allowed:\n  " + "\n  ".join(bad) + "\n" + practice.RULES)]
+        st = self.state
+        k = len(st["worlds"])
+        self._wpath(k).write_text(code if code.endswith("\n") else code + "\n")
+        st["worlds"].append(dict(note=str(note)[:600], lines=len(code.splitlines()), base=base, at=dict(turn=st.get("turn", 0), usd=round(self.spent(), 2))))
+        return [text(f"saved as w{k} ({st['worlds'][k]['lines']} lines)")]
+
+    def _t_write_world(self, a):
+        return self._new_world(a["code"], a.get("note", ""))
+
+    def _t_edit_world(self, a):
+        base = self._world(a, "base", default_newest=True)
+        code, bad = self._wpath(base).read_text(), []
+        for k, e in enumerate(a["edits"]):
+            n = code.count(e["old"]) if e["old"] else 0
+            if n != 1:
+                bad.append(f"edit {k + 1}: its `old` text occurs {n} times in the world (after the edits before it), not once: {e['old'][:80]!r}")
+            else:
+                code = code.replace(e["old"], e["new"])
+        if bad:
+            return [text(f"NOT saved (w{base} is unchanged; no edit was applied):\n  " + "\n  ".join(bad))]
+        return self._new_world(code, a.get("note", ""), base)
+
+    def _t_read_world(self, a):
+        k = self._world(a, default_newest=True)
+        lines = self._wpath(k).read_text().splitlines()
+        k0 = max(1, int(a.get("start_line") or 1)); k1 = min(len(lines), int(a.get("end_line") or len(lines)))
+        m = self.state["worlds"][k]
+        return [text(f"w{k} ({len(lines)} lines; {m['note']}), lines {k0} to {k1}:\n" + "\n".join(f"{i:4d}| {lines[i - 1]}" for i in range(k0, k1 + 1)))]
+
+    def _worlds_text(self):
+        """The worlds, for the text of a new conversation."""
+        ws = self.state.get("worlds") or []
+        if not self.worlds:
+            return ""
+        return ("\n\nYour worlds (read_world):\n" + ("\n".join(f"w{k} ({m['lines']} lines{', from w' + str(m['base']) if m.get('base') is not None else ''}): {m['note']}"
+                                                                 for k, m in enumerate(ws)) or "none yet"))
 
     def _eval_names(self):
         return [f"E{k}" for k in range(EVAL_SET[1])] if self.eval_set else []
@@ -1060,7 +1227,8 @@ class SceneSession(Session):
             dis_dis=T["dis_dis"], ruler=f"{scenes.RULER[0]:g}..{scenes.RULER[1]:g}",
             **{key: r(key) for key in ("cyl_d", "cyl_h", "density", "stick_d", "stick_h", "yaw", "clearance", "board", "board_t", "dis_size",
                                        "dis_h", "x", "y", "dis_x", "dis_y")}).replace(
-            *(_NO_PROGRAM if self.state.get("continued") else ("", ""))) + self._real_closing()
+            *(_NO_PROGRAM if self.state.get("continued") else ("", ""))) + self._worlds_closing() + self._real_closing() + (
+            _SUMMARY if self.want_summary and self.real is None else "")
 
     def _intro(self):
         return (self.task.text + " " + ASK_VARIED + (ASK_TABLES if self.tables else "") + (ASK_REAL if self.real is not None else "")
@@ -1079,6 +1247,10 @@ class SceneSession(Session):
         if (self.source / "runs").exists() and not (self.dir / "runs").exists():
             shutil.copytree(self.source / "runs", self.dir / "runs", ignore=shutil.ignore_patterns("*.mp4"))
         sub_ = int(src["submitted"])
+        if (self.source / "worlds").exists():
+            for f in sorted((self.source / "worlds").glob("w*.py")):
+                shutil.copy(f, self.dir / "worlds" / f.name)
+            st["worlds"] = list(src.get("worlds") or [])
         st.update(versions=src["versions"], scenes=src["scenes"], n_scenes=src["n_scenes"], notes=src.get("notes", ""), submitted=sub_,
                   eval_set=self.eval_set, tables=self.tables,
                   continued=dict(source=str(self.source), submitted=sub_, versions=len(src["versions"]), usd=src.get("usd")))
@@ -1089,8 +1261,8 @@ class SceneSession(Session):
             real = f"{len(ran)} episode{'s' if len(ran) != 1 else ''}, " + ", ".join(ran)
         else:
             real = "no episode is given"
-        t = self._intro() + _CONTINUED.format(sub=sub_, versions=vs, results=self.results_line(), notes=st["notes"] or "(none)", real=real,
-                                              code=self._path(sub_).read_text())
+        t = self._intro() + _CONTINUED.format(sub=sub_, versions=vs, results=self.results_line(), notes=(st["notes"] or "(none)") + self._worlds_text(),
+                                              real=real, code=self._path(sub_).read_text())
         return [{"role": "user", "content": [{"type": "input_text", "text": t}]}], []
 
     def _first(self):
@@ -1112,7 +1284,10 @@ class SceneSession(Session):
         out, ev = [], set(self._eval_names())
         for v, m in enumerate(self.state["versions"]):
             parts = []
-            for what, runs in (("", [r for s, r in m["runs"].items() if s not in ev]), ("self-evaluation set ", [r for s, r in m["runs"].items() if s in ev])):
+            ws = sorted({s.split("@")[1] for s in m["runs"] if "@" in s}, key=lambda w: int(w[1:]))
+            for what, runs in ([("", [r for s, r in m["runs"].items() if s not in ev and "@" not in s]),
+                                ("self-evaluation set ", [r for s, r in m["runs"].items() if s in ev])]
+                               + [(f"in {w} ", [r for s, r in m["runs"].items() if s.endswith("@" + w)]) for w in ws]):
                 if runs:
                     ok = [r[1] for r in runs if r[0]]
                     parts.append(f"{what}{len(ok)}/{len(runs)}" + (f" ({sum(ok) / len(ok):.0f} s)" if ok else ""))
@@ -1257,25 +1432,30 @@ class SceneSession(Session):
     def _run_dir(self, v, name):
         return self.dir / "runs" / f"v{v:02d}" / str(name)
 
-    def _run(self, v, names):
-        new = [n for n in names if not (self._run_dir(v, n) / "result.json").exists()]
+    def _run(self, v, names, world=None):
+        """Run version v on the scenes `names` (those not yet run), in the plain simulator or in world w<world>: the
+        episode is then kept as <scene>@w<world>."""
+        key = (lambda n: n) if world is None else (lambda n: f"{n}@w{world}")
+        new = [n for n in names if not (self._run_dir(v, key(n)) / "result.json").exists()]
         if new:
             if self.segmenter and self.bridge is None:
                 self.bridge = practice.SegmenterBridge()
             sc = self.state["scenes"]
+            wf = None if world is None else self._wpath(world)
             with ThreadPoolExecutor(len(new)) as ex:                # (practice.SLOTS bounds how many run at the same time)
-                list(ex.map(lambda n: practice.run_sandboxed(self.env, self.task.name, sc[n]["seed"], self._path(v), self._run_dir(v, n),
+                list(ex.map(lambda n: practice.run_sandboxed(self.env, self.task.name, sc[n]["seed"], self._path(v), self._run_dir(v, key(n)),
                                                               sensors=self.sensors, trace=True, bridge=self.bridge, wall_s=900.0,
-                                                              scene=sc[n], practice=True), new))
+                                                              scene=sc[n], practice=True, world=wf), new))
+        return [key(n) for n in names]
 
     def _t_run_episodes(self, a):
-        v, names = self._version(a), self._names(a["scenes"])
+        v, names, world = self._version(a), self._names(a["scenes"]), self._world(a)
         if not names:
             raise ValueError(f"scenes: which? There are {self._scene_names()}")
-        if sum(not (self._run_dir(v, n) / "result.json").exists() for n in names) > AT_ONCE_SCENES:
+        key = (lambda n: n) if world is None else (lambda n: f"{n}@w{world}")
+        if sum(not (self._run_dir(v, key(n)) / "result.json").exists() for n in names) > AT_ONCE_SCENES:
             raise ValueError(f"at most {AT_ONCE_SCENES} new episodes a call" + (" (run_eval_set runs the whole self-evaluation set)" if self.eval_set else ""))
-        self._run(v, names)
-        return self._results(v, names)
+        return self._results(v, self._run(v, names, world))
 
     def _t_run_eval_set(self, a):
         v, names = self._version(a), self._eval_names()
@@ -1283,11 +1463,14 @@ class SceneSession(Session):
         return self._results(v, names, brief=True)
 
     def _episode(self, a):
-        v, n = self._version(a), str(a["scene"])
-        d = self._run_dir(v, n)
+        v, n, world = self._version(a), str(a["scene"]).split("@")[0], self._world(a)
+        if world is None and "@w" in str(a["scene"]) and str(a["scene"]).split("@w")[1].isdigit():   # ("s3@w1" as the results name it)
+            world = self._world(dict(world=int(str(a["scene"]).split("@w")[1])))
+        key = n if world is None else f"{n}@w{world}"
+        d = self._run_dir(v, key)
         if n not in self.state["scenes"] or not (d / "output.txt").exists():
-            raise ValueError(f"v{v} was not run on a scene {n}")
-        return v, n, d
+            raise ValueError(f"v{v} was not run on a scene {n}" + ("" if world is None else f" in world w{world}"))
+        return v, key, d
 
 
 def _opt(spec):
@@ -1662,6 +1845,8 @@ def main(argv=None):
     ap.add_argument("--real-feedback", help="a pack of real-robot episodes (scripts/real_feedback_pack.py) for the model to study")
     ap.add_argument("--ask", help="more that is asked of the skill, added to the task's text (a session on varied scenes)")
     ap.add_argument("--summary", action="store_true", help="the final submit must carry the model's own summary of the session (kept as summary.md)")
+    ap.add_argument("--worlds", action="store_true",
+                    help="the model writes its own changes to the simulator (worlds: scenes, objects, sensors, the robot's answers)")
     ap.add_argument("--real-scenes", action="store_true",
                     help="with --real-feedback: scenes can be set up like the real rig (scenes.py REAL: hand-written effects)")
     a = ap.parse_args(argv)
@@ -1676,7 +1861,7 @@ def main(argv=None):
     kw = dict(budget_usd=a.budget_usd, sensors=a.sensors, segmenter=bool(a.segmenter), effort=a.effort, max_output_tokens=a.max_output_tokens,
               n_eval=a.eval_episodes, max_hours=a.max_hours, spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
     if a.task in ("pick_clutter", "pick_clutter_one_arm"):
-        if a.start or a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes:
+        if a.start or a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes or a.worlds:
             ap.error("--start, --eval-set, --tables, --continue-from, --real-feedback, --real-scenes: not for pick_clutter")
         ask = lambda label: V.VLM(dict(model=a.model, max_calls_per_episode=practice.ASK["calls"], max_usd_per_episode=practice.ASK["reserve_usd"],
                                        run_usd=a.budget_usd - ASK_KEEP), tag=f"{tag}:ask:{label}")
@@ -1690,14 +1875,14 @@ def main(argv=None):
             st0 = json.loads((out / "state.json").read_text())
             a.eval_set, a.tables = st0.get("eval_set", a.eval_set), st0.get("tables", a.tables)
             a.real_feedback, a.real_scenes = st0.get("real"), st0.get("real_scenes", False)
-            a.ask, a.summary = st0.get("ask") or None, bool(st0.get("summary"))
+            a.ask, a.summary, a.worlds = st0.get("ask") or None, bool(st0.get("summary")), bool(st0.get("worlds_on"))
             a.continue_from = None                                  # (its versions are here already)
         elif a.continue_from:
             src = json.loads((Path(a.continue_from) / "state.json").read_text())
             a.eval_set, a.tables = bool(src.get("eval_set")), bool(src.get("tables"))
         s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, tables=a.tables, real=a.real_feedback, real_scenes=a.real_scenes,
-                         continue_from=a.continue_from, ask=a.ask, summary=a.summary, **kw)
-    elif a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes:
+                         continue_from=a.continue_from, ask=a.ask, summary=a.summary, worlds=a.worlds, **kw)
+    elif a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes or a.worlds:
         ap.error("--eval-set, --tables, --continue-from, --real-feedback, --real-scenes: only for a task with varied scenes")
     else:
         s = Session(out, a.env, a.task, vlm, start=a.start, **kw)

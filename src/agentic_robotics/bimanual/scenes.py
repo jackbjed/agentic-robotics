@@ -53,6 +53,140 @@ TRAIN = dict(stick_d=(8, 20), stick_h=(60, 140), board=(90, 150), board_t=(12, 2
 # does. Hand-written from the live episodes of 2026-11-23; no scene of sample() has any of it.
 REAL = dict(sticks=(1, 3), spacing=(40, 80), board_long=(90, 260), board=(50, 150), x=(-380, -180), y=(-150, 130))
 REAL_EFFECTS = ("false_stops", "scatter", "thin_depth")         # (= core.RIG_EFFECTS)
+# A WORLD's scene (practice.py: world; a session with --worlds): the scene of build() after the session's own world
+# code changed it. Not held to the training limits, only to what the simulation can hold (world_scene checks it):
+#   cylinder   diameter_mm, height_mm, hole_mm, rgb, density, xy_mm, and: sides (its outline and its hole as a polygon
+#              of that many sides; 0 or absent: round), z_mm (the height its bottom stands at: on something)
+#   stand      board_mm, stick_diameter_mm, stick_height_mm, rgb, stick_rgb, density, xy_mm, yaw_deg, and: sticks,
+#              stick_spacing_mm (several sticks in a row along the board's first side), z_mm
+#   distractors  any number up to WORLD["distractors"], any shape of _distractor_geoms, with z_mm
+#   extras     further bodies made of parts: {"parts": [{"type": box | cylinder | ball | capsule, "size_mm", "pos_mm",
+#              "euler_deg", "rgb"}], "xy_mm", "yaw_deg", "z_mm", "density", "fixed": true (part of the table) | false}
+#   arm        "left": the left arm alone, within the real rig's limits (core.BiCore.only)
+WORLD = dict(cyl_d=(8, 160), cyl_h=(4, 160), hole=(3, 130), wall=1.5, sides=(3, 24), stick_d=(3, 60), stick_h=(10, 400), sticks=(1, 5),
+             spacing=(10, 300), board=(20, 450), board_t=(2, 80), z=(0, 300), size=(3, 400), density=(30, 9000), x=(-700, 150), y=(-600, 600),
+             distractors=8, extras=12, parts=10, part=(1, 500), pos=(-400, 400))
+PARTS = dict(box=3, cylinder=2, ball=1, capsule=2)              # an extra's parts: how many sizes each has (mm)
+DIS_SIZES = dict(box=3, cylinder=2, ball=1, pill=2, L=3, steps=3)
+
+
+def _rgb3(v, what):
+    if not isinstance(v, (list, tuple)) or len(v) != 3 or any(isinstance(c, bool) or not isinstance(c, (int, float)) or not 0 <= c <= 255 for c in v):
+        raise ValueError(f"{what}: rgb is three numbers 0..255")
+    return [int(round(c)) for c in v]
+
+
+def _xy(v, what):
+    W = WORLD
+    if not isinstance(v, (list, tuple)) or len(v) != 2:
+        raise ValueError(f"{what}: xy_mm is [x, y]")
+    return [_num(dict(v=v[0]), "v", W["x"], what + ".xy_mm x"), _num(dict(v=v[1]), "v", W["y"], what + ".xy_mm y")]
+
+
+def world_scene(sc):
+    """A scene as a world's code returned it -> the scene the simulation builds: every value checked against WORLD
+    (ValueError with the reason), unknown fields refused, nothing else changed."""
+    W = WORLD
+    if not isinstance(sc, dict):
+        raise ValueError("a world's scene(...) returns the scene: a dict")
+    _known(sc, ("seed", "cylinder", "stand", "distractors", "ood", "table", "extras", "arm", "rig"), "scene")
+    out = dict(seed=int(sc.get("seed", 0)), ood=list(sc.get("ood") or []))
+    c, s_ = sc.get("cylinder"), sc.get("stand")
+    if not isinstance(c, dict) or not isinstance(s_, dict):
+        raise ValueError("the scene has a cylinder and a stand")
+    _known(c, ("diameter_mm", "height_mm", "hole_mm", "color", "rgb", "density", "xy_mm", "sides", "z_mm"), "cylinder")
+    _known(s_, ("board_mm", "stick_diameter_mm", "stick_height_mm", "color", "rgb", "stick_color", "stick_rgb", "density", "xy_mm", "yaw_deg",
+                "sticks", "stick_spacing_mm", "z_mm"), "stand")
+    need = lambda d, k, r, what: _num(d, k, r, what) if d.get(k) is not None else (_ for _ in ()).throw(ValueError(f"{what} is missing"))
+    cyl = dict(diameter_mm=need(c, "diameter_mm", W["cyl_d"], "cylinder.diameter_mm"), height_mm=need(c, "height_mm", W["cyl_h"], "cylinder.height_mm"),
+               hole_mm=need(c, "hole_mm", W["hole"], "cylinder.hole_mm"), color=str(c.get("color", "")), rgb=_rgb3(c.get("rgb"), "cylinder"),
+               density=need(c, "density", W["density"], "cylinder.density"), xy_mm=_xy(c.get("xy_mm"), "cylinder"))
+    if cyl["diameter_mm"] < cyl["hole_mm"] + 2 * W["wall"]:
+        raise ValueError(f"cylinder: its wall would be under {W['wall']:g} mm ({cyl['diameter_mm']:g} across, hole {cyl['hole_mm']:g})")
+    if c.get("sides"):
+        cyl["sides"] = int(_num(c, "sides", W["sides"], "cylinder.sides"))
+    b = s_.get("board_mm")
+    if not isinstance(b, (list, tuple)) or len(b) != 3:
+        raise ValueError("stand.board_mm: [side, side, thickness]")
+    bd = dict(a=b[0], b=b[1], t=b[2])
+    stand = dict(board_mm=[_num(bd, "a", W["board"], "stand.board_mm side"), _num(bd, "b", W["board"], "stand.board_mm side"),
+                           _num(bd, "t", W["board_t"], "stand.board_mm thickness")],
+                 stick_diameter_mm=need(s_, "stick_diameter_mm", W["stick_d"], "stand.stick_diameter_mm"),
+                 stick_height_mm=need(s_, "stick_height_mm", W["stick_h"], "stand.stick_height_mm"),
+                 color=str(s_.get("color", "")), rgb=_rgb3(s_.get("rgb"), "stand"), stick_color=str(s_.get("stick_color", "")),
+                 stick_rgb=_rgb3(s_.get("stick_rgb"), "stand.stick"), density=need(s_, "density", W["density"], "stand.density"),
+                 xy_mm=_xy(s_.get("xy_mm"), "stand"), yaw_deg=_num(s_, "yaw_deg", (-360, 360), "stand.yaw_deg", 0.0))
+    n = int(_num(s_, "sticks", W["sticks"], "stand.sticks", 1))
+    if n > 1:
+        gap = need(s_, "stick_spacing_mm", W["spacing"], "stand.stick_spacing_mm")
+        if gap < stand["stick_diameter_mm"] + 2 or (n - 1) * gap + stand["stick_diameter_mm"] > stand["board_mm"][0]:
+            raise ValueError(f"stand: {n} sticks {gap:g} mm apart do not stand apart on a board {stand['board_mm'][0]:g} mm long")
+        stand.update(sticks=n, stick_spacing_mm=gap)
+    for d, src, what in ((cyl, c, "cylinder"), (stand, s_, "stand")):
+        if src.get("z_mm"):
+            d["z_mm"] = _num(src, "z_mm", W["z"], what + ".z_mm")
+    dis = sc.get("distractors") or []
+    if not isinstance(dis, list) or len(dis) > W["distractors"]:
+        raise ValueError(f"distractors: a list of at most {W['distractors']}")
+    out_d = []
+    for k, d in enumerate(dis):
+        what = f"distractors[{k}]"
+        if not isinstance(d, dict) or d.get("shape") not in DIS_SIZES:
+            raise ValueError(f"{what}: a dict whose shape is one of {', '.join(DIS_SIZES)}")
+        _known(d, ("shape", "size_mm", "color", "rgb", "density", "xy_mm", "yaw_deg", "z_mm"), what)
+        z = d.get("size_mm")
+        if not isinstance(z, (list, tuple)) or len(z) != DIS_SIZES[d["shape"]]:
+            raise ValueError(f"{what}.size_mm: {DIS_SIZES[d['shape']]} numbers for a {d['shape']}")
+        o = dict(shape=d["shape"], size_mm=[_num(dict(v=v), "v", W["size"], what + ".size_mm") for v in z], color=str(d.get("color", "")),
+                 rgb=_rgb3(d.get("rgb"), what), density=need(d, "density", W["density"], what + ".density"), xy_mm=_xy(d.get("xy_mm"), what),
+                 yaw_deg=_num(d, "yaw_deg", (-360, 360), what + ".yaw_deg", 0.0))
+        if d.get("z_mm"):
+            o["z_mm"] = _num(d, "z_mm", W["z"], what + ".z_mm")
+        out_d.append(o)
+    ex = sc.get("extras") or []
+    if not isinstance(ex, list) or len(ex) > W["extras"]:
+        raise ValueError(f"extras: a list of at most {W['extras']}")
+    out_e = []
+    for k, e in enumerate(ex):
+        what = f"extras[{k}]"
+        if not isinstance(e, dict):
+            raise ValueError(f"{what}: a dict")
+        _known(e, ("name", "parts", "xy_mm", "yaw_deg", "z_mm", "density", "fixed"), what)
+        parts = e.get("parts")
+        if not isinstance(parts, list) or not 1 <= len(parts) <= W["parts"]:
+            raise ValueError(f"{what}.parts: a list of 1 to {W['parts']} parts")
+        ps = []
+        for i, q in enumerate(parts):
+            w2 = f"{what}.parts[{i}]"
+            if not isinstance(q, dict) or q.get("type") not in PARTS:
+                raise ValueError(f"{w2}: a dict whose type is one of {', '.join(PARTS)}")
+            _known(q, ("type", "size_mm", "pos_mm", "euler_deg", "rgb"), w2)
+            z = q.get("size_mm")
+            if not isinstance(z, (list, tuple)) or len(z) != PARTS[q["type"]]:
+                raise ValueError(f"{w2}.size_mm: {PARTS[q['type']]} numbers for a {q['type']} (box: three sides; cylinder, capsule: diameter, length; ball: diameter)")
+            pos, eul = q.get("pos_mm", [0, 0, 0]), q.get("euler_deg", [0, 0, 0])
+            if not isinstance(pos, (list, tuple)) or len(pos) != 3 or not isinstance(eul, (list, tuple)) or len(eul) != 3:
+                raise ValueError(f"{w2}: pos_mm and euler_deg are three numbers each")
+            ps.append(dict(type=q["type"], size_mm=[_num(dict(v=v), "v", W["part"], w2 + ".size_mm") for v in z],
+                           pos_mm=[_num(dict(v=v), "v", W["pos"], w2 + ".pos_mm") for v in pos],
+                           euler_deg=[_num(dict(v=v), "v", (-360, 360), w2 + ".euler_deg") for v in eul], rgb=_rgb3(q.get("rgb"), w2)))
+        out_e.append(dict(name=str(e.get("name") or f"extra {k}")[:40], parts=ps, xy_mm=_xy(e.get("xy_mm"), what),
+                          yaw_deg=_num(e, "yaw_deg", (-360, 360), what + ".yaw_deg", 0.0), z_mm=_num(e, "z_mm", W["z"], what + ".z_mm", 0.0),
+                          density=_num(e, "density", W["density"], what + ".density", 600.0), fixed=bool(e.get("fixed", False))))
+    out.update(cylinder=cyl, stand=stand, distractors=out_d)
+    if out_e:
+        out["extras"] = out_e
+    if sc.get("table") is not None:
+        out["table"] = sc["table"]
+    if sc.get("arm") is not None:
+        if sc["arm"] != "left":
+            raise ValueError('arm: "left" (the left arm alone, within the real rig\'s limits) or absent')
+        out["arm"] = "left"
+    if sc.get("rig") is not None:                                   # (a scene like the real rig stays one: scenes.REAL)
+        out["rig"] = dict(sc["rig"])
+    return out
+
+
 COLOURS = {"red": (200, 40, 40), "green": (40, 150, 60), "blue": (40, 90, 205), "yellow": (230, 200, 40),
            "white": (235, 235, 230), "grey": (140, 140, 145), "wood": (224, 181, 102)}
 SHAPES = ("box", "cylinder")                                    # size_mm: [side, side, height] | [diameter, height]
@@ -498,6 +632,15 @@ def describe(sc):
     for k, d in enumerate(sc["distractors"]):
         out += (f"; distractor_{k}: {d['color']} {d['shape']} {' x '.join(f'{v:g}' for v in d['size_mm'])} at ({d['xy_mm'][0]:g}, {d['xy_mm'][1]:g})")
     out += " (mm)"
+    if c.get("sides"):
+        out += f"; the cylinder's outline has {c['sides']} sides"
+    for what, o in (("the cylinder", c), ("the stand", s)):
+        if o.get("z_mm"):
+            out += f"; {what} stands {o['z_mm']:g} above the table"
+    for k, e in enumerate(sc.get("extras") or []):
+        out += (f"; extra_{k} \"{e['name']}\" ({'fixed' if e['fixed'] else 'free'}: "
+                + " + ".join(f"{q['type']} {' x '.join(f'{v:g}' for v in q['size_mm'])}" for q in e["parts"])
+                + f") at ({e['xy_mm'][0]:g}, {e['xy_mm'][1]:g}, {e['z_mm']:g})")
     if sc.get("rig") is not None:
         on = [k for k in REAL_EFFECTS if sc["rig"].get(k)]
         out += "; like the real robot (the left arm alone" + ("".join(", " + k for k in on) if on else ", no effects") + ")"
@@ -510,11 +653,21 @@ def describe(sc):
 
 # ---------------------------------------------------------------------- the simulation's model
 def layout(sc):
-    """{object: (x, y, yaw_deg)} in m, for core.BiCore.reset."""
-    out = {"stick_stand": (sc["stand"]["xy_mm"][0] / 1000, sc["stand"]["xy_mm"][1] / 1000, sc["stand"]["yaw_deg"]),
-           "cylinder": (sc["cylinder"]["xy_mm"][0] / 1000, sc["cylinder"]["xy_mm"][1] / 1000, 0.0)}
+    """{object: (x, y, yaw_deg)} in m, for core.BiCore.reset; an object that stands on something (z_mm, a world's
+    scene) and a world's free extras: their whole pose (x, y, z, qw, qx, qy, qz), z above the table."""
+    def at(o, yaw):
+        x, y = o["xy_mm"][0] / 1000, o["xy_mm"][1] / 1000
+        if not o.get("z_mm"):
+            return (x, y, yaw)
+        h = math.radians(yaw) / 2
+        return (x, y, o["z_mm"] / 1000 + 0.0005, math.cos(h), 0.0, 0.0, math.sin(h))
+    out = {"stick_stand": at(sc["stand"], sc["stand"]["yaw_deg"]), "cylinder": at(sc["cylinder"], 0.0)}
     for k, d in enumerate(sc["distractors"]):
-        out[f"distractor_{k}"] = (d["xy_mm"][0] / 1000, d["xy_mm"][1] / 1000, d["yaw_deg"])
+        out[f"distractor_{k}"] = at(d, d["yaw_deg"])
+    for k, e in enumerate(sc.get("extras") or []):
+        if not e["fixed"]:
+            h = math.radians(e["yaw_deg"]) / 2
+            out[f"extra_{k}"] = (e["xy_mm"][0] / 1000, e["xy_mm"][1] / 1000, e["z_mm"] / 1000 + 0.0005, math.cos(h), 0.0, 0.0, math.sin(h))
     return out
 
 
@@ -543,9 +696,10 @@ def _cylinder(body, c):
     apothem the hole's radius), standing on FEET points per end face. The boxes overlap: their density is scaled so
     that the cylinder weighs what a ring of its size and density does."""
     R, H, r_in = c["diameter_mm"] / 2000, c["height_mm"] / 1000, c["hole_mm"] / 2000
+    WALLS = int(c.get("sides") or globals()["WALLS"])               # (a world's scene: a polygon of that many sides)
     t = R - r_in; rc = r_in + t / 2
     hw = R * math.tan(math.pi / WALLS) * 1.05
-    lift = 0.0003
+    lift = min(0.0003, H / 8)
     dens = c["density"] * math.pi * (R * R - r_in * r_in) * H / (WALLS * t * 2 * hw * (H - 2 * lift))
     for k in range(WALLS):
         a = 2 * math.pi * k / WALLS
@@ -557,6 +711,17 @@ def _cylinder(body, c):
             a = 2 * math.pi * (k + 0.5) / FEET
             _geom(body, f"cyl_{end}{k}", "sphere", (FOOT_R,), (at * math.cos(a), at * math.sin(a), z), c["rgb"], 0.0,
                   priority="1", solref="0.004 1")
+
+
+def _extra_geoms(body, k, e):
+    """A world's extra: its parts as geoms of `body`, each at its own pose in the extra's frame (pos_mm: the part's
+    centre from the extra's reference point, which stands at xy_mm, z_mm above the table)."""
+    for i, q in enumerate(e["parts"]):
+        z = [v / 1000 for v in q["size_mm"]]
+        size = {"box": tuple(v / 2 for v in z), "cylinder": (z[0] / 2, z[-1] / 2), "ball": (z[0] / 2,),
+                "capsule": (z[0] / 2, max(z[-1] - z[0], 0.001) / 2)}[q["type"]]
+        _geom(body, f"extra{k}_{i}", {"ball": "sphere"}.get(q["type"], q["type"]), size, [v / 1000 for v in q["pos_mm"]], q["rgb"], e["density"],
+              euler=" ".join(f"{math.radians(v):.5f}" for v in q["euler_deg"]))
 
 
 def _distractor_geoms(body, k, d):
@@ -600,6 +765,18 @@ def model_xml(path, sc):
         b = ET.SubElement(wb, "body", name=f"obj_distractor_{k}", pos=f"{0.30 + 0.15 * k:.2f} 0.10 0.0005")
         ET.SubElement(b, "freejoint", name=f"obj_distractor_{k}_free")
         _distractor_geoms(b, k, d)
+    free = 0
+    th = float(sc["table"]["height_mm"]) / 1000 if sc.get("table") else 0.0
+    for k, e in enumerate(sc.get("extras") or []):                  # (a world's scene)
+        if e["fixed"]:                                              # part of the table: a body without a joint
+            b = ET.SubElement(wb, "body", name=f"fixed_extra_{k}", pos=f"{e['xy_mm'][0] / 1000:.5f} {e['xy_mm'][1] / 1000:.5f} {e['z_mm'] / 1000 + th:.5f}",
+                              euler=f"0 0 {math.radians(e['yaw_deg']):.5f}")
+            _extra_geoms(b, k, e)
+        else:
+            b = ET.SubElement(wb, "body", name=f"obj_extra_{k}", pos=f"{0.30 + 0.15 * k:.2f} 0.40 0.0005")
+            ET.SubElement(b, "freejoint", name=f"obj_extra_{k}_free")
+            _extra_geoms(b, k, e)
+            free += 1
     t = sc.get("table")
     if t:                                                           # another table: higher or lower, another colour or a pattern
         h = t["height_mm"] / 1000
@@ -619,5 +796,5 @@ def model_xml(path, sc):
             ET.SubElement(asset, "material", name="table", texture="table", specular="0.1", shininess="0.1")
             del top.attrib["rgba"]; top.set("material", "table")
     key = root.find("keyframe").find("key")                         # (the new bodies are the last: their qpos too)
-    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * len(sc["distractors"]))
+    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * (len(sc["distractors"]) + free))
     return ET.tostring(root, encoding="unicode")

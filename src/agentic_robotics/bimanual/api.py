@@ -60,6 +60,70 @@ class Frame:
         c = (np.atleast_2d(np.asarray(xyz, float)) - self.eye) @ self.R; z = c[:, 2]
         return np.c_[self.fx * c[:, 0] / z + self.cx, self.fy * c[:, 1] / z + self.cy], z
 
+    def with_pixels(self, rgb=None, depth=None):
+        """This frame with other pixels (a world's code: practice.py): rgb (H, W, 3 uint8) and/or depth (H, W; mm,
+        nan = none), of this frame's size; the camera, its pose and the time stay."""
+        o = dict(self._o)
+        if rgb is not None:
+            rgb = np.ascontiguousarray(np.asarray(rgb, np.uint8))
+            if rgb.shape != self.rgb.shape:
+                raise ValueError(f"rgb: {self.rgb.shape} uint8")
+            o["rgb"] = rgb
+        if depth is not None:
+            depth = np.asarray(depth, float)
+            if depth.shape != self.depth.shape:
+                raise ValueError(f"depth: {self.depth.shape}, mm, nan where there is none")
+            o["depth"] = np.where(np.isfinite(depth) & (depth > 0), depth, np.nan) / 1000.0
+        return Frame(o)
+
+
+class WorldRobot:
+    """The robot a program gets in a WORLD (practice.py): every call is passed on to the simulation's robot
+    (self.robot). A world's code subclasses it and overrides what its world does differently (a move that stops
+    short, a frame without depth, a wait after every move, ...), calling self.robot or super() for the rest."""
+
+    def __init__(self, robot):
+        self.robot = robot
+
+    def look(self, cameras=None):
+        return self.robot.look(cameras)
+
+    def state(self, arm):
+        return self.robot.state(arm)
+
+    def move(self, arm, xyz, dir_a, dir_b, stop_on_contact=False):
+        return self.robot.move(arm, xyz, dir_a, dir_b, stop_on_contact)
+
+    def turn(self, arm, centre, axis, angle_deg):
+        return self.robot.turn(arm, centre, axis, angle_deg)
+
+    def home(self, arm):
+        return self.robot.home(arm)
+
+    def wait(self, seconds):
+        return self.robot.wait(seconds)
+
+    def time_s(self):
+        return self.robot.time_s()
+
+    def set_gripper(self, arm, width_mm):
+        return self.robot.set_gripper(arm, width_mm)
+
+    def segment(self, frame, phrase):
+        return self.robot.segment(frame, phrase)
+
+    def show(self, label, image):
+        return self.robot.show(label, image)
+
+    def truth(self):
+        return self.robot.truth()
+
+    def judge(self):
+        return self.robot.judge()
+
+    def ask(self, question, images=(), effort="low"):
+        return self.robot.ask(question, images, effort)
+
 
 PARK_Y = -280.0                                                 # mm: beyond it the real rig's right arm stands parked (real.py)
 
@@ -146,8 +210,8 @@ class Robot:
         the gripper's TCP / the palm's centre. closing_dir's sign does not matter (the nearer of the two wrist angles
         is taken). stop_on_contact: 4 cm/s, stops at about 4 N of new force on the arm."""
         xyz = np.asarray(xyz, float).reshape(3)
-        if arm == "right" and getattr(self.S, "fx", None) and "right" not in self.ARMS and np.all(np.isfinite(xyz)) and xyz[1] < PARK_Y:
-            self._time()                                            # a real-like scene (core.RIG_EFFECTS), as the real rig
+        if arm == "right" and "right" not in self.ARMS and np.all(np.isfinite(xyz)) and xyz[1] < PARK_Y:
+            self._time()                                            # a one-armed scene, as the real rig
             return dict(done=True, moved=True, why="", curved=False)   # answers it (real.py): the right arm stands parked there
         P = self._arm(arm)
         lo = 10.0 if self.kind == "grippers" else 5.0

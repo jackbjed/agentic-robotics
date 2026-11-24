@@ -83,14 +83,27 @@ SLOTS = 14                                                      # sandboxed epis
                                                                 # with EGL: beyond about 16 at once, framebuffers fail)
 
 
-def check_program(code):
-    """-> the reasons this program is not run (none: []): it must parse, define run(robot, task) and keep RULES."""
+WORLD_FUNCTIONS = ("scene", "robot")                             # what a world's code may define (at least one)
+
+
+def check_world(code):
+    """-> the reasons this world is not used (none: []): it must parse, define scene(scene, rng) and/or
+    robot(robot, rng, kit), and keep RULES (a world's code runs where the program runs)."""
+    return check_program(code, needs=WORLD_FUNCTIONS)
+
+
+def check_program(code, needs=None):
+    """-> the reasons this program is not run (none: []): it must parse, define run(robot, task) and keep RULES.
+    needs: a world's code instead (check_world): one of these functions."""
     try:
         tree = ast.parse(code)
     except SyntaxError as e:
         return [f"line {e.lineno}: syntax error: {e.msg}"]
     bad = []
-    if not any(isinstance(n, ast.FunctionDef) and n.name == "run" for n in tree.body):
+    if needs:
+        if not any(isinstance(n, ast.FunctionDef) and n.name in needs for n in tree.body):
+            bad.append("it defines neither scene(scene, rng) nor robot(robot, rng, kit)")
+    elif not any(isinstance(n, ast.FunctionDef) and n.name == "run" for n in tree.body):
         bad.append("it does not define run(robot, task)")
     for n in ast.walk(tree):
         at = f"line {getattr(n, 'lineno', '?')}: "
@@ -175,6 +188,10 @@ def _result(r):
     if isinstance(r, dict):
         return ", ".join(f"{k}: {_fmt(v)}" if not isinstance(v, (dict, list)) or len(v) <= 4 else str(k) for k, v in r.items())[:90]
     return ""
+
+
+class _WorldError(Exception):
+    pass
 
 
 class ProgramRobot:
@@ -348,33 +365,96 @@ def _recv(s, n):
     return bytes(b)
 
 
+class WorldKit:
+    """What a world's robot(robot, rng, kit) gets to build with: kit.Robot (api.WorldRobot: the robot that passes every
+    call on) and kit.frame(f, rgb=None, depth=None) (a Frame with other pixels: depth in mm, nan = none)."""
+    from .api import WorldRobot as Robot
+
+    @staticmethod
+    def frame(f, rgb=None, depth=None):
+        return f.with_pixels(rgb=rgb, depth=depth)
+
+
+def _world(path, scene, seed, log):
+    """A session's world code (a file: scene(scene, rng) -> the scene to build, robot(robot, rng, kit) -> the robot the
+    program gets) -> (its namespace or None, the scene to build, why it cannot be used or None). Its prints and its
+    traceback go to the episode's log."""
+    from . import scenes
+    code = Path(path).read_text()
+    bad = check_world(code)
+    if bad:
+        return None, scene, "refused: " + "; ".join(bad)
+    linecache.cache["world.py"] = (len(code), None, code.splitlines(True), "world.py")
+    with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+        try:
+            ns = {"__name__": "world"}
+            exec(compile(code, "world.py", "exec"), ns)
+            if "scene" in ns:
+                if scene is None or scene_module(scene) is not scenes:
+                    raise ValueError("a world's scene() changes the scenes of the cylinder and the stick only")
+                sc = ns["scene"](json.loads(json.dumps(scene)), np.random.default_rng([int(seed), 77]))
+                scene = scenes.world_scene(sc)
+            return ns, scene, None
+        except (Exception, SystemExit) as e:
+            traceback.print_exc(limit=-6)
+            return None, scene, f"{type(e).__name__}: {str(e)[:300]}"
+
+
 def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_socket=None, video=False, time_limit_s=None,
-            scene=None, practice=False, ask_socket=None, ask_token=None):
+            scene=None, practice=False, ask_socket=None, ask_token=None, world=None):
     """One episode of the program, in this process -> the result (also out/result.json). scene: a scene (scenes.py) or
     its JSON file, in place of the task's own for the seed. ask_socket, ask_token: the program has robot.ask
-    (AskBridge); the result then also has model_calls, model_usd and model_wait_s (robot time spent waiting)."""
+    (AskBridge); the result then also has model_calls, model_usd and model_wait_s (robot time spent waiting).
+    world: a session's world code (a file): the scene is built as its scene() returns it, and the program gets the
+    robot its robot() returns; the judge and the truth stay the simulation's. A world that cannot be used: the
+    program is not run (ended: "world: ...")."""
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     code = Path(program).read_text()
     t0 = time.time()
     if scene is not None and not isinstance(scene, dict):
         scene = json.loads(Path(scene).read_text())
-    ep = Episode(env, task, seed=seed, sensors=sensors, record=video, time_limit_s=time_limit_s,
-                 segmenter=SocketSegmenter(seg_socket) if seg_socket else None, scene=scene)
-    start = truth(ep)
-    bad = check_program(code)
     with open(out / "output.txt", "w", buffering=1) as log:
+        wns, w_why = None, None
+        if world:
+            wns, scene, w_why = _world(world, scene, seed, log)
+        try:
+            ep = Episode(env, task, seed=seed, sensors=sensors, record=video, time_limit_s=time_limit_s,
+                         segmenter=SocketSegmenter(seg_socket) if seg_socket else None, scene=scene)
+        except Exception as e:                                      # a world's scene the simulation cannot build
+            if not world or w_why:
+                raise
+            log.write(f"# the world's scene could not be built: {type(e).__name__}: {str(e)[:500]}\n")
+            w_why = f"its scene could not be built ({type(e).__name__}: {str(e)[:200]})"
+            scene = json.loads(Path(out / "scene.json").read_text()) if (out / "scene.json").exists() else None
+            ep = Episode(env, task, seed=seed, sensors=sensors, record=video, time_limit_s=time_limit_s,
+                         segmenter=SocketSegmenter(seg_socket) if seg_socket else None, scene=scene)
+        start = truth(ep)
+        bad = check_program(code)
         robot = ProgramRobot(ep, out, log if trace else None, practice=practice,
                              asker=SocketAsker(ask_socket, ask_token) if ask_socket else None)
-        if bad:
+        if w_why:
+            how = "world: " + w_why
+        elif bad:
             how = "refused: " + "; ".join(bad)
         else:
             linecache.cache["program.py"] = (len(code), None, code.splitlines(True), "program.py")
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
                 try:
+                    given = robot
+                    if wns is not None and "robot" in wns:
+                        try:
+                            given = wns["robot"](robot, np.random.default_rng([int(seed), 78]), WorldKit)
+                            if given is None or not all(hasattr(given, n) for n in ("look", "state", "move", "time_s")):
+                                raise ValueError("a world's robot(robot, rng, kit) returns the robot the program gets (a kit.Robot)")
+                        except (Exception, SystemExit) as e:
+                            traceback.print_exc(limit=-6)
+                            raise _WorldError(f"world: its robot() failed ({type(e).__name__}: {str(e)[:200]})")
                     ns = {"__name__": "program"}
                     exec(compile(code, "program.py", "exec"), ns)
-                    ns["run"](robot, ep.text)
+                    ns["run"](given, ep.text)
                     how = "returned"
+                except _WorldError as e:
+                    how = str(e)
                 except TimeUp as e:
                     how = f"time: {e}"
                 except (Exception, SystemExit) as e:                # the program's own failure: the scene is judged as it is
@@ -515,7 +595,7 @@ def _slot():
 
 
 def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, bridge=None, video=False, time_limit_s=None,
-                  wall_s=WALL_S, scene=None, practice=False, asker=None, ask_label=None):
+                  wall_s=WALL_S, scene=None, practice=False, asker=None, ask_label=None, world=None):
     """One episode of the program in the sandbox -> its result (dict(ok=False, ended=...) if the process gave none).
     scene: a scene dict (kept as out/scene.json) in place of the task's own; practice: see the module's text;
     asker: an AskBridge (the program has robot.ask; with a SegmenterBridge too, in its directory)."""
@@ -538,6 +618,9 @@ def run_sandboxed(env, task, seed, program, out, sensors="d415", trace=False, br
     if scene is not None:
         (out / "scene.json").write_text(json.dumps(scene) + "\n")
         cmd += ["--scene", str(out / "scene.json")]
+    if world is not None:                                           # (a session's world code: kept with the episode, as its scene is)
+        (out / "world.py").write_text(Path(world).read_text())
+        cmd += ["--world", str(out / "world.py")]
     devices = [d for d in sorted(glob.glob("/dev/nvidia*")) + ["/dev/dri"] if Path(d).exists()]
     sock_dir = bridge.dir if bridge is not None else asker.dir if asker is not None else out
     full = sandbox.program_cmd(cmd, program.parent, out, sock_dir, devices=devices,
@@ -613,6 +696,7 @@ def main(argv=None):
             p.add_argument("--ask-token")
             p.add_argument("--scene", help="a scene's JSON file (scenes.py), in place of the task's own for the seed")
             p.add_argument("--practice", action="store_true", help="robot.truth() and robot.judge() give the TRUE state")
+            p.add_argument("--world", help="a session's world code (scene(scene, rng), robot(robot, rng, kit)): the episode runs in that world")
         else:
             p.add_argument("--seeds", required=True, help='e.g. "0-2,4-10"')
             p.add_argument("--jobs", type=int, default=5)
@@ -621,7 +705,7 @@ def main(argv=None):
     if a.cmd == "episode":
         v = episode(a.env, a.task, a.seed, a.program, a.out, sensors=a.sensors, trace=a.trace, seg_socket=a.segmenter_socket,
                     video=a.video, time_limit_s=a.time_limit, scene=a.scene, practice=a.practice, ask_socket=a.ask_socket,
-                    ask_token=a.ask_token)
+                    ask_token=a.ask_token, world=a.world)
         print(json.dumps({k: v[k] for k in ("ok", "seed", "robot_s", "ended")}))
         return 0
     v = suite(a.env, a.task, parse_seeds(a.seeds), a.program, a.out, jobs=a.jobs, segmenter=bool(a.segmenter), sensors=a.sensors,

@@ -919,7 +919,8 @@ class BiCore:
         below, side, top = best
         parts, other = self.touching("cylinder")
         on = bool(below > 0 and side < 0.004)
-        upright = bool(sR[2, 2] > 0.95 and abs(sp[2] - self.table_z) < 0.01)
+        base = self.table_z + float(((self.scene or {}).get("stand") or {}).get("z_mm") or 0.0) / 1000    # (a world's stand on a pad)
+        upright = bool(sR[2, 2] > 0.95 and abs(sp[2] - base) < 0.01)
         return dict(ok=bool(on and not parts and upright), on_stick=on, released=not parts, stand_upright=upright,
                     stick_through_mm=round(float(np.clip(below + h / 2, 0, h)) * 1000, 1) if side < 0.004 else 0.0, off_axis_mm=round(side * 1000, 1),
                     cylinder_xyz_mm=[round(float(x) * 1000) for x in cp], stick_top_xyz_mm=[round(float(x) * 1000) for x in top],
