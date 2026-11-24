@@ -13,6 +13,7 @@ The real robot's arm server is never reachable: it listens on TCP 5590 on the ho
 outside every bound path."""
 from __future__ import annotations
 
+import sys
 import shutil
 from pathlib import Path
 
@@ -50,7 +51,9 @@ def env_ro():
     """The project's environment and platform, read-only (same absolute paths: the venv's links keep working)."""
     R = paths.ROOT
     out = []
-    for p in (R / ".venv", R / ".uv" / "python", R / "src", R / "pyproject.toml"):
+    env = (Path(sys.prefix), Path(sys.base_prefix).parent)         # (a git worktree runs on the main checkout's environment:
+                                                                   # its venv and the directory of the interpreters its links name)
+    for p in dict.fromkeys((R / ".venv", R / ".uv" / "python", R / "src", R / "pyproject.toml") + tuple(e for e in env if R not in e.parents)):
         if p.exists():
             out += ["--ro-bind", str(p), str(p)]
     return out

@@ -120,6 +120,7 @@ def truth(ep):
     out = {n: _mm(S.object_pose(n)[0]) for n in ep.layout}
     if "stick_stand" in out:
         out["stick_top"] = _mm(S.stick_top()[0])
+        out.update({f"stick_top_{k}": _mm(t[0]) for k, t in enumerate(S.stick_tops()) if k})     # (a real-like scene's other sticks)
     if "bottle" in out:
         out["cap"] = _mm(S.cap_pose()[0]); out["cap_unscrewed_deg"] = round(S.cap_angle(), 1)
     return out

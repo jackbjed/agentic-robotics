@@ -61,6 +61,9 @@ class Frame:
         return np.c_[self.fx * c[:, 0] / z + self.cx, self.fy * c[:, 1] / z + self.cy], z
 
 
+PARK_Y = -280.0                                                 # mm: beyond it the real rig's right arm stands parked (real.py)
+
+
 class Robot:
     CAMERAS = tuple(CAMS)
     ARMS = tuple(ARMS)
@@ -142,8 +145,11 @@ class Robot:
         dexterous: fingers_dir (where the straight fingers point), palm_dir (where the palm faces). The tool point is
         the gripper's TCP / the palm's centre. closing_dir's sign does not matter (the nearer of the two wrist angles
         is taken). stop_on_contact: 4 cm/s, stops at about 4 N of new force on the arm."""
-        P = self._arm(arm)
         xyz = np.asarray(xyz, float).reshape(3)
+        if arm == "right" and getattr(self.S, "fx", None) and "right" not in self.ARMS and np.all(np.isfinite(xyz)) and xyz[1] < PARK_Y:
+            self._time()                                            # a real-like scene (core.RIG_EFFECTS), as the real rig
+            return dict(done=True, moved=True, why="", curved=False)   # answers it (real.py): the right arm stands parked there
+        P = self._arm(arm)
         lo = 10.0 if self.kind == "grippers" else 5.0
         if not np.all(np.isfinite(xyz)) or xyz[2] < lo:
             return _refused(f"the tool point may not go below {lo:.0f} mm above the table")

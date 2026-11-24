@@ -47,6 +47,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import numpy as np
+
 from . import clutter, clutter_one_arm, practice, scenes
 from .tasks import TASKS, Episode
 from .tools import Toolbox, openai_items, openai_tools, text
@@ -199,6 +201,87 @@ and patterns that cannot be set up here)."""
 _EVAL_TOOL = """run_eval_set                  run a version on this session's self-evaluation set: the scenes E0 to E{last}, drawn at
                               random within the limits below and fixed (their names also work in list_scenes,
                               run_episodes, read_output and view_images). One line per episode.
+"""
+
+# ---- real episodes back into a session (--continue-from, --real-feedback; --real-scenes: scenes like the real rig)
+ASK_REAL = ("\n\nVersions of this skill have now been run on the REAL robot. Improve the skill so that it does the task on the real "
+            "robot, without losing what it does in simulation.")
+
+_REAL = """
+The real robot. Versions of the program have been run on the real robot, by an operator who watched each episode and
+gave its verdict. Those episodes are yours to study:
+
+list_real_episodes            without `episodes`: the real robot (what it is, and how it answers a program's commands)
+                              and one line per episode (the version that ran, the operator's verdict and note, the
+                              setup, which setting of the moves until contact it ran with). With `episodes` (at most 4
+                              names): each one in full: its moves until contact as the program saw them and as the
+                              arm's own server recorded its guarded lines, its looks, and the names of its images
+read_real_output              a real episode's output: what the program printed and, on lines starting with "#", every
+                              robot command with its result and the arm's MEASURED tool position after it (the real
+                              robot has no truth)
+view_real_images              images of a real episode: look_NN_<camera> (the colour image that camera gave the
+                              program at its NN-th look), look_NN_<camera>_depth (that look's depth as a picture:
+                              near red, far blue, the scale on top; black = NO depth), look_NN_<camera>_nodepth (the
+                              colour image with the pixels that had no depth in magenta), shown_... (what the
+                              program handed over with robot.show), and video_scene_<t>s / video_wrist_<t>s (frames
+                              of the two cameras' videos, t the rig's time)
+read_real_depth               the depth a real camera gave at a look, as numbers: the values (mm along the camera's
+                              axis, as a Frame's depth; 0 = no depth) on a grid over a window of pixels, and the
+                              window's statistics; with the camera's intrinsics
+
+You cannot run anything on the real robot in this session: the practice is in the simulator, as before.{sim}
+
+Your result is the version you submitted last. The operator will run it on the real robot again, on scenes like
+those of the real episodes (the same kinds of objects, set out anew), and it is judged there first. It is also run
+on the simulated final evaluation described above, where it should do no worse than v{sub} did.
+"""
+
+_SUMMARY = """
+When you are done, your final submit (final = true) must carry `summary`: your own summary of this session, for the
+people who run the robot. Say what you learned from the real episodes (name them), what you changed in the skill
+and why, what you tested and how it came out, what you expect on the real robot, and what stays uncertain. Plain
+text, a page or so.
+"""
+
+_REAL_SIM_SAME = """ The simulator
+is the one this skill was developed in: where the real robot behaves differently, the simulator does not show it."""
+
+_REAL_SIM_SCENES = """ A scene can
+now be set up "like the real robot": add "real": true to it in define_scenes. In such a scene
+- only the left arm moves, within the real arm's safety limits (the right arm stands parked: a move of it to its
+  parking place, y below -280 mm, is answered as done; the cameras are "scene" and "left_wrist");
+- the cylinder and the stand are within x {x}, y {y};
+- the stand can carry several sticks in a row along its board's first side: "stand": {{"sticks": {sticks},
+  "stick_spacing_mm": {spacing}, "board_mm": [{board_long}, {board}, thickness]}} (left out: drawn at random). The
+  cylinder on any one of the sticks is a success; truth() names the other sticks' tops stick_top_1, stick_top_2;
+- three effects that were measured on the real robot are on: false_stops (a move until contact can stop and answer
+  "contact" with nothing touched, most often within its first millimetres), scatter (an ordinary move ends a few
+  millimetres off the pose asked for, as the arm's measured position shows) and thin_depth (a wrist camera can give
+  no depth on an object that is thin in its image and stands well in front of what is behind it).
+  "real": {{"false_stops": false}} (and likewise scatter, thin_depth) switches one off, to see what it does.
+These effects are models made by hand from few real episodes: they are not the real robot."""
+
+_NO_PROGRAM = ("There is no program\nyet, and nothing", "This session continues an earlier one, whose versions you have,\nand nothing")
+
+_CONTINUED = """
+
+This session continues an earlier one, which ended with v{sub} as its result. You keep its versions (read_program),
+its scenes and all its episode results (read_output, view_images), and the notes you wrote in it.
+
+The versions:
+{versions}
+
+{results}
+
+Your notes from the earlier session:
+{notes}
+
+The real robot's episodes so far: {real}. Start with list_real_episodes.
+
+v{sub}, the version that ran there:
+
+```python
+{code}```
 """
 
 _FIRST_SCENE = """
@@ -395,7 +478,8 @@ TOOLS = [
     _spec("read_program", "A version's text with line numbers ('  12| ' is not part of the text).",
           {"version": _VER, "start_line": {"type": "integer"}, "end_line": {"type": "integer"}}),
     _spec("submit", "Name the version that is your result (it replaces an earlier submission). final = true ends the session.",
-          {"version": _VER, "final": {"type": "boolean"}, "note": {"type": "string"}}, ["final"]),
+          {"version": _VER, "final": {"type": "boolean"}, "note": {"type": "string"},
+           "summary": {"type": "string", "description": "with final = true, where the instructions ask for it: the summary of the session"}}, ["final"]),
 ]
 
 
@@ -645,6 +729,13 @@ class Session:
         runs = self.state["versions"][v]["runs"]
         t = f"v{v} is now your submitted result" + ("" if runs else " (it was not run on any practice episode)") + ". "
         if a.get("final"):
+            if self.state.get("summary"):                           # (--summary: the session's own account, kept as summary.md)
+                said = str(a.get("summary") or "").strip()
+                if len(said) < 600:
+                    return [text(t + "The session has NOT ended: final = true needs `summary`, the summary of this session that the "
+                                     "instructions ask for (what you learned from the real episodes, what you changed and why, what you "
+                                     "tested and how it came out, what you expect on the real robot and what stays uncertain).")]
+                (self.dir / "summary.md").write_text(said + "\n")
             self.state["ended"] = "submitted"
             return [text(t + "The session has ended.")]
         return [text(t + self.results_line())]
@@ -857,9 +948,37 @@ _SCENE_SPEC = _obj(
                                                            size_mm={"type": "array", "items": _N}, color=_COL, density=_N, xy_mm=_XY, yaw_deg=_N)}]})
 
 
-def _scene_tools(eval_set, tables=False):
+_EPISODE = {"type": "string", "description": "a real episode's name (list_real_episodes)"}
+REAL_TOOLS = [
+    _spec("list_real_episodes", "Without episodes: the real robot, and a line per episode (version, verdict, setup, contact setting). With "
+          "episodes: those in full (moves until contact, the server's guarded lines, looks, the names of the images).",
+          {"episodes": {"type": "array", "items": _EPISODE, "description": "at most 4; left out: the overview of all"}}),
+    _spec("read_real_output", "Lines of a real episode's output (the program's prints and the '#' lines of its robot commands, with the arm's "
+          "measured tool position).",
+          {"episode": _EPISODE, "start_line": {"type": "integer", "description": "default 1"},
+           "max_lines": {"type": "integer", "description": "default 60, at most 200"},
+           "contains": {"type": "string", "description": "only the lines that contain this text"},
+           "trace": {"type": "boolean", "description": "false: without the '#' lines (default true)"}}, ["episode"]),
+    _spec("view_real_images", "Images of a real episode, by the names list_real_episodes gives (at most 6 a call).",
+          {"episode": _EPISODE, "names": {"type": "array", "items": {"type": "string"}}}, ["episode", "names"]),
+    _spec("read_real_depth", "The depth of a real look as numbers (mm, 0 = no depth): a grid of at most 24 x 18 values over a window of pixels "
+          "(each the pixel at the grid point), and the window's statistics.",
+          {"episode": _EPISODE, "look": {"type": "string", "description": "a look's name, such as look_03_left_wrist"},
+           "u0": {"type": "integer", "description": "the window's left column (default 0)"}, "v0": {"type": "integer", "description": "its top row (default 0)"},
+           "u1": {"type": "integer", "description": "its right column (default 639)"}, "v1": {"type": "integer", "description": "its bottom row (default 479)"}},
+          ["episode", "look"]),
+]
+_REAL_SPEC = {"anyOf": [{"type": "boolean"}, _obj(false_stops={"type": "boolean"}, scatter={"type": "boolean"}, thin_depth={"type": "boolean"})],
+              "description": "a scene like the real robot (the instructions: The real robot)"}
+
+
+def _scene_tools(eval_set, tables=False, real=False, real_scenes=False):
     keep = {s["name"]: s for s in TOOLS}
     scene = _SCENE_SPEC if tables else dict(_SCENE_SPEC, properties={k: v for k, v in _SCENE_SPEC["properties"].items() if k != "table"})
+    if real_scenes:
+        stand = scene["properties"]["stand"]
+        stand = dict(stand, properties=dict(stand["properties"], sticks={"type": "integer"}, stick_spacing_mm=_N))
+        scene = dict(scene, properties=dict(scene["properties"], stand=stand, real=_REAL_SPEC))
     out = [keep["write_program"], keep["edit_program"],
            _spec("define_scenes", "Set up practice scenes -> their names and what is in each.",
                  {"scenes": {"type": "array", "items": scene}}, ["scenes"]),
@@ -873,7 +992,7 @@ def _scene_tools(eval_set, tables=False):
         p = keep[name]["parameters"]
         props = {("scene" if k == "seed" else k): (_NAME if k == "seed" else x) for k, x in p["properties"].items()}
         out.append(_spec(name, keep[name]["description"], props, ["scene" if k == "seed" else k for k in p["required"]]))
-    return out + [keep["read_program"], keep["submit"]]
+    return out + (REAL_TOOLS if real else []) + [keep["read_program"], keep["submit"]]
 
 
 class SceneSession(Session):
@@ -884,19 +1003,42 @@ class SceneSession(Session):
     have one (scenes.build_table). Episodes are named by their scene."""
     _EP = "scene"
 
-    def __init__(self, *a, eval_set=False, tables=False, **k):
+    def __init__(self, *a, eval_set=False, tables=False, real=None, real_scenes=False, continue_from=None, ask=None, summary=False, **k):
+        """real: a pack of real-robot episodes (scripts/real_feedback_pack.py) that the model can study; real_scenes:
+        its scenes can be "like the real rig" (scenes.py REAL: hand-written); continue_from: an ended session's
+        directory: this one starts with its versions, scenes, episode results and notes (that one is not changed)."""
         self.eval_set, self.tables = bool(eval_set), bool(tables)
+        self.real, self.real_scenes = (Path(real).resolve() if real else None), bool(real_scenes)
+        self.source = Path(continue_from).resolve() if continue_from else None
+        self.more, self.want_summary = (str(ask).strip() if ask else ""), bool(summary)   # (--ask: more that is asked for; --summary)
+        self.episodes = {}
+        if self.real is not None:
+            names = json.loads((self.real / "pack.json").read_text())["episodes"]
+            self.episodes = {n: json.loads((self.real / n / "episode.json").read_text()) for n in names}
         super().__init__(*a, **k)
+        for key, now in (("real", str(self.real) if self.real else None), ("real_scenes", self.real_scenes), ("ask", self.more),
+                         ("summary", self.want_summary)):
+            if self.state.setdefault(key, now) != now:
+                raise ValueError(f"this session was started with {key} = {self.state[key]!r}")
         if self.state.get("tables", self.tables) != self.tables:
             raise ValueError("this session was started " + ("with" if self.state["tables"] else "without") + " other tables")
         if self.state.get("eval_set", self.eval_set) != self.eval_set:
             raise ValueError("this session was started " + ("with" if self.state["eval_set"] else "without") + " the self-evaluation set")
 
     def _specs(self):
-        return _scene_tools(self.eval_set, self.tables)
+        return _scene_tools(self.eval_set, self.tables, real=self.real is not None, real_scenes=self.real_scenes)
 
     def _eval_names(self):
         return [f"E{k}" for k in range(EVAL_SET[1])] if self.eval_set else []
+
+    def _real_closing(self):
+        if self.real is None:
+            return ""
+        R, rr = scenes.REAL, lambda v: f"{v[0]:g}..{v[1]:g}"
+        sim = _REAL_SIM_SCENES.format(x=rr(R["x"]), y=rr(R["y"]), sticks=rr(R["sticks"]), spacing=rr(R["spacing"]),
+                                      board_long=rr(R["board_long"]), board=rr(R["board"])) if self.real_scenes else _REAL_SIM_SAME
+        return (_REAL.format(sim=sim, sub=(self.state.get("continued") or {}).get("submitted", self.state["submitted"]))
+                + (_SUMMARY if self.want_summary else ""))
 
     def _closing(self):
         T = scenes.TRAIN
@@ -917,12 +1059,43 @@ class SceneSession(Session):
             dis_n=T["dis_n"][1], clear0=scenes.CLEARANCE, wall=scenes.WALL, colours=", ".join(scenes.COLOURS), gap=T["gap"], dis_gap=T["dis_gap"],
             dis_dis=T["dis_dis"], ruler=f"{scenes.RULER[0]:g}..{scenes.RULER[1]:g}",
             **{key: r(key) for key in ("cyl_d", "cyl_h", "density", "stick_d", "stick_h", "yaw", "clearance", "board", "board_t", "dis_size",
-                                       "dis_h", "x", "y", "dis_x", "dis_y")})
+                                       "dis_h", "x", "y", "dis_x", "dis_y")}).replace(
+            *(_NO_PROGRAM if self.state.get("continued") else ("", ""))) + self._real_closing()
 
     def _intro(self):
-        return self.task.text + " " + ASK_VARIED + (ASK_TABLES if self.tables else "")
+        return (self.task.text + " " + ASK_VARIED + (ASK_TABLES if self.tables else "") + (ASK_REAL if self.real is not None else "")
+                + ("\n\n" + self.more if self.more else ""))
+
+    def _continue(self):
+        """The first message of a session that continues an ended one (self.source): its versions, scenes, episode
+        results and notes are copied here; nothing of it is changed."""
+        st, src = self.state, json.loads((self.source / "state.json").read_text())
+        if not src.get("ended") or src.get("submitted") is None:
+            raise ValueError(f"{self.source}: not an ended session with a submitted version (a stopped one goes on with --resume)")
+        if "scenes" not in src or bool(src.get("tables")) != self.tables or bool(src.get("eval_set")) != self.eval_set:
+            raise ValueError(f"{self.source}: not a session of this kind (scenes, --tables, --eval-set)")
+        for f in sorted((self.source / "versions").glob("v*.py")):
+            shutil.copy(f, self.dir / "versions" / f.name)
+        if (self.source / "runs").exists() and not (self.dir / "runs").exists():
+            shutil.copytree(self.source / "runs", self.dir / "runs", ignore=shutil.ignore_patterns("*.mp4"))
+        sub_ = int(src["submitted"])
+        st.update(versions=src["versions"], scenes=src["scenes"], n_scenes=src["n_scenes"], notes=src.get("notes", ""), submitted=sub_,
+                  eval_set=self.eval_set, tables=self.tables,
+                  continued=dict(source=str(self.source), submitted=sub_, versions=len(src["versions"]), usd=src.get("usd")))
+        vs = "\n".join(f"v{v} ({m['lines']} lines{', from v' + str(m['base']) if m['base'] is not None else ''}): {m['note']} | practice: "
+                       + (self._practice(m["runs"]) or "not run") for v, m in enumerate(st["versions"]))
+        if self.real is not None:
+            ran = [f"{n} (v{e['version']}: {e['verdict']})" if e.get("version") is not None else f"{n} ({e['verdict']})" for n, e in self.episodes.items()]
+            real = f"{len(ran)} episode{'s' if len(ran) != 1 else ''}, " + ", ".join(ran)
+        else:
+            real = "no episode is given"
+        t = self._intro() + _CONTINUED.format(sub=sub_, versions=vs, results=self.results_line(), notes=st["notes"] or "(none)", real=real,
+                                              code=self._path(sub_).read_text())
+        return [{"role": "user", "content": [{"type": "input_text", "text": t}]}], []
 
     def _first(self):
+        if self.source is not None:
+            return self._continue()
         st = self.state
         st["eval_set"] = self.eval_set
         st["tables"] = self.tables
@@ -965,7 +1138,7 @@ class SceneSession(Session):
                     raise ValueError("seed: a whole number from 0 on")
                 if "table" in spec and not self.tables:
                     raise ValueError("scene: unknown field(s) table")
-                sc = scenes.build(spec, seed=seed)
+                sc = scenes.build(spec, seed=seed, real=self.real_scenes)
             except (ValueError, TypeError, KeyError) as e:
                 out.append(f"REFUSED ({json.dumps(spec)[:200]}): {str(e) or type(e).__name__}")
                 continue
@@ -989,6 +1162,97 @@ class SceneSession(Session):
     def _t_list_scenes(self, a):
         names = self._names(a.get("names") or list(self.state["scenes"]))
         return [text("\n".join(f"{n} (seed {self.state['scenes'][n]['seed']}): {scenes.describe(self.state['scenes'][n])}" for n in names))]
+
+    def _real_episode(self, a):
+        n = str(a.get("episode"))
+        if n not in self.episodes:
+            raise ValueError(f"no real episode {n!r}: there are {', '.join(self.episodes)}")
+        return n, self.real / n
+
+    def _t_list_real_episodes(self, a):
+        want = [str(n) for n in (a.get("episodes") or [])]
+        bad = [n for n in want if n not in self.episodes]
+        if bad or len(want) > 4:
+            raise ValueError(f"episodes: at most 4 of {', '.join(self.episodes)}")
+        head = lambda n, e: (f"{n}" + (f": v{e['version']}" if e.get("version") is not None else "") + f", {e['when']}. The operator's verdict: {e['verdict']}"
+                             + (f' ("{e["operator_note"]}")' if e["operator_note"] else "") + ("; the operator intervened" if e["operator_intervened"] else "")
+                             + ("; something was knocked off" if e.get("knocked_off") else "") + ".")
+        secs = lambda e: f"{e['robot_time_s']:.0f} s" if e.get("robot_time_s") is not None else "an unknown time"
+        if not want:
+            out = ["THE REAL ROBOT\n\n" + (self.real / "rig.md").read_text().strip(), "\nTHE EPISODES (list_real_episodes with `episodes` gives one in full)"]
+            for n, e in self.episodes.items():
+                out.append(f"\n{head(n, e)}\n  Setup: {e['setup']}\n  Moves until contact: {e.get('contact') or 'as the rig text says'}\n"
+                           f"  The program {e['program_ended'] or 'ended'} after {secs(e)} of the rig's time; {len(e['moves_until_contact'])} moves until contact; "
+                           f"output.txt has {e['output_lines']} lines.")
+            return [text("\n".join(out))]
+        out = []
+        for n in want:
+            e = self.episodes[n]
+            imgs = [l["image"] for l in e["looks"]]
+            looks = "; ".join(f"{l['image']} (t {l['robot_time_s']:g} s; {100 * l['pixels_without_depth']:.0f}% of its pixels without depth)" for l in e["looks"])
+            imgs += [x + "_depth" for x in imgs] + [x + "_nodepth" for x in imgs] + e["shown"] + [x for v in e["video_frames"].values() for x in v]
+            moves = "\n".join(
+                f"    t {m['t']:g} s: to z {m['goal_mm'][2]:g} mm -> {m['result']}; the tool then at z {m['tool_after_mm'][2]:g} mm"
+                + (f" ({m['server_stops_not_passed_on']} stops of the arm's server not passed on, {m['ordinary_steps']} ordinary steps on the way)"
+                   if m.get("server_stops_not_passed_on") or m.get("ordinary_steps") else "") for m in e["moves_until_contact"]) or "    none"
+            L = e.get("server_guarded_lines") or []
+            st = [x for x in L if x["ended"] != "ran to its end"]
+            rng = lambda k: (f"{min(x[k] for x in st if x.get(k) is not None):g} to {max(x[k] for x in st if x.get(k) is not None):g}"
+                             if any(x.get(k) is not None for x in st) else "?")
+            server = (f"{len(L)} guarded lines: {len(L) - len(st)} ran to their end, {len(st)} were stopped by the server"
+                      + (f" (the hand {rng('hand_behind_mm')} mm behind, force change {rng('force_change_n')} N, after {rng('came_down_mm')} mm of way down)" if st else "")
+                      + ("; lag allowed " + ", ".join(sorted({format(x["lag_allowed_mm"], "g") for x in L})) + " mm" if L else ""))
+            out.append(f"{head(n, e)}\n  Setup: {e['setup']}\n  Moves until contact: {e.get('contact') or 'as the rig text says'}\n"
+                       f"  The program {e['program_ended'] or 'ended'} after {secs(e)} of the rig's time; output.txt has {e['output_lines']} lines.\n"
+                       f"  Its moves until contact, as the program saw them:\n{moves}\n  The arm's server: {server}\n  Its looks: {looks}\n  Images: {', '.join(imgs)}")
+        return [text("\n\n".join(out))]
+
+    def _t_read_real_output(self, a):
+        n, d = self._real_episode(a)
+        lines = (d / "output.txt").read_text(errors="replace").splitlines()
+        k0, m = max(1, int(a.get("start_line") or 1)), min(200, max(1, int(a.get("max_lines") or 60)))
+        has, tr = a.get("contains"), a.get("trace", True)
+        sel = [(k, l) for k, l in enumerate(lines, 1)
+               if k >= k0 and (tr or not l.startswith("#")) and (not has or has.lower() in l.lower())]
+        out = [f"{k:5d}| {l[:400]}" for k, l in sel[:m]]
+        more = f"; the next one is line {sel[m][0]}" if len(sel) > m else ""
+        return [text(f"real episode {n}: output.txt has {len(lines)} lines; {len(sel)} from line {k0} on match; {len(out)} shown{more}\n" + "\n".join(out))]
+
+    def _t_read_real_depth(self, a):
+        import cv2
+        n, d = self._real_episode(a)
+        name = str(a.get("look", "")).replace("_depth", "").replace("_nodepth", "")
+        look = next((l for l in self.episodes[n]["looks"] if l["image"] == name), None)
+        if look is None:
+            raise ValueError(f"no look {name!r} in real episode {n}: there are {', '.join(l['image'] for l in self.episodes[n]['looks'])}")
+        dep = cv2.imread(str(d / "depth" / f"{name}.png"), cv2.IMREAD_UNCHANGED)
+        H, W = dep.shape
+        u0, v0 = max(0, int(a.get("u0") or 0)), max(0, int(a.get("v0") or 0))
+        u1 = min(W - 1, int(a["u1"]) if a.get("u1") is not None else W - 1); v1 = min(H - 1, int(a["v1"]) if a.get("v1") is not None else H - 1)
+        if u1 < u0 or v1 < v0:
+            raise ValueError("the window: u0 <= u1 and v0 <= v1")
+        win = dep[v0:v1 + 1, u0:u1 + 1]; ok = win[win > 0]
+        us = sorted({int(round(x)) for x in np.linspace(u0, u1, min(24, u1 - u0 + 1))}); vs = sorted({int(round(x)) for x in np.linspace(v0, v1, min(18, v1 - v0 + 1))})
+        K = look.get("K") or []
+        head = (f"real episode {n}, {name}: depth in mm along the camera's axis (0 = no depth); the image is {W} x {H}"
+                + (f", fx {K[2]:.1f}, fy {K[3]:.1f}, cx {K[4]:.1f}, cy {K[5]:.1f}" if len(K) == 6 else "") + f".\nWindow u {u0}..{u1}, v {v0}..{v1}: "
+                + (f"{100 * (1 - len(ok) / win.size):.0f}% of its pixels without depth; of the others: nearest {int(ok.min())}, 5% {int(np.percentile(ok, 5))}, "
+                   f"median {int(np.median(ok))}, 95% {int(np.percentile(ok, 95))}, farthest {int(ok.max())} mm." if len(ok) else "no pixel has depth."))
+        grid = "\n".join([" v \\ u " + "".join(f"{u:5d}" for u in us)] + [f"{v:6d} " + "".join(f"{int(dep[v, u]):5d}" for u in us) for v in vs])
+        return [text(head + "\n" + grid)]
+
+    def _t_view_real_images(self, a):
+        n, d = self._real_episode(a)
+        have = {p.stem: p for p in sorted((d / "images").iterdir())}
+        items = []
+        for name in list(a["names"])[:6]:
+            name = str(name)
+            hit = have.get(name) or have.get(name.rsplit(".", 1)[0])
+            if hit is None:
+                items.append(text(f"no image {name!r} in real episode {n}: list_real_episodes gives the names"))
+            else:
+                items += [text(f"real episode {n}, {hit.stem}:"), _image(hit)]
+        return items or [text("names: which images?")]
 
     def _run_dir(self, v, name):
         return self.dir / "runs" / f"v{v:02d}" / str(name)
@@ -1393,6 +1657,13 @@ def main(argv=None):
     ap.add_argument("--eval-episodes", type=int, default=10, help="how many episodes the model is told its result is judged on")
     ap.add_argument("--out", required=True)
     ap.add_argument("--resume", action="store_true", help="go on with the session in --out")
+    ap.add_argument("--continue-from", help="a session on varied scenes that has ended: this one starts with its versions, scenes, results "
+                                             "and notes (--eval-set and --tables are taken from it)")
+    ap.add_argument("--real-feedback", help="a pack of real-robot episodes (scripts/real_feedback_pack.py) for the model to study")
+    ap.add_argument("--ask", help="more that is asked of the skill, added to the task's text (a session on varied scenes)")
+    ap.add_argument("--summary", action="store_true", help="the final submit must carry the model's own summary of the session (kept as summary.md)")
+    ap.add_argument("--real-scenes", action="store_true",
+                    help="with --real-feedback: scenes can be set up like the real rig (scenes.py REAL: hand-written effects)")
     a = ap.parse_args(argv)
 
     out = Path(a.out)
@@ -1405,17 +1676,29 @@ def main(argv=None):
     kw = dict(budget_usd=a.budget_usd, sensors=a.sensors, segmenter=bool(a.segmenter), effort=a.effort, max_output_tokens=a.max_output_tokens,
               n_eval=a.eval_episodes, max_hours=a.max_hours, spent=lambda: V.spent(tag), log=lambda *x: print(*x, flush=True))
     if a.task in ("pick_clutter", "pick_clutter_one_arm"):
-        if a.start or a.eval_set or a.tables:
-            ap.error("--start, --eval-set, --tables: not for pick_clutter")
+        if a.start or a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes:
+            ap.error("--start, --eval-set, --tables, --continue-from, --real-feedback, --real-scenes: not for pick_clutter")
         ask = lambda label: V.VLM(dict(model=a.model, max_calls_per_episode=practice.ASK["calls"], max_usd_per_episode=practice.ASK["reserve_usd"],
                                        run_usd=a.budget_usd - ASK_KEEP), tag=f"{tag}:ask:{label}")
         s = ClutterSession(out, a.env, a.levels, vlm, ask=ask, arm=clutter_one_arm.ARM if a.task == "pick_clutter_one_arm" else None, **kw)
     elif TASKS[a.task].scene:
         if a.start:
-            ap.error("--start: a session on a task with varied scenes starts from nothing")
-        s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, tables=a.tables, **kw)
-    elif a.eval_set or a.tables:
-        ap.error("--eval-set, --tables: only for a task with varied scenes")
+            ap.error("--start: a session on a task with varied scenes starts from nothing (--continue-from: from an ended session)")
+        if a.real_scenes and not a.real_feedback:
+            ap.error("--real-scenes: only with --real-feedback")
+        if a.resume:                                                # (what the session was started with)
+            st0 = json.loads((out / "state.json").read_text())
+            a.eval_set, a.tables = st0.get("eval_set", a.eval_set), st0.get("tables", a.tables)
+            a.real_feedback, a.real_scenes = st0.get("real"), st0.get("real_scenes", False)
+            a.ask, a.summary = st0.get("ask") or None, bool(st0.get("summary"))
+            a.continue_from = None                                  # (its versions are here already)
+        elif a.continue_from:
+            src = json.loads((Path(a.continue_from) / "state.json").read_text())
+            a.eval_set, a.tables = bool(src.get("eval_set")), bool(src.get("tables"))
+        s = SceneSession(out, a.env, a.task, vlm, eval_set=a.eval_set, tables=a.tables, real=a.real_feedback, real_scenes=a.real_scenes,
+                         continue_from=a.continue_from, ask=a.ask, summary=a.summary, **kw)
+    elif a.eval_set or a.tables or a.continue_from or a.real_feedback or a.real_scenes:
+        ap.error("--eval-set, --tables, --continue-from, --real-feedback, --real-scenes: only for a task with varied scenes")
     else:
         s = Session(out, a.env, a.task, vlm, start=a.start, **kw)
     how = s.run()

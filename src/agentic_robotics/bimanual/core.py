@@ -45,6 +45,19 @@ MIN_Z = 0.275                                                 # m: the D415s see
 CALIB = {"d415": (0.005, 1.0), "R_wrist": (0.003, 1.0), "L_wrist": (0.003, 1.0)}   # per-episode pose error (m, deg)
 FORCE_NOISE = 0.5                                             # N per axis, the arm's external-force estimate
 GUARD_N, SAFETY_N = 4.0, 40.0                                 # (4 N: the real arm layer's contact threshold)
+# A scene "like the real rig" (scene["rig"]: {effect: bool}; scenes.py REAL): what the real single-arm robot did in
+# its live episodes of 2026-11-23 and the simulation above does not (docs/bimanual.md, "Real episodes back into a
+# session"). Measured there, on few episodes: models of what was seen, not of why.
+#   false_stops  a move until contact stops, answering "contact", with nothing touched: of 47 such descents on the arm
+#                with the 2 mm guard 38 stopped within 3.5 mm of their start, the rest later or not at all (with the
+#                10 mm guard: 41 of 42 within 5 mm, one after 49 mm)
+#   scatter      an ordinary move ends, after its settle, off the pose asked for: sd 1.0 / 1.4 / 2.9 mm in x / y / z (46 moves)
+#   thin_depth   a wrist camera gives no depth on an object that is narrower in the image than the stereo shift between
+#                it and what is behind it (the 13 mm stick tops, 85 mm above the board, from 350 mm: 2 of 3 looks)
+RIG_EFFECTS = ("false_stops", "scatter", "thin_depth")
+RIG_FALSE_STOP = dict(p_start=0.85, start=(0.0, 0.005), later=(0.015, 0.080))   # m along the move
+RIG_SCATTER = (0.0010, 0.0014, 0.0029)                        # m: sd of where an ordinary move ends
+RIG_THIN = dict(p=0.7, k=1.2, min_shift=6.0, baseline=0.055)  # (px; the D415's baseline in m)
 V_SLOW, V_FREE, W_TURN = 0.04, 0.15, math.radians(45)
 LOW_Z = 0.30                                                  # below this a free move goes at V_SLOW
 REC_FPS = 15
@@ -136,6 +149,7 @@ class BiCore:
         # a one-armed scene (scene["arm"]: "left"): only that arm moves, within the real rig's limits; the other
         # stays at its start pose, where the real rig's second arm is parked
         self.only = ARMS[scene["arm"]] if scene and scene.get("arm") else None
+        self.fx = {k: bool(v) for k, v in ((scene or {}).get("rig") or {}).items() if k in RIG_EFFECTS}   # (RIG_EFFECTS)
         self.rig = rig_limits() if self.only else None
         if self.only not in (None, "L"):
             raise ValueError('a one-armed scene uses the left arm (the real rig\'s): "arm": "left"')
@@ -234,6 +248,7 @@ class BiCore:
         self.seed = seed
         self.rng = np.random.default_rng(seed)                      # (IK restarts)
         self.frng = np.random.default_rng(2000 + seed)              # (the force estimate's noise)
+        self.xrng = np.random.default_rng(3000 + seed)              # (a real-like scene's effects: RIG_EFFECTS)
         self.dm = None
         if self.sensors == "d415":
             sys.path.insert(0, str(paths.VENDOR / "panda_twin" / "code"))
@@ -484,10 +499,41 @@ class BiCore:
             m.geom_rgba[:, 3] = a0
             gid = np.where((seg[..., 1] == int(mujoco.mjtObj.mjOBJ_GEOM)) & (seg[..., 0] >= 0), seg[..., 0], -1)
             depth = self.dm.apply(depth, gid, cam)
+            if self.fx.get("thin_depth") and which != "scene":
+                depth = self._thin_dropout(depth, gid, H / 2 / math.tan(math.radians(m.cam_fovy[cid]) / 2))
         depth = depth.astype(np.float64); depth[~np.isfinite(depth)] = np.nan
         f = H / 2 / math.tan(math.radians(m.cam_fovy[cid]) / 2)
         Rn, eye = self.nominal_camera(cam)
         return dict(camera=which, rgb=rgb, depth=depth, K=(W, H, f, f, W / 2, H / 2), eye=eye, R=Rn, t=float(d.time))
+
+    def _thin_dropout(self, depth, gid, f):
+        """(RIG_EFFECTS thin_depth) No depth on the objects that are thin for the camera: a geom (the cylinder's geoms
+        count as one object) whose image is narrower than RIG_THIN k times the stereo shift between it and what is
+        seen around it loses its depth in this frame, with probability RIG_THIN p."""
+        import cv2
+        T, m = RIG_THIN, self.m
+        depth = depth.copy()
+        ok = np.isfinite(depth)
+        ids = [g for g in np.unique(gid) if g >= 0 and not self.robot_geom[g]]
+        cyl = [g for g in ids if m.geom(int(g)).name.startswith("cyl_")]
+        groups = [[g] for g in ids if g not in cyl] + ([cyl] if cyl else [])
+        ring = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31)); near = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        for gs in groups:
+            mask = np.isin(gid, gs)
+            n = int(mask.sum())
+            if not 30 <= n <= 20000 or int(m.geom_bodyid[int(gs[0])]) == 0:      # (not the table, the floor)
+                continue
+            m8 = mask.astype(np.uint8)
+            pts = cv2.findNonZero(m8)
+            width = float(min(cv2.minAreaRect(pts)[1]))
+            around = (cv2.dilate(m8, ring) > 0) & ~(cv2.dilate(m8, near) > 0) & ok
+            if not (mask & ok).any() or around.sum() < 20:
+                continue
+            z, zb = float(np.median(depth[mask & ok])), float(np.median(depth[around]))
+            shift = f * T["baseline"] * (1.0 / z - 1.0 / zb) if zb > z else 0.0
+            if shift > T["min_shift"] and width < T["k"] * shift and self.xrng.random() < T["p"]:
+                depth[cv2.dilate(m8, near) > 0] = np.inf
+        return depth
 
     @staticmethod
     def project(P, o):
@@ -678,9 +724,12 @@ class BiCore:
         raise Stop(f"out of the arm's reach on a straight line, and the way round by the joints {first}: "
                    f"go up first, move in smaller steps, or choose another orientation")
 
-    def _execute(self, P, Q, T, guarded, u=None):
-        """Play joint waypoints Q over T seconds. -> stop reason or None."""
+    def _execute(self, P, Q, T, guarded, u=None, false_at=None):
+        """Play joint waypoints Q over T seconds. -> stop reason or None. false_at (a real-like scene's guarded move):
+        the fraction of the way at which it stops as a contact with nothing touched."""
         A = self.arms[P]
+        if getattr(A, "scat", None) is not None:                      # (the last move's scatter: not part of the servo's bias)
+            A.bias = A.bias - A.scat; A.scat = None
         f0 = self.contacts()[P][1]
         n = max(int(round(T / self.m.opt.timestep)), 1)
         every = max(int(round(0.005 / self.m.opt.timestep)), 1)        # (the force check: every 5 ms)
@@ -701,6 +750,9 @@ class BiCore:
                         stop = "contact"
                 if stop:
                     break
+            if false_at is not None and (i + 1) / n >= false_at:
+                stop = "contact"
+                break
         if stop:
             A.q_cmd = self.d.qpos[A.qa].copy(); self.d.ctrl[A.arm_a] = A.q_cmd + A.bias
             self.run(0.3)
@@ -712,7 +764,33 @@ class BiCore:
             A.bias = np.clip(A.bias + (A.q_cmd - self.d.qpos[A.qa]), -0.05, 0.05)
             self.d.ctrl[A.arm_a] = A.q_cmd + A.bias
             self.run(0.15)
+        else:
+            self._scatter(P)
         return stop
+
+    def _scatter(self, P):
+        """(RIG_EFFECTS scatter) The arm ends its move a little off the pose asked for, and stays there: the next
+        move's settle takes the error out again, and leaves its own."""
+        if not self.fx.get("scatter"):
+            return
+        A = self.arms[P]
+        p, R = self.fk(P, A.q_cmd)
+        off = np.clip(self.xrng.normal(0.0, 1.0, 3), -2.5, 2.5) * RIG_SCATTER
+        q, ep, _ = self.ik(P, p + off, R, A.q_cmd, iters=30)
+        if ep < 0.001:
+            A.scat = q - A.q_cmd
+            A.bias = A.bias + A.scat
+            self.d.ctrl[A.arm_a] = A.q_cmd + A.bias
+            self.run(0.15)
+
+    def _false_stop(self, dist):
+        """(RIG_EFFECTS false_stops) -> the fraction of a guarded move of length dist (m) at which it stops as a
+        contact with nothing touched, or None (it does not)."""
+        if not self.fx.get("false_stops") or dist < 1e-4:
+            return None
+        F = RIG_FALSE_STOP
+        at = self.xrng.uniform(*(F["start"] if self.xrng.random() < F["p_start"] else F["later"]))
+        return at / dist if at < dist else None
 
     def move(self, P, p1, R1, guarded=False, v=None):
         """The tool point of arm P along a straight line to p1 with orientation R1 (or, a free move the arm cannot do
@@ -748,7 +826,7 @@ class BiCore:
         low = min(p0[2], p1[2]) < LOW_Z
         v = v or (V_SLOW if guarded or low else V_FREE)
         u = (p1 - p0) / max(float(np.linalg.norm(p1 - p0)), 1e-9) if np.linalg.norm(p1 - p0) > 0.001 else None
-        return self._execute(P, Q, max(dist / v, ang / W_TURN, 0.3), guarded, u)
+        return self._execute(P, Q, max(dist / v, ang / W_TURN, 0.3), guarded, u, self._false_stop(dist) if guarded else None)
 
     def turn(self, P, centre, axis, angle_deg, w=math.radians(30)):
         """Rotate the whole hand of arm P rigidly by angle_deg about the line through centre along axis (right-hand
@@ -814,21 +892,31 @@ class BiCore:
                     cap_xyz_mm=[round(float(v) * 1000) for v in cp],
                     cap_held_by={SIDE[k]: sorted(v) for k, v in parts.items()})
 
-    def stick_top(self):
-        """TRUE state: the centre of the stick's top, the stick's axis."""
-        g = self.m.geom("stand_stick")
+    def stick_tops(self):
+        """TRUE state: [(the centre of a stick's top, the stick's axis)] for the stand's sticks (one, or the several of
+        a real-like scene: scenes.py REAL; the first is "stand_stick")."""
+        m = self.m
         p, R = self.object_pose("stick_stand")
-        return p + R @ (g.pos + [0, 0, g.size[1]]), R[:, 2].copy()
+        gs = [m.geom("stand_stick")] + [m.geom(g) for g in range(m.ngeom) if m.geom(g).name.startswith("stand_stick_")]
+        return [(p + R @ (g.pos + [0, 0, g.size[1]]), R[:, 2].copy()) for g in gs]
+
+    def stick_top(self):
+        """TRUE state: the centre of the (first) stick's top, the stick's axis."""
+        return self.stick_tops()[0]
 
     def judge_insert(self):
-        """TRUE state: the stick passes through the cylinder's hole (the cylinder's middle is below the stick's top
+        """TRUE state: a stick of the stand passes through the cylinder's hole (the cylinder's middle is below the stick's top
         and within 4 mm of its axis: the hole's wall leaves no other way), the robot does not touch the cylinder,
         the stand is upright on the table."""
-        top, ax = self.stick_top()
         sp, sR = self.object_pose("stick_stand"); cp, cR = self.object_pose("cylinder")
         h = 2 * float(self.m.geom("cyl_w0").size[2])
-        v = cp + cR[:, 2] * h / 2 - top
-        below = -float(v @ ax); side = float(np.linalg.norm(v + below * ax))
+        best = None
+        for top, ax in self.stick_tops():                             # (several sticks: the one the cylinder is nearest to)
+            v = cp + cR[:, 2] * h / 2 - top
+            below = -float(v @ ax); side = float(np.linalg.norm(v + below * ax))
+            if best is None or side < best[1]:
+                best = (below, side, top)
+        below, side, top = best
         parts, other = self.touching("cylinder")
         on = bool(below > 0 and side < 0.004)
         upright = bool(sR[2, 2] > 0.95 and abs(sp[2] - self.table_z) < 0.01)

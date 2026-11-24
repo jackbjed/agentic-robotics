@@ -47,6 +47,12 @@ TRAIN = dict(stick_d=(8, 20), stick_h=(60, 140), board=(90, 150), board_t=(12, 2
              clearance=(1.5, 4.0), density=(400, 1500), dis_n=(0, 3), dis_size=(25, 80), dis_h=(15, 70),
              x=(-400, -180), y=(-230, 130), dis_x=(-460, -90), dis_y=(-330, 150), yaw=(-45, 45),
              gap=60, dis_gap=40, dis_dis=15)
+# A scene "like the real rig" (build(spec, real=True) with spec["real"]; a session with --real-scenes): the left arm
+# alone within the real rig's limits, the effects of core.RIG_EFFECTS (spec["real"]: true = all of them, or
+# {effect: bool}), and a stand that may carry several sticks in a row along its board's first side, as the real one
+# does. Hand-written from the live episodes of 2026-11-23; no scene of sample() has any of it.
+REAL = dict(sticks=(1, 3), spacing=(40, 80), board_long=(90, 260), board=(50, 150), x=(-380, -180), y=(-150, 130))
+REAL_EFFECTS = ("false_stops", "scatter", "thin_depth")         # (= core.RIG_EFFECTS)
 COLOURS = {"red": (200, 40, 40), "green": (40, 150, 60), "blue": (40, 90, 205), "yellow": (230, 200, 40),
            "white": (235, 235, 230), "grey": (140, 140, 145), "wood": (224, 181, 102)}
 SHAPES = ("box", "cylinder")                                    # size_mm: [side, side, height] | [diameter, height]
@@ -197,16 +203,35 @@ def _known(d, keys, what):
         raise ValueError(f"{what}: unknown field(s) {', '.join(extra)}; there are {', '.join(keys)}")
 
 
-def build(spec=None, seed=0):
+def _real(spec, real):
+    """spec["real"] -> None (an ordinary scene) or {effect: bool} (a scene like the real rig: REAL)."""
+    r = spec.get("real")
+    if r is None or r is False:
+        return None
+    if not real:
+        raise ValueError("scene: unknown field(s) real")
+    if r is True:
+        return {k: True for k in REAL_EFFECTS}
+    if not isinstance(r, dict):
+        raise ValueError("real: true, or an object {" + ", ".join(f'"{k}": true | false' for k in REAL_EFFECTS) + "}")
+    _known(r, REAL_EFFECTS, "real")
+    return {k: bool(r.get(k, True)) for k in REAL_EFFECTS}
+
+
+def build(spec=None, seed=0, real=False):
     """A scene within the training limits from a partial one: spec's values where it has them (ValueError if one is
-    outside the limits), random ones elsewhere (by `seed`, or spec["seed"])."""
+    outside the limits), random ones elsewhere (by `seed`, or spec["seed"]). real: spec["real"] is allowed (REAL)."""
     T, spec = TRAIN, dict(spec or {})
-    _known(spec, ("seed", "cylinder", "stand", "hole_clearance_mm", "distractors", "table"), "scene")
+    _known(spec, ("seed", "cylinder", "stand", "hole_clearance_mm", "distractors", "table", "real"), "scene")
+    rl = _real(spec, real)
+    if rl is not None:                                              # (the real rig's reach; a longer, narrower board)
+        T = dict(T, x=REAL["x"], y=REAL["y"])
     seed = int(spec.get("seed", seed))
     rng = np.random.default_rng([7, seed])
     c, s = dict(spec.get("cylinder") or {}), dict(spec.get("stand") or {})
     _known(c, ("diameter_mm", "height_mm", "color", "density", "xy_mm"), "cylinder")
-    _known(s, ("stick_diameter_mm", "stick_height_mm", "board_mm", "color", "stick_color", "density", "xy_mm", "yaw_deg"), "stand")
+    _known(s, ("stick_diameter_mm", "stick_height_mm", "board_mm", "color", "stick_color", "density", "xy_mm", "yaw_deg")
+           + (("sticks", "stick_spacing_mm") if rl is not None else ()), "stand")
     names = list(COLOURS)
     stick_d = _num(s, "stick_diameter_mm", T["stick_d"], "stand.stick_diameter_mm")
     cyl_d = _num(c, "diameter_mm", T["cyl_d"], "cylinder.diameter_mm")
@@ -219,12 +244,23 @@ def build(spec=None, seed=0):
         raise ValueError(f"the cylinder ({cyl_d:g} mm) must be at least {clear + 2 * WALL:g} mm wider than the stick ({stick_d:g} mm): "
                          f"the hole is the stick + {clear:g} mm, the wall at least {WALL:g} mm")
     board = s.get("board_mm")
+    n_sticks, spacing, long_, side = 1, None, T["board"], T["board"]
+    if rl is not None:                                              # (its own random numbers: the rest is drawn as ever)
+        rr = np.random.default_rng([11, seed])
+        n_sticks = int(_num(s, "sticks", REAL["sticks"], "stand.sticks", None) or rr.integers(REAL["sticks"][0], REAL["sticks"][1] + 1))
+        spacing = _num(s, "stick_spacing_mm", REAL["spacing"], "stand.stick_spacing_mm", None) or _u(rr, REAL["spacing"], 1)
+        if spacing < stick_d + 15:
+            raise ValueError(f"stand.stick_spacing_mm ({spacing:g}): at least 15 mm more than the stick's diameter ({stick_d:g})")
+        need = (n_sticks - 1) * spacing + stick_d + 20
+        long_, side = (max(REAL["board_long"][0], need), REAL["board_long"][1]), REAL["board"]
     if board is not None:
         if not isinstance(board, (list, tuple)) or len(board) != 3:
             raise ValueError("stand.board_mm: [side, side, thickness]")
         bd = dict(a=board[0], b=board[1], t=board[2])
-        board = [_num(bd, "a", T["board"], "stand.board_mm side"), _num(bd, "b", T["board"], "stand.board_mm side"),
+        board = [_num(bd, "a", long_, "stand.board_mm side"), _num(bd, "b", side, "stand.board_mm side"),
                  _num(bd, "t", T["board_t"], "stand.board_mm thickness")]
+    elif rl is not None and n_sticks > 1:
+        board = [_u(rng, (long_[0], min(long_[1], long_[0] + 60)), 1), _u(rng, side, 1), _u(rng, T["board_t"], 1)]
     else:
         board = [_u(rng, T["board"], 1), _u(rng, T["board"], 1), _u(rng, T["board_t"], 1)]
     col = _colour(s, "color", "stand.color") or str(rng.choice(names))
@@ -237,6 +273,8 @@ def build(spec=None, seed=0):
                  yaw_deg=_num(s, "yaw_deg", T["yaw"], "stand.yaw_deg", None))
     if stand["yaw_deg"] is None:
         stand["yaw_deg"] = _u(rng, T["yaw"], 1)
+    if n_sticks > 1:
+        stand.update(sticks=n_sticks, stick_spacing_mm=spacing)
     cyl = dict(diameter_mm=cyl_d, height_mm=_num(c, "height_mm", T["cyl_h"], "cylinder.height_mm") or _u(rng, T["cyl_h"], 1),
                hole_mm=stick_d + clear, color=ccol, rgb=_rgb(rng, ccol),
                density=_num(c, "density", T["density"], "cylinder.density") or _u(rng, T["density"], 10))
@@ -276,6 +314,8 @@ def build(spec=None, seed=0):
     for d, p in zip(dis, xy[2:]):
         d["xy_mm"] = p
     sc = dict(seed=seed, cylinder=cyl, stand=stand, distractors=dis, ood=[])
+    if rl is not None:                                              # (core.BiCore: the left arm alone, the rig's limits, RIG_EFFECTS)
+        sc.update(arm="left", rig=rl)
     if spec.get("table") is not None:                               # (the objects are those of the scene without it)
         sc["table"] = build_table(spec["table"], seed)
     return sc
@@ -453,9 +493,14 @@ def describe(sc):
     out = (f"cylinder {c['diameter_mm']:g} across, {c['height_mm']:g} tall, hole {c['hole_mm']:g}, {c['color']}, {c['density']:g} kg/m3, at "
            f"({c['xy_mm'][0]:g}, {c['xy_mm'][1]:g}); stand: board {b[0]:g} x {b[1]:g} x {b[2]:g} {s['color']}, stick {s['stick_diameter_mm']:g} across, "
            f"{s['stick_height_mm']:g} above the board, {s['stick_color']}, {s['density']:g} kg/m3, at ({s['xy_mm'][0]:g}, {s['xy_mm'][1]:g}) turned {s['yaw_deg']:g} deg")
+    if s.get("sticks", 1) > 1:
+        out += f", {s['sticks']} sticks in a row {s['stick_spacing_mm']:g} apart"
     for k, d in enumerate(sc["distractors"]):
         out += (f"; distractor_{k}: {d['color']} {d['shape']} {' x '.join(f'{v:g}' for v in d['size_mm'])} at ({d['xy_mm'][0]:g}, {d['xy_mm'][1]:g})")
     out += " (mm)"
+    if sc.get("rig") is not None:
+        on = [k for k in REAL_EFFECTS if sc["rig"].get(k)]
+        out += "; like the real robot (the left arm alone" + ("".join(", " + k for k in on) if on else ", no effects") + ")"
     t = sc.get("table")
     if t:
         out += (f"; table: top at {t['height_mm']:g} mm in the robot's frame, {t['color']}"
@@ -487,7 +532,10 @@ def _stand(body, s):
     bx, by, bz = (v / 1000 for v in s["board_mm"])
     r, h = s["stick_diameter_mm"] / 2000, s["stick_height_mm"] / 1000
     _geom(body, "stand_board", "box", (bx / 2, by / 2, bz / 2), (0, 0, bz / 2), s["rgb"], s["density"])
-    _geom(body, "stand_stick", "cylinder", (r, h / 2), (0, 0, bz + h / 2), s["stick_rgb"], s["density"])
+    n, gap = int(s.get("sticks", 1)), float(s.get("stick_spacing_mm") or 0.0) / 1000
+    for k in range(n):                                              # (several: in a row along the board's first side)
+        _geom(body, "stand_stick" + (f"_{k}" if k else ""), "cylinder", (r, h / 2), ((k - (n - 1) / 2) * gap, 0, bz + h / 2),
+              s["stick_rgb"], s["density"])
 
 
 def _cylinder(body, c):
