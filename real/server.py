@@ -11,7 +11,8 @@ Backends (spec "backend"):
           real.python); real/run.py does.
   twin    the simulator's own world server (sim/server.py World: a layout, physics, the judge) at the calibrated cameras:
           a rehearsal of the whole real path, and its test.
-  sim     the bimanual simulation's scene of a task (spec "sim": task, seed), its left arm and its two cameras
+  sim     the bimanual simulation's scene of a task (spec "sim": task, seed; or a world's scene, text and kind:
+          real/run program --task sweep --world), its left arm and its two cameras
           (SimBackend): the rehearsal of a bimanual-environment program (real/run.py program) with the task's objects.
 Modes (spec "mode"):
   dry     NOTHING is sent. Each trajectory the program plans (and RealSim checked) is recorded and drawn over the scene
@@ -225,9 +226,17 @@ class SimBackend:
         self.rig = rig = load_rig()
         self.lim = Limits(rig, Kin(rig, {}))                      # (the simulation's hand has no adapter)
         c = rig["control"]
-        self.track_abort, self.force_abort = float(c["track_abort"]), float(c["force_abort"])
+        self.track_abort, self.force_abort = float(c["track_abort"]), float(e.get("force_abort_n") or c["force_abort"])
+        # (spec sim.force_abort_n: a rehearsal's own force abort in place of rig.json's 35 N, to see the rest of an
+        #  episode that the rig's would end: real/run program --sim-force-abort. Not the rig's behaviour.)
         self.dt = float(C.m.opt.timestep)
         self.g_target, self.g_speed, self.t_grip = float(A.g_cmd), float(rig["gripper"]["move_speed"]) / 2, -1.0
+        # (the gripper's force: the simulation's servo closes with up to 70 N, the rig's grasp with rig.json's 30 N. On
+        #  a tapered or supported object the simulation's squeeze alone pushes the hand away with more than the arm
+        #  server's force abort (35 N), which ends an episode here and would not on the rig: spec sim.grip_force_n)
+        if e.get("grip_force_n"):
+            C.m.actuator_forcerange[A.grip] = [-float(e["grip_force_n"]), float(e["grip_force_n"])]
+        self.grip_force_n = float(C.m.actuator_forcerange[A.grip][1])
         Rs, es = C.nominal_camera("d415")                        # the mounts the program is told: the nominal ones
         Rw, ew = C.nominal_camera("L_wrist")                      # (the episode's true ones differ: CALIB)
         hb = C.m.body("L_hand").id
@@ -235,9 +244,41 @@ class SimBackend:
         Ts, Th = np.eye(4), np.eye(4)
         Ts[:3, :3], Ts[:3, 3] = Rs, es
         Th[:3, :3], Th[:3, 3] = Rh.T @ Rw, Rh.T @ (ew - ph)
-        self.hello_info = dict(sim=True, env="sim_bimanual_grippers", sim_task=self.ep.task.name, seed=int(e["seed"]),
+        self.hello_info = dict(sim=True, env="sim_bimanual_grippers", sim_task=self.ep.task.name, seed=int(e["seed"]), grip_force_n=self.grip_force_n, force_abort_n=self.force_abort,
+                               q_home=[float(v) for v in A.home],  # (where this arm starts: the program's "initial pose")
                                calib=dict(scene_cam=dict(T_world_cam=Ts.tolist()), wrist_cam=dict(T_hand_cam=Th.tolist())))
-        self.task = dict(kind=self.ep.task.name, instruction=self.ep.text)
+        # (a world's own task, real/run program --task sweep --world: the scene is the world's, built by real/world_tool.py
+        #  in the sandbox; its text is the task; its check is run there too, on the state written at the end: no world
+        #  code runs in this process)
+        self.task = dict(kind=e.get("kind") or self.ep.task.name, instruction=e.get("text") or self.ep.text)
+        self.start = None
+        if e.get("world"):
+            from agentic_robotics.bimanual import practice
+            self.start = practice.truth(self.ep)
+
+    def world_state(self, ended):
+        """The simulation's TRUE state at the end, as a world's success(state) reads it (practice.world_state: the
+        same names and units), written out for real/world_tool.py judge."""
+        from agentic_robotics.bimanual import practice
+        C = self.C
+        self.ep.finish()                                            # (1 s at rest first, as an episode's judge: idempotent)
+        st = practice.world_state(self.ep, self.start, ended)
+        names = list(C.objects) + list(C.groups) + [C.m.body(b).name for b in range(1, C.m.nbody)
+                                                     if C.m.body(b).name.startswith("w_") and b not in C.group_of]
+        bodies, joints = {}, {}
+        for n in dict.fromkeys(names):
+            try:
+                rot = st.rot(n)
+            except KeyError:
+                rot = None                                          # (a composite: a centre and points, no axes)
+            bodies[n] = dict(pos=st.pos(n), points=st.points(n), rot=rot, speed=st.speed(n), touching=st.touching(n))
+        for j in range(C.m.njnt):
+            try:
+                joints[C.m.joint(j).name] = st.joint(C.m.joint(j).name)
+            except KeyError:
+                pass
+        return dict(scene=st.scene, start=st.start, ended=ended, time_s=round(float(C.d.time), 1), truth=st.truth(),
+                    bodies=bodies, joints=joints, simulator=st.simulator())
 
     # ---- the arm
     def _step(self, q=None):
@@ -348,6 +389,9 @@ class SimBackend:
     def finish(self, h, out):
         v = self.ep.finish()
         self.out.mkdir(parents=True, exist_ok=True)
+        if self.start is not None:                                  # (for the world's own check: real/run.py, world_tool.py judge)
+            ended = (h.get("result") or {}).get("ended") if isinstance(h.get("result"), dict) else None
+            (self.out / "state.json").write_text(json.dumps(self.world_state(ended), default=str))
         video = self.C.write_video(self.out / "video.mp4")
         (self.out / "result.json").write_text(json.dumps(dict(v, scene=self.ep.scene), indent=1, default=str))
         return dict(judge=dict(v, success=bool(v.get("ok")), category="success" if v.get("ok") else "fail"), video=None,
@@ -445,6 +489,10 @@ class RealEpisode:
                         robot_time_limit_s=self.limit, t0=0.0, ask=self.ask is not None, **{f"arm_{k}": v for k, v in self.be.hello_info.items()}), []
         if cmd == "task":
             return dict(ok=True, task=self.task), []
+        if cmd == "world_state":                                    # (a rehearsal in a world: for its check, host_program.py)
+            if getattr(self.be, "start", None) is None:
+                return dict(ok=True, state=None, why="this backend has no world"), []
+            return dict(ok=True, state=self.be.world_state(h.get("ended"))), []
         if cmd == "now":
             return dict(ok=True, t=self.now()), []
         if cmd == "state":

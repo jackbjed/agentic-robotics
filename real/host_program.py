@@ -18,9 +18,14 @@ import contextlib
 import json
 import linecache
 import os
+import sys
 import time
 import traceback
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "src") not in sys.path:                               # (a worktree or a copy runs on the main checkout's
+    sys.path.insert(0, str(ROOT / "src"))                           #  environment: this checkout's code, not that one's)
 
 
 def main():
@@ -33,12 +38,16 @@ def main():
     ap.add_argument("--sock", required=True); ap.add_argument("--out", required=True)
     ap.add_argument("--speed", type=float, default=None, help="RealSim's time scale (default: rig.json speed)")
     ap.add_argument("--guard-speed", type=float, default=0.005, help="m/s of the stop_on_contact moves")
+    ap.add_argument("--guard-speed-high", type=float, default=None, help="m/s of their part above 150 mm (default: --guard-speed)")
     ap.add_argument("--guard-dz", type=float, default=None, help="m the hand is held up at a contact (default rig.json's)")
     ap.add_argument("--free-push", action="store_true", help="a push down after a contact: a plain move (default: guarded, slow)")
     ap.add_argument("--confirm-contact", action="store_true", help="a guarded line's stop without force is not a contact (bimanual/real.py CONFIRM)")
     ap.add_argument("--max-stops", type=int, default=3, help="safety stops of the arm server before the episode ends")
     ap.add_argument("--raw-force", action="store_true", help="state()'s force_n as the arm reports it (default: minus its "
                     "reading at the start, the hand free and empty)")
+    ap.add_argument("--world", help="a rehearsal in a session's world (real/run.py --backend sim --world): the program gets the "
+                                    "robot the world's robot() returns, and the world's success() judges the simulation's end state")
+    ap.add_argument("--world-seed", type=int, default=0, help="the scene's seed (the world's random numbers are its)")
     a = ap.parse_args()
     os.environ.setdefault("MUJOCO_GL", "osmesa")
     os.environ.setdefault("PYOPENGL_PLATFORM", os.environ["MUJOCO_GL"])
@@ -61,6 +70,10 @@ def main():
         calib = twin.camera_calib("calibrated")
     S = twin.RealSim(real.ReplyArm(link), SocketCams(link), twin.load_rig(), calib, speed=a.speed, v_max=None, log_dir=None)
     S.task_timing = True                                       # (real_box run: real_sim FREE_PHASES timing)
+    if hello.get("arm_q_home") is not None:                    # (the bimanual simulation standing in: its arm starts at ITS
+        import numpy as np                                     #  home pose, 55 mm from the twin's, and robot.home() must
+        S.q_home = np.asarray(hello["arm_q_home"], float)      #  return there: "back to the initial pose" is judged. On
+        #                                                         the rig the arm starts at the twin's home: real_box home.)
     task = link.call("task")[0]["task"]
     if a.clutter_level:
         from agentic_robotics.bimanual import clutter
@@ -77,16 +90,37 @@ def main():
                   f"model calls {'on' if hello.get('ask') else 'off'}\n")
         R = real.RealRobot(S, link, seg, out, hello, ask=bool(hello.get("ask")), guard_speed=a.guard_speed, guard_dz=a.guard_dz,
                            soft_push=not a.free_push, max_stops=a.max_stops, tare_force=not a.raw_force, sim_clock=not a.robot_clock, settle_all=not a.no_settle,
-                           program_limit_s=a.program_limit, trace=log, confirm_contact=a.confirm_contact)
-        if bad:
+                           program_limit_s=a.program_limit, trace=log, confirm_contact=a.confirm_contact,
+                           guard_speed_high=a.guard_speed_high)
+        # A world (a rehearsal: the simulation is the robot): as practice.episode does it, in ONE namespace. Its scene()
+        # is called again here, for the seed, because its check and its robot may read what scene() noted (the server
+        # built the scene from the same call in real/world_tool.py); its robot() wraps the robot the program gets (a
+        # world's own record for its check); its success() judges the end state the server gives (world_state).
+        wns, w_why, mine = None, None, None
+        if a.world:
+            import numpy as np
+            from agentic_robotics.bimanual import practice, scenes
+            wns, _, w_why = practice._world(a.world, scenes.empty(a.world_seed), a.world_seed, log)
+        if w_why:
+            how = "world: " + w_why
+        elif bad:
             how = "refused: " + "; ".join(bad)
         else:
             linecache.cache["program.py"] = (len(code), None, code.splitlines(True), "program.py")
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
                 try:
+                    given = real.program_robot(R)
+                    if wns is not None and "robot" in wns:
+                        try:
+                            given = wns["robot"](given, np.random.default_rng([int(a.world_seed), 78]), practice.WorldKit)
+                            if given is None or not all(hasattr(given, n) for n in ("look", "state", "move", "time_s")):
+                                raise ValueError("a world's robot(robot, rng, kit) returns the robot the program gets (a kit.Robot)")
+                        except (Exception, SystemExit) as e:
+                            traceback.print_exc(limit=-6)
+                            raise real.EpisodeEnd(f"world: its robot() failed ({type(e).__name__}: {str(e)[:200]})")
                     ns = {"__name__": "program"}
                     exec(compile(code, "program.py", "exec"), ns)
-                    ns["run"](real.program_robot(R), text)
+                    ns["run"](given, text)
                     how = "returned"
                 except TimeUp as e:
                     how = f"time: {e}"
@@ -97,6 +131,17 @@ def main():
                     how = f"error: {type(e).__name__}: {str(e)[:200]}"
                     error = how[7:]
                     (out / "program_error.txt").write_text(traceback.format_exc())
+        if wns is not None and "success" in wns:                    # the world's own check, on the scene at rest
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from world_tool import State
+            with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+                if w_why:
+                    mine = dict(ok=False, error="the world failed: " + w_why)
+                else:
+                    st = link.call("world_state", ended=how)[0]
+                    mine = practice.world_check(wns["success"], State(st["state"])) if st.get("state") else \
+                        dict(ok=False, error="no end state from the server: " + str(st.get("why")))
+            log.write(f"# the world's success(): {json.dumps(mine)}\n")
         log.write(f"# ended: {how}\n")
     try:
         S.flush()
@@ -108,6 +153,8 @@ def main():
     result = dict(ended=how, commands=c["commands"], shown=c["shown"], model_calls=c["asks"], model_usd=round(c["ask_usd"], 4),
                   model_wait_s=round(c["ask_wait_s"], 1), safety_stops=c["stops"], refusals=c["refusals"],
                   right_arm_commands=c["right_arm"], unconfirmed_stops=c["unconfirmed"])
+    if mine is not None:
+        result["world_check"] = mine
     usage = dict(wall_s=round(wall, 3), setup_wall_s=round(w_setup, 3), waiting_on_world_s=round(waited, 3),
                  compute_wall_s=round(wall - waited - w_setup, 3), requests=dict(link.n), segment_calls=seg.calls,
                  speed=S.speed, guard_speed=a.guard_speed, guard=R.guard, push=None if a.free_push else real.PUSH,

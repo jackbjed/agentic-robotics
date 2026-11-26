@@ -52,11 +52,30 @@ DT = twin.DT
 RIG_CAMS = {"scene": "d415", "left_wrist": "L_wrist"}           # what the rig has of core.CAMS
 PARK_Y = -280.0                                                 # mm: the parked right arm's side (rig.json keep-out)
 DESCEND_Z = 0.15
+WRIST_KEEP = 0.10                                                # (rad kept from the ends of joint 7's range in every plan: on the
+#   arm, 2026-11-25, a move planned to 2.847 rad, the rig's limit, left the wrist 0.058 rad short of it, and the arm's server
+#   refused the next trajectory: the episode ended)
+ROT_SHORT = math.radians(1.5)                                    # (core.BiCore._follow: a pose is reached within this)
 SETTLED = ("transit", "lift", "descend", "turn the hand", "settle")   # _go's phases that end with a settle
 GRIP_STEADY = (0.8, 5.0)        # s: after a gripper command the real opening is read until it has not changed for the
                                 # first (at most the second): the gripper's state comes every 0.2-0.33 s, so the arm
                                 # server's own wait (0.25 s without a change) can return in the middle of the motion
+# The real gripper does one thing at a time. Its grasp is not over when the fingers stand still: it goes on pressing
+# for a moment, and a command that comes meanwhile is LOST (run 20261125_121707: the fingers stood at 17.9 mm 1.5 s
+# after the close, the gripper reported the grasp done 1.5 s later; the program's open, 2 s after its close, did
+# nothing, and the arm went on with the cylinder in its closed hand). So after a close that holds something the
+# opening is not handed back before the gripper reports the grasp (or `done` s more have passed), and an OPEN after
+# which the fingers stand more than `short` m inside the opening asked for is sent again, `again` times, `pause` s apart.
+GRIP = dict(done=3.0, short=0.005, again=3, pause=1.0)
 PUSH = dict(dz=0.010, df=15.0)                                  # (arm_server._guard's upper limits)
+# The sense of state()'s force_n. The simulation gives the net force of everything else ON the arm: the table pushing
+# the hand up is +z. This arm's server reports the opposite: at 42 of the 48 descents of 2026-11-23..25 that touched
+# (guarded lines stopped with 3 N or more) its fz FELL, and with a sponge pressed on the table and the arm at rest it
+# stood 4.5 N BELOW its value with the sponge held in the air (run 20261125_111328: the sweeping program, which waits
+# for +1.4 N to know the sponge is down, pressed for 85 s and never saw it). So the program gets the estimate with
+# its sign turned (all three axes: one convention; only z is checked against data). The server's own guards and
+# CONFIRM use magnitudes and are not concerned; the programs that ran before used magnitudes too.
+FORCE_SIGN = -1.0
 # confirm_contact (real/run program --confirm-contact; off by default): the arm server ends a guarded line when the
 # hand lags its model of a free arm (rig.json: 2 mm) OR the force rises by 4 N. On this arm the first fires in free
 # air (joint friction: 2026-11-23, every guarded descent of every run, 0.1-0.8 N, the hand 2-6 mm behind). With it:
@@ -72,8 +91,23 @@ PUSH = dict(dz=0.010, df=15.0)                                  # (arm_server._g
 #     `near` m of the goal. (The settle works joint by joint. Run 185903: a guarded line of 8 mm ended with the tool at
 #     its goal's height; the settle that followed took it 7 mm below and 6 mm beside the goal by the time the program
 #     read it, the fingertips to the table, and the program refused to close.)
-CONFIRM = dict(n=3.9, dz=0.010, stuck=2, step=0.001, nudge=0.004, push=4.0, total=6.0, window=4, held=0.25, nudges=120, tries=300,
-               wait=0.6, near=0.003)
+#   - (after the clutter runs of 2026-11-23, 201146: the fingers stood on the object; its stops came with 2.3 to 2.9 N,
+#     under `n`, and the lines and steps pressed on it for 47 s while the hand slid 33 mm aside.) A REAL contact on this
+#     arm can come with as little as 2 N at 10 to 14 mm of lag; the stops in free air that made no way came with under
+#     1 N. So: `stuck` lines in a row without way that each came with `held_n` N or more ARE a contact; and so is an
+#     ordinary step that brings under `nudged` of its way with `held_n` N or more; `window` is 2 steps.
+#   - with the option, a plain move that goes DOWN from where a move until contact has just touched is sent as the
+#     guarded push (PUSH) wherever within `push_xy` m it aims (without the option: within 3 mm): the hand may have
+#     slid, and an ordinary move 28 mm into the object left the arm further from its goal than the server tolerates.
+#   - (run 20261125_120552: a 181 mm descent onto a sponge at x -140 mm, far from the arm's base, was cut 15 times; after
+#     each cut the next line started where the arm stood, and each time the shoulder lagged the elbow, so the hand went
+#     OUT as much as down: 43 mm beside its line at z 150 mm, still 24 mm beside it when its fingers met the sponge's
+#     top.) A cut line that leaves the tool more than `beside` m off the line the program asked for, with less than
+#     `held_n` N, is followed by an ordinary, settled move back ONTO that line at the height reached; the ordinary
+#     steps go along that line too. `beside` counts within `beside_near` m of the goal; further from it only a drift
+#     of `beside_far` m is taken back (run 20261125_121707: 22 such moves in one 194 mm descent, 95 s of it).
+CONFIRM = dict(n=3.9, dz=0.010, stuck=2, step=0.001, nudge=0.004, push=4.0, total=6.0, window=2, held=0.25, nudges=120, tries=300,
+               wait=0.6, near=0.003, held_n=1.8, nudged=0.35, push_xy=0.06, beside=0.004, beside_near=0.06, beside_far=0.02)
 # (push, total: 3.0 and 4.5 until run 170104, whose one ordinary step, in free air, changed the force estimate by 2.43 N.
 #  n: 2.0 until run 171920, where a line stopped in free air at z 256 mm, the hand 13 mm behind, came with 2.1 N and was
 #  passed on as a contact; the program, putting its cylinder back, let go of it there. n is now just under the server's
@@ -114,18 +148,22 @@ class RealRobot:
 
     def __init__(self, S, link, seg, out, hello, ask=False, guard_speed=0.005, guard_dz=None, soft_push=True, max_stops=3,
                  max_refusals=6, tare_force=True, sim_clock=True, program_limit_s=None, settle_all=True, trace=None,
-                 confirm_contact=False):
+                 confirm_contact=False, guard_speed_high=None):
         """S: RealSim built on a ReplyArm(link); seg: perception.client.Segmenter; out: the program's directory
         (shown/); hello: the server's; ask: the server answers robot.ask; trace: a file for the commands' log."""
         self.S, self.link, self.seg, self.out, self.trace = S, link, seg, Path(out), trace
+        S.lo, S.hi = np.array(S.lo, float), np.array(S.hi, float)   # (the planner's own copy: WRIST_KEEP)
+        S.lo[6] += WRIST_KEEP; S.hi[6] -= WRIST_KEEP
         self.dry = hello.get("mode") == "dry"
         self.grip_steady = GRIP_STEADY if hello.get("backend") == "robot" and not self.dry else None
         self.settle_all = bool(settle_all) and isinstance(S.backend, ReplyArm)
         if self.settle_all:
             S.backend.settle_phases = SETTLED
         self.sim_clock, self.saved = bool(sim_clock), 0.0          # (saved: s the program's clock is behind the rig's)
+        self.on_rig = hello.get("backend") == "robot"               # (the arm server's force estimate: FORCE_SIGN)
         self.limit = float(program_limit_s or hello["robot_time_limit_s"])
         self.asking, self.guard_speed = bool(ask), float(guard_speed)
+        self.guard_speed_high = float(guard_speed_high or guard_speed)     # (a move until contact above DESCEND_Z)
         self.guard = dict(dz=float(guard_dz or S.rig["contact"]["dz"]), df=float(S.rig["contact"]["df"]))
         self.soft_push, self._touched = bool(soft_push), None       # (_touched: the command a guarded move stopped at)
         self.confirm = bool(confirm_contact)                        # (CONFIRM)
@@ -226,7 +264,8 @@ class RealRobot:
 
     def state(self, arm):
         """What the arm and gripper measure: tcp_mm, approach_dir, closing_dir, opening_mm, commanded_mm, force_n (the
-        arm server's estimate of the external force, N, minus its reading at the episode's start: tare_force)."""
+        arm server's estimate of the external force, N, minus its reading at the episode's start and in the
+        simulation's sense, FORCE_SIGN: tare_force; --raw-force: as the arm server reports it)."""
         self._arm(arm)
         if self.ended:
             raise EpisodeEnd(self.ended)
@@ -244,6 +283,8 @@ class RealRobot:
                 st = S.last_state
                 p, R = S.d.site_xpos[S.tcp].copy(), S.d.site_xmat[S.tcp].reshape(3, 3).copy()
             f = np.asarray((st.get("f_ext") or [0.0, 0.0, 0.0])[:3], float) - (0.0 if self.tare is None else self.tare)
+            if self.tare is not None and self.on_rig:               # (FORCE_SIGN: the simulation's sense, what pushes the arm)
+                f = FORCE_SIGN * f
             f = [round(float(v), 1) for v in f]
             return dict(tcp_mm=_mm(p), approach_dir=_dir(R[:, 2]), closing_dir=_dir(R[:, 1]),
                         opening_mm=round(max(float(w), 0.0) * 1000, 1), commanded_mm=round(S.g_cmd * 2000, 1), force_n=f)
@@ -266,14 +307,34 @@ class RealRobot:
             return _refused(str(e))
         p, t = xyz / 1000.0, self._touched
         if stop_on_contact:
-            fn = lambda: self._guarded(p, R)
-        elif self.soft_push and t is not None and p[2] < t[0][2] and float(np.linalg.norm((p - t[0])[:2])) < 0.003 \
+            fn = self._sim_time(lambda: self._guarded(p, R), R)
+        elif self.soft_push and t is not None and p[2] < t[0][2] and float(np.linalg.norm((p - t[0])[:2])) < (CONFIRM["push_xy"] if self.confirm else 0.003) \
                 and float(np.linalg.norm(rotvec(t[1].T @ R))) < math.radians(2.0):
-            fn = lambda: self._guarded(p, R, PUSH, "SAFETY STOP: the push down met more than "
-                                       f"{PUSH['df']:.0f} N (or {PUSH['dz'] * 1000:.0f} mm of give) on the left arm")
+            fn = self._sim_time(lambda: self._guarded(p, R, PUSH, "SAFETY STOP: the push down met more than "
+                                                      f"{PUSH['df']:.0f} N (or {PUSH['dz'] * 1000:.0f} mm of give) on the left arm"), R)
         else:
             fn = lambda: self._free(p, R)
         return self._motion("move", fn, a)
+
+    def _sim_time(self, fn, R1):
+        """A move until contact on the PROGRAM'S clock (sim_clock): whatever the rig needed for it (5 mm/s, the lines
+        its server cut short in free air and their repeats, ordinary steps, settles: CONFIRM), the program's clock
+        goes on by what the simulation takes for the way made: the turn at W_TURN and the line at V_SLOW. (Until
+        2026-11-25 only the line's slower speed was taken off: run 20261125_111328's first descent, 181 mm with 15
+        cut lines, cost the program 247 of its 600 s.)"""
+        if not self.sim_clock or self.dry:
+            return fn
+
+        def go():
+            S = self.S
+            t0, p0, R0, s0 = float(self.link.call("now")[0]["t"]), S.p_cmd.copy(), S.R_cmd.copy(), self.saved
+            try:
+                return fn()
+            finally:
+                took = float(self.link.call("now")[0]["t"]) - t0
+                sim = float(np.linalg.norm(S.p_cmd - p0)) / V_SLOW + float(np.linalg.norm(rotvec(R0.T @ S.R_cmd))) / W_TURN
+                self.saved = s0 + max(took - sim, 0.0)
+        return go
 
     def turn(self, arm, centre, axis, angle_deg):
         self._arm(arm)
@@ -316,8 +377,34 @@ class RealRobot:
                 except _Stopped as e:
                     self._end(f"the gripper command was stopped: {e}")
             w = S.g_cmd * 2 if self.dry else self._width(moved)
+            if moved and self.grip_steady:                          # (the real gripper: GRIP)
+                if g < 1e-6 and w > 0.001:                          # a close that holds something: until its grasp is over
+                    t0 = time.time()
+                    while not S.sync().get("grasped") and time.time() - t0 < GRIP["done"]:
+                        time.sleep(0.05)
+                    self._note(f"the gripper's grasp: {'reported done' if S.last_state.get('grasped') else 'not reported'} "
+                               f"{time.time() - t0:.1f} s after the fingers stood still")
+                    w = float(S.sync().get("width") or w)
+                for k in range(GRIP["again"]):                      # an open that did nothing: sent again
+                    if not (g > 1e-6 and w < 2 * g - GRIP["short"]):
+                        break
+                    self._note(f"the gripper stands at {w * 1000:.1f} mm after the command to open to {g * 2000:.0f} mm: sent again")
+                    time.sleep(GRIP["pause"])
+                    S.g_sent = float(w) / 2.0                       # (where the fingers are: RealSim sends a command only
+                    S._queue([S.q_cmd.copy()] * 9, g, DT)           #  for an opening other than the one it holds as sent)
+                    S.g_cmd = g; S.d.ctrl[S.grip] = g
+                    try:
+                        self._send()
+                    except (_Refused, _Stopped) as e:
+                        self._end(f"the gripper command was not carried out: {e}")
+                    w = self._width(True)
             return round(max(float(w), 0.0) * 1000, 1)
         return self._call("set_gripper", go, (arm, width_mm))
+
+    def _note(self, text):
+        """A line of the adapter's own in the episode's output (what the rig did that the program did not ask for)."""
+        if self.trace is not None:
+            self.trace.write("#          (" + text + ")\n")
 
     def _width(self, moved):
         """The measured opening (m); after a gripper command on the real arm, once it stands still (GRIP_STEADY)."""
@@ -487,12 +574,22 @@ class RealRobot:
         Q = [q0 + (q1 - q0) * (k / n) ** 2 * (3 - 2 * k / n) for k in range(1, n + 1)]
         return None if self._unsafe(Q) else Q
 
+    def _rot_short(self, q, R1):
+        """How far the hand at joints q is from the orientation R1 (rad). RealSim.ik reports the position's error only:
+        with the wrist at the end of its range it gives the place with the hand turned short, and the move was then
+        sent and answered done (2026-11-25: a program that turns the hand in steps and reads state() found it 14 to 34
+        degrees short). core.BiCore._follow refuses such a pose (1.5 degrees): so does everything here."""
+        S, k = self.S, self.S.k
+        k.qpos[:] = S.d.qpos; k.qpos[S.qadr] = q
+        S.mj.mj_kinematics(S.m, k)
+        return float(np.linalg.norm(rotvec(R1 @ k.site_xmat[S.tcp].reshape(3, 3).T)))
+
     def _joint_path(self, p1, R1):
         S = self.S
         q1, err = S.ik(p1, R1, S.q_cmd)
-        if err > 0.002:
+        if err > 0.002 or self._rot_short(q1, R1) > ROT_SHORT:
             q1, err = S.ik(p1, R1, S.q_home)
-        return None if err > 0.002 else self._joints(q1)
+        return None if err > 0.002 or self._rot_short(q1, R1) > ROT_SHORT else self._joints(q1)
 
     def _free(self, p1, R1):
         """core.BiCore.move, not guarded: a line (a turn of more than 40 degrees: by the joints first), else a joint
@@ -507,12 +604,15 @@ class RealRobot:
             T_ = max(dist / (V_SLOW if min(p0[2], p1[2]) < LOW_Z else V_FREE), ang / W_TURN, 0.3)
             S.last_unsafe = None
             Ql, fail, T_, n = S.plan_line(p0, R0, S.q_cmd, p1, R1, T_)
-            if fail is None and not self._unsafe(Ql):
+            short = self._rot_short(Ql[-1], R1) if fail is None else 0.0
+            if fail is None and short <= ROT_SHORT and not self._unsafe(Ql):
                 self._go(Ql[1:], T_ / n, phase, p1, R1)
                 return False
             Q = self._joint_path(p1, R1)
             if Q is None:
-                raise _Refused("the arm cannot reach that pose" + (f" ({S.last_unsafe})" if S.last_unsafe else ""))
+                raise _Refused("the arm cannot reach that pose" + (f" (the hand would stay {math.degrees(short):.0f} degrees short of that "
+                               "orientation: the wrist is at the end of its range)" if short > ROT_SHORT else
+                               f" ({S.last_unsafe})" if S.last_unsafe else ""))
         self._go(Q, DT, phase, p1, R1)
         return True
 
@@ -549,7 +649,7 @@ class RealRobot:
         pre = []
         if ang > math.radians(1.0):
             Qt, fail, T_, n = S.plan_line(p0, R0, q0, p0, R1, max(ang / W_TURN, 0.3))
-            if fail is not None or self._unsafe(Qt):
+            if fail is not None or self._rot_short(Qt[-1], R1) > ROT_SHORT or self._unsafe(Qt):
                 raise _Refused("the arm cannot turn to that orientation where it is")
             pre, q0 = [(Qt[1:], T_ / n)], Qt[-1]
         S.last_unsafe = None
@@ -559,11 +659,18 @@ class RealRobot:
                 raise _Refused("the arm cannot follow that line")
             pre.append((Qr[1:], DT)); q0 = Qr[-1]
         def line(pa, qa):
-            n = max(int(round(float(np.linalg.norm(p1 - pa)) / self.guard_speed / DT)), 1)
+            # (the waypoints one DT apart: guard_speed apart in space, guard_speed_high where the tool is above
+            #  DESCEND_Z, the height from which RealSim itself takes a way down for free)
+            L, way, ws = float(np.linalg.norm(p1 - pa)), 0.0, []
+            while way < L - 1e-9:
+                z = float(pa[2] + (p1[2] - pa[2]) * way / max(L, 1e-9))
+                way = min(way + (self.guard_speed_high if z > DESCEND_Z else self.guard_speed) * DT, L)
+                ws.append(way / max(L, 1e-9))
+            ws = ws or [1.0]
             Q = [qa]
-            for i in range(1, n + 1):
-                q, e = S.ik(pa + (p1 - pa) * i / n, R1, Q[-1])
-                if e > 0.002 or np.abs(q - Q[-1]).max() > 0.15:
+            for w_ in ws:
+                q, e = S.ik(pa + (p1 - pa) * w_, R1, Q[-1])
+                if e > 0.002 or np.abs(q - Q[-1]).max() > 0.15 or (w_ == ws[-1] and self._rot_short(q, R1) > ROT_SHORT):
                     raise _Refused("the arm cannot follow that line" + (f" ({S.last_unsafe})" if S.last_unsafe else ""))
                 Q.append(q)
             why = self._unsafe(Q)
@@ -581,7 +688,11 @@ class RealRobot:
         u = (p1 - p0) / max(float(np.linalg.norm(p1 - p0)), 1e-9)
         tries = nudges = 0
         at, f_start = [], None                                      # (where the ordinary steps started; the force before the first)
-        ways = []                                                   # (of the lines since the last ordinary step)
+        ways, came = [], []                                         # (of the lines since the last ordinary step: way, force)
+
+        def beside(p):                                              # (how far p stands off the line p0 -> p1 asked for)
+            rel = np.asarray(p, float) - p0
+            return rel - float(rel @ u) * u
 
         def here():                                                 # (RealSim.guarded_line: the command = where the arm is)
             S.q_cmd = S.q_sent.copy()
@@ -617,34 +728,50 @@ class RealRobot:
             dfz = c.get("dfz_n")
             if confirm and dfz is not None and float(dfz) < CONFIRM["n"] and tries < CONFIRM["tries"]:   # (CONFIRM: is it a contact?)
                 tries += 1
-                ways.append(way)
+                ways.append(way); came.append(float(dfz))
                 k = CONFIRM["stuck"]
                 stuck = len(ways) >= k and sum(ways[-k:]) < k * CONFIRM["step"]
                 self.n["unconfirmed"] += 1
                 note(f"the arm's server stopped the line at z {S.p_cmd[2] * 1000:.1f} mm, {way * 1000:+.1f} mm on: the hand "
                      f"{c.get('held_mm', c.get('dz_mm'))} mm behind, force change {dfz} N: not taken as a contact")
                 left = float((p1 - S.p_cmd) @ u)
-                touched = False
-                if left > 0.0015 and stuck:                         # the lines do not get on: an ordinary step
+                touched = bool(stuck and min(came[-k:]) >= CONFIRM["held_n"])   # no way, against a force each time: held up
+                if touched:
+                    note(f"{k} lines without way, each against {CONFIRM['held_n']:g} N or more: a contact")
+                elif left > 0.0015 and stuck:                       # the lines do not get on: an ordinary step
                     step = min(CONFIRM["nudge"], left)
                     f0, pb = force(), S.p_cmd.copy()
                     f_start = f0 if f_start is None else f_start
                     at.append(float(pb @ u))
                     try:
-                        self._free(pb + u * step, R1)
+                        self._free(pb - beside(pb) + u * step, R1)   # (along the line asked for, not beside it)
                     except _Refused:
                         touched = True
                     else:
                         here()
                         f1 = force()
                         got, df, dft = float((S.p_cmd - pb) @ u), float(np.linalg.norm(f1 - f0)), float(np.linalg.norm(f1 - f_start))
-                        nudges += 1; ways = []
+                        nudges += 1; ways, came = [], []
                         w = CONFIRM["window"]
                         held = len(at) >= w and float(S.p_cmd @ u) - at[-w] < CONFIRM["held"] * w * CONFIRM["nudge"]
-                        touched = df >= CONFIRM["push"] or dft >= CONFIRM["total"] or held or nudges >= CONFIRM["nudges"]
+                        short = got < CONFIRM["nudged"] * step and df >= CONFIRM["held_n"]
+                        touched = df >= CONFIRM["push"] or dft >= CONFIRM["total"] or held or short or nudges >= CONFIRM["nudges"]
                         note(f"an ordinary step of {step * 1000:.1f} mm: {got * 1000:+.1f} mm on, to z {S.p_cmd[2] * 1000:.1f} mm, force change "
                              f"{df:.2f} N" + (": a contact" if touched else ""))
                     left = float((p1 - S.p_cmd) @ u)
+                elif left > 0.0015 and float(dfz) < CONFIRM["held_n"]:
+                    off = beside(S.p_cmd)                           # (the hand has drifted off its line: back onto it)
+                    far = float(np.linalg.norm(off))                # (near the goal every few mm count; high above it only
+                    if far > (CONFIRM["beside"] if left < CONFIRM["beside_near"] else CONFIRM["beside_far"]):   # a real drift)
+                        try:
+                            self._free(S.p_cmd - off, R1)
+                        except _Refused:
+                            pass
+                        else:
+                            here()
+                            note(f"the tool stood {float(np.linalg.norm(off)) * 1000:.1f} mm beside its line: an ordinary move back onto it, "
+                                 f"now {float(np.linalg.norm(beside(S.p_cmd))) * 1000:.1f} mm beside, z {S.p_cmd[2] * 1000:.1f} mm")
+                        left = float((p1 - S.p_cmd) @ u)
                 if not touched:
                     if left <= 0.0015:                              # there: the last of the way as an ordinary move
                         try:
@@ -654,6 +781,13 @@ class RealRobot:
                             pass
                     else:
                         try:
+                            # (the arm stands in another posture than the line's inverse kinematics drifts to: without
+                            #  this the line's first steps carry that drift and RealSim slows the WHOLE line to the joint
+                            #  speed limit: run 20261125_121707's lines after a cut were planned at 1.5 mm/s, not 5)
+                            Qr = self._posture(S.p_cmd.copy(), R1, S.q_cmd.copy())
+                            if len(Qr) > 1 and not self._unsafe(Qr):
+                                self._go(Qr[1:], DT, "turn the hand", S.p_cmd.copy(), R1)
+                                here()
                             Q = line(S.p_cmd.copy(), S.q_cmd.copy())
                             continue
                         except _Refused:
@@ -671,7 +805,7 @@ class RealRobot:
             E = expm(axis * th * i / n)
             p, R = c + E @ (p0 - c), E @ R0
             q, e = S.ik(p, R, Q[-1])
-            if e > 0.002 or np.abs(q - Q[-1]).max() > 0.15:
+            if e > 0.002 or np.abs(q - Q[-1]).max() > 0.15 or self._rot_short(q, R) > ROT_SHORT:
                 raise _Refused("the arm cannot turn that far there")
             Q.append(q)
         why = self._unsafe(Q)
