@@ -267,7 +267,7 @@ def world_state(ep, start, ended=None):
         return bool(t["robot"]) and not t["others"]
 
     return SimpleNamespace(
-        scene=_plain(ep.scene) if ep.scene is not None else None, start=_plain(start), ended=ended, time_s=round(float(ep.robot.time_s()), 1),
+        scene=_plain(scene_shown(ep.scene)) if ep.scene is not None else None, start=_plain(start), ended=ended, time_s=round(float(ep.robot.time_s()), 1),
         truth=lambda: _plain(truth(ep)), pos=lambda name: _mm(d.xpos[bodies(name)].mean(0)),
         points=lambda name: [_mm(d.xpos[b]) for b in bodies(name)],
         rot=lambda name: [[round(float(v), 5) for v in row] for row in d.xmat[body(name)].reshape(3, 3)],
@@ -466,6 +466,21 @@ def _recv(s, n):
     return bytes(b)
 
 
+EMPTY_SHOWN = ("seed", "arm", "table", "mjcf", "joints", "cameras")    # what a world sees, and may set, of an empty table's scene
+
+
+def empty_table(scene):
+    """Is this the empty table of a session on a task of the model's own (scenes.empty: nothing of the simulator's on it)?"""
+    from . import scenes
+    return scene is not None and scene_module(scene) is scenes and set(scene.get("without") or ()) >= set(scenes.WITHOUT)
+
+
+def scene_shown(scene):
+    """The scene as a world's code sees it: an empty table without the simulator's own objects, which are not on it
+    (their sizes and places are not the world's to read, and it cannot put them on the table)."""
+    return {k: v for k, v in scene.items() if k in EMPTY_SHOWN} if empty_table(scene) else scene
+
+
 class WorldKit:
     """What a world's robot(robot, rng, kit) gets to build with: kit.Robot (api.WorldRobot: the robot that passes every
     call on) and kit.frame(f, rgb=None, depth=None) (a Frame with other pixels: depth in mm, nan = none)."""
@@ -494,7 +509,12 @@ def _world(path, scene, seed, log):
                 mod = scene_module(scene) if scene is not None else None
                 if mod is None or not hasattr(mod, "world_scene"):
                     raise ValueError("a world's scene() changes the scenes of the cylinder and the stick and the heaps only")
-                sc = ns["scene"](json.loads(json.dumps(scene)), np.random.default_rng([int(seed), 77]))
+                sc = ns["scene"](json.loads(json.dumps(scene_shown(scene))), np.random.default_rng([int(seed), 77]))
+                if empty_table(scene):                              # (what the world made of the empty table, on the scene as it is)
+                    if not isinstance(sc, dict) or set(sc) - set(EMPTY_SHOWN):
+                        raise ValueError("a world's scene(...) returns the scene, a dict with " + ", ".join(EMPTY_SHOWN)
+                                         + (f" (not {', '.join(sorted(set(sc) - set(EMPTY_SHOWN)))})" if isinstance(sc, dict) else ""))
+                    sc = dict(scene, **{k: v for k, v in sc.items() if k in ("table", "mjcf", "joints", "cameras")})
                 scene = mod.world_scene(sc, scene)
                 if mod is not scenes:                               # (a heap's scene: what the world made of it, at rest)
                     print("# the world's scene: " + mod.describe(scene))
@@ -540,7 +560,7 @@ def episode(env, task, seed, program, out, sensors="d415", trace=False, seg_sock
         if own:
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
                 try:
-                    text = wns["goal"](json.loads(json.dumps(ep.scene)), np.random.default_rng([int(seed), 79]))
+                    text = wns["goal"](json.loads(json.dumps(scene_shown(ep.scene))), np.random.default_rng([int(seed), 79]))
                     if not isinstance(text, str) or not text.strip() or len(text) > GOAL_CHARS:
                         raise ValueError(f"goal(scene, rng) returns the task's text (at most {GOAL_CHARS} characters)")
                     log.write("# the world's own task: " + " ".join(text.split()) + "\n")
