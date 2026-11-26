@@ -1,0 +1,288 @@
+{
+ "name": "R2",
+ "run": "20261125_172250_robot_live_NAME",
+ "when": "20261125_172250",
+ "setup": "The mug tree, standing on the tape square, and two white mugs, one on each side of it.",
+ "contact": "the arm's guarded line at 5 mm/s with 10 mm of lag; stops of the arm's server with less than 3.9 N not passed on (the rig text: move(..., stop_on_contact=True))",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": true,
+ "knocked_off": false,
+ "robot_time_s": 239.2,
+ "program_ended": null,
+ "moves_until_contact": [
+  {
+   "t": 60.0,
+   "goal_mm": [
+    -210.76,
+    147.9,
+    48.28
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -211.8,
+    145.9,
+    45.1
+   ],
+   "server_stops_not_passed_on": 0,
+   "ordinary_steps": 0
+  },
+  {
+   "t": 119.3,
+   "goal_mm": [
+    -210.45,
+    146.31,
+    48.29
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -210.9,
+    145.2,
+    47.1
+   ],
+   "server_stops_not_passed_on": 0,
+   "ordinary_steps": 0
+  },
+  {
+   "t": 178.5,
+   "goal_mm": [
+    -210.88,
+    147.08,
+    48.29
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -211.2,
+    145.6,
+    46.8
+   ],
+   "server_stops_not_passed_on": 0,
+   "ordinary_steps": 0
+  }
+ ],
+ "server_guarded_lines": [
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "ran to its end",
+   "seconds": null,
+   "hand_behind_mm": null,
+   "came_down_mm": null,
+   "force_change_n": null
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "ran to its end",
+   "seconds": null,
+   "hand_behind_mm": null,
+   "came_down_mm": null,
+   "force_change_n": null
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "ran to its end",
+   "seconds": null,
+   "hand_behind_mm": null,
+   "came_down_mm": null,
+   "force_change_n": null
+  }
+ ],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.14,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.204,
+   "depth_mm": {
+    "nearest": 315,
+    "p5": 726,
+    "median": 737,
+    "p95": 744
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 13.671,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.176,
+   "depth_mm": {
+    "nearest": 316,
+    "p5": 725,
+    "median": 739,
+    "p95": 746
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 26.668,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.225,
+   "depth_mm": {
+    "nearest": 295,
+    "p5": 579,
+    "median": 648,
+    "p95": 656
+   }
+  },
+  {
+   "image": "look_03_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 48.229,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.325,
+   "depth_mm": {
+    "nearest": 279,
+    "p5": 357,
+    "median": 373,
+    "p95": 375
+   }
+  },
+  {
+   "image": "look_04_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 106.079,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.219,
+   "depth_mm": {
+    "nearest": 301,
+    "p5": 632,
+    "median": 656,
+    "p95": 662
+   }
+  },
+  {
+   "image": "look_05_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 126.499,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.322,
+   "depth_mm": {
+    "nearest": 278,
+    "p5": 358,
+    "median": 374,
+    "p95": 376
+   }
+  },
+  {
+   "image": "look_06_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 184.538,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.216,
+   "depth_mm": {
+    "nearest": 295,
+    "p5": 633,
+    "median": 664,
+    "p95": 672
+   }
+  },
+  {
+   "image": "look_07_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 204.966,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.317,
+   "depth_mm": {
+    "nearest": 273,
+    "p5": 360,
+    "median": 376,
+    "p95": 377
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_overview_-60",
+  "shown_01_overview_290",
+  "shown_02_hang_hover",
+  "shown_03_grasp_hover",
+  "shown_04_hang_hover",
+  "shown_05_grasp_hover",
+  "shown_06_hang_hover",
+  "shown_07_grasp_hover"
+ ],
+ "video_frames": {
+  "scene": [
+   "video_scene_000.0s",
+   "video_scene_038.3s",
+   "video_scene_076.7s",
+   "video_scene_115.1s",
+   "video_scene_153.4s",
+   "video_scene_191.7s",
+   "video_scene_230.1s",
+   "video_scene_268.5s"
+  ],
+  "wrist": [
+   "video_wrist_000.0s",
+   "video_wrist_038.3s",
+   "video_wrist_076.7s",
+   "video_wrist_115.1s",
+   "video_wrist_153.4s",
+   "video_wrist_191.7s",
+   "video_wrist_230.1s",
+   "video_wrist_268.5s"
+  ]
+ },
+ "output_lines": 88,
+ "version": 38
+}

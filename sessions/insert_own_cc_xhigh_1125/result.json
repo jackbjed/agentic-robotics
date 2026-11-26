@@ -1,0 +1,2942 @@
+{
+ "ended": "submitted",
+ "submitted": 38,
+ "result_version": 38,
+ "turns": 251,
+ "versions": [
+  {
+   "note": "probe: segmentation phrases, truth",
+   "lines": 42,
+   "base": null,
+   "runs": {
+    "s1@w0": [
+     false,
+     0.0
+    ],
+    "s2@w0": [
+     false,
+     0.0
+    ],
+    "s3@w0": [
+     false,
+     0.0
+    ],
+    "s4@w0": [
+     false,
+     0.0
+    ],
+    "s1@w1": [
+     false,
+     0.0
+    ],
+    "s2@w1": [
+     false,
+     0.0
+    ],
+    "s3@w1": [
+     false,
+     0.0
+    ],
+    "s4@w1": [
+     false,
+     0.0
+    ],
+    "s1@w2": [
+     false,
+     0.0
+    ],
+    "s2@w2": [
+     false,
+     0.0
+    ],
+    "s3@w2": [
+     false,
+     0.0
+    ],
+    "s4@w2": [
+     false,
+     0.0
+    ],
+    "s1@w3": [
+     false,
+     2.1
+    ],
+    "s2@w3": [
+     false,
+     2.1
+    ],
+    "s3@w3": [
+     false,
+     2.1
+    ],
+    "s4@w3": [
+     false,
+     2.1
+    ]
+   },
+   "at": {
+    "turn": 7,
+    "usd": 1.07,
+    "tokens": 287170,
+    "min": 5.4
+   }
+  },
+  {
+   "note": "probe2: wrist survey from z=560, segmentation phrases",
+   "lines": 43,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     false,
+     4.8
+    ],
+    "s2@w3": [
+     false,
+     4.8
+    ],
+    "s3@w3": [
+     false,
+     4.8
+    ],
+    "s4@w3": [
+     false,
+     4.8
+    ]
+   },
+   "at": {
+    "turn": 19,
+    "usd": 1.61,
+    "tokens": 1049914,
+    "min": 7.2
+   }
+  },
+  {
+   "note": "mech dev: truth-based positions; squeeze stick and cylinder, touch-down, insert",
+   "lines": 115,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     true,
+     67.2
+    ],
+    "s3@w3": [
+     true,
+     69.3
+    ]
+   },
+   "at": {
+    "turn": 23,
+    "usd": 1.97,
+    "tokens": 1387846,
+    "min": 9.3
+   }
+  },
+  {
+   "note": "v3: full skill: wrist survey (height residual + SAM), close-ups, squeeze stick/cyl, insert w/ search",
+   "lines": 432,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     false,
+     7.0
+    ],
+    "s2@w3": [
+     false,
+     52.0
+    ],
+    "s3@w3": [
+     false,
+     65.7
+    ],
+    "s4@w3": [
+     false,
+     70.0
+    ],
+    "s5@w3": [
+     false,
+     0.0
+    ],
+    "s6@w3": [
+     false,
+     54.7
+    ],
+    "s7@w3": [
+     true,
+     70.8
+    ],
+    "s8@w3": [
+     true,
+     82.2
+    ]
+   },
+   "at": {
+    "turn": 27,
+    "usd": 2.82,
+    "tokens": 1836798,
+    "min": 13.1
+   }
+  },
+  {
+   "note": "v4: ring verified by close-up hole, stick by local rise; artifact masking",
+   "lines": 500,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     false,
+     13.3
+    ],
+    "s2@w4": [
+     false,
+     182.0
+    ],
+    "s3@w4": [
+     false,
+     13.0
+    ],
+    "s4@w4": [
+     false,
+     13.5
+    ],
+    "s5@w4": [
+     true,
+     79.6
+    ],
+    "s6@w4": [
+     false,
+     13.9
+    ],
+    "s7@w4": [
+     true,
+     74.8
+    ],
+    "s8@w4": [
+     false,
+     14.7
+    ]
+   },
+   "at": {
+    "turn": 34,
+    "usd": 3.59,
+    "tokens": 2814000,
+    "min": 16.3
+   }
+  },
+  {
+   "note": "v5: debug stick detection",
+   "lines": 513,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     false,
+     13.3
+    ],
+    "s3@w4": [
+     false,
+     13.0
+    ]
+   },
+   "at": {
+    "turn": 37,
+    "usd": 3.87,
+    "tokens": 3285943,
+    "min": 17.5
+   }
+  },
+  {
+   "note": "v6: stick opening disc 44mm, annulus 18-32 p60; ring gripped low",
+   "lines": 513,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     true,
+     68.8
+    ],
+    "s2@w4": [
+     false,
+     183.0
+    ],
+    "s3@w4": [
+     true,
+     70.1
+    ],
+    "s4@w4": [
+     false,
+     13.5
+    ],
+    "s5@w4": [
+     true,
+     108.8
+    ],
+    "s6@w4": [
+     true,
+     95.9
+    ],
+    "s7@w4": [
+     true,
+     74.8
+    ],
+    "s8@w4": [
+     true,
+     101.3
+    ]
+   },
+   "at": {
+    "turn": 39,
+    "usd": 4.02,
+    "tokens": 3610854,
+    "min": 18.1
+   }
+  },
+  {
+   "note": "v7: survey from (-420,60,600); stick squeezed low a-b-a; put-back & retry when the search fails",
+   "lines": 714,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     true,
+     76.9
+    ],
+    "s2@w4": [
+     true,
+     86.4
+    ],
+    "s3@w4": [
+     true,
+     84.9
+    ],
+    "s4@w4": [
+     true,
+     80.9
+    ],
+    "s5@w4": [
+     true,
+     90.9
+    ],
+    "s6@w4": [
+     true,
+     98.6
+    ],
+    "s7@w4": [
+     true,
+     82.7
+    ],
+    "s8@w4": [
+     true,
+     92.8
+    ],
+    "s9@w4": [
+     true,
+     149.9
+    ],
+    "s10@w4": [
+     true,
+     80.2
+    ],
+    "s11@w4": [
+     false,
+     22.5
+    ],
+    "s12@w4": [
+     true,
+     117.9
+    ],
+    "s13@w4": [
+     true,
+     336.2
+    ],
+    "s14@w4": [
+     false,
+     85.4
+    ],
+    "s15@w4": [
+     true,
+     89.4
+    ],
+    "s16@w4": [
+     true,
+     87.0
+    ]
+   },
+   "at": {
+    "turn": 44,
+    "usd": 4.73,
+    "tokens": 4515928,
+    "min": 21.4
+   }
+  },
+  {
+   "note": "v8: squeeze test on fixed / heavy sticks",
+   "lines": 23,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     false,
+     57.8
+    ]
+   },
+   "at": {
+    "turn": 52,
+    "usd": 5.59,
+    "tokens": 6191752,
+    "min": 25.1
+   }
+  },
+  {
+   "note": "v9: iterative centring squeeze (arm compliance), grasp consistency check + re-look, ring hole by centre depth",
+   "lines": 774,
+   "base": null,
+   "runs": {
+    "s9@w4": [
+     true,
+     97.8
+    ],
+    "s11@w4": [
+     false,
+     22.5
+    ],
+    "s12@w4": [
+     true,
+     81.0
+    ],
+    "s13@w4": [
+     true,
+     100.3
+    ],
+    "s14@w4": [
+     true,
+     112.7
+    ],
+    "s17@w4": [
+     true,
+     80.5
+    ],
+    "s18@w4": [
+     true,
+     104.0
+    ],
+    "s19@w4": [
+     true,
+     81.4
+    ]
+   },
+   "at": {
+    "turn": 62,
+    "usd": 6.37,
+    "tokens": 8499303,
+    "min": 26.8
+   }
+  },
+  {
+   "note": "v10: finger clearance (height grid) chooses closing dirs; better hole test + weak fallback",
+   "lines": 865,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     83.6
+    ],
+    "s2@w6": [
+     true,
+     93.1
+    ],
+    "s3@w6": [
+     false,
+     41.7
+    ],
+    "s4@w6": [
+     true,
+     81.4
+    ],
+    "s5@w6": [
+     false,
+     519.7
+    ],
+    "s6@w6": [
+     true,
+     102.3
+    ],
+    "s7@w6": [
+     true,
+     85.5
+    ],
+    "s8@w6": [
+     true,
+     95.0
+    ]
+   },
+   "at": {
+    "turn": 71,
+    "usd": 7.22,
+    "tokens": 10727708,
+    "min": 29.1
+   }
+  },
+  {
+   "note": "v11: stick candidates verified by pedestal + round widths; orientation fallbacks; robust clearance; faster search",
+   "lines": 897,
+   "base": null,
+   "runs": {
+    "s3@w6": [
+     false,
+     50.2
+    ],
+    "s5@w6": [
+     true,
+     145.4
+    ],
+    "s9@w6": [
+     true,
+     83.8
+    ],
+    "s10@w6": [
+     true,
+     82.9
+    ],
+    "s11@w6": [
+     true,
+     132.4
+    ],
+    "s12@w6": [
+     true,
+     80.2
+    ],
+    "s13@w6": [
+     false,
+     61.4
+    ],
+    "s14@w6": [
+     true,
+     108.5
+    ]
+   },
+   "at": {
+    "turn": 79,
+    "usd": 8.04,
+    "tokens": 12892478,
+    "min": 33.3
+   }
+  },
+  {
+   "note": "v12: squeeze_at tries other closing angles when a move/turn is refused",
+   "lines": 925,
+   "base": null,
+   "runs": {
+    "s3@w6": [
+     true,
+     82.5
+    ],
+    "s13@w6": [
+     false,
+     66.8
+    ],
+    "s15@w6": [
+     true,
+     102.9
+    ],
+    "s16@w6": [
+     true,
+     107.9
+    ],
+    "s17@w6": [
+     false,
+     77.0
+    ],
+    "s18@w6": [
+     true,
+     104.4
+    ],
+    "s19@w6": [
+     true,
+     90.7
+    ],
+    "s20@w6": [
+     true,
+     94.8
+    ]
+   },
+   "at": {
+    "turn": 84,
+    "usd": 8.55,
+    "tokens": 14327633,
+    "min": 34.6
+   }
+  },
+  {
+   "note": "v13: judge squeeze width only once centred",
+   "lines": 926,
+   "base": null,
+   "runs": {
+    "s13@w6": [
+     true,
+     109.8
+    ],
+    "s17@w6": [
+     false,
+     77.0
+    ]
+   },
+   "at": {
+    "turn": 87,
+    "usd": 8.82,
+    "tokens": 15217386,
+    "min": 35.3
+   }
+  },
+  {
+   "note": "v14: blocked descent -> next closing angle",
+   "lines": 929,
+   "base": null,
+   "runs": {
+    "s17@w6": [
+     true,
+     84.0
+    ],
+    "s1@w6": [
+     true,
+     89.9
+    ],
+    "s2@w6": [
+     true,
+     114.2
+    ],
+    "s4@w6": [
+     true,
+     95.6
+    ],
+    "s5@w6": [
+     true,
+     141.8
+    ],
+    "s6@w6": [
+     true,
+     113.0
+    ],
+    "s7@w6": [
+     true,
+     85.5
+    ],
+    "s8@w6": [
+     true,
+     103.1
+    ],
+    "s9@w6": [
+     true,
+     83.8
+    ],
+    "s10@w6": [
+     true,
+     205.7
+    ],
+    "s11@w6": [
+     true,
+     132.4
+    ],
+    "s12@w6": [
+     true,
+     80.2
+    ],
+    "s14@w6": [
+     true,
+     108.5
+    ],
+    "s15@w6": [
+     true,
+     102.9
+    ],
+    "s16@w6": [
+     true,
+     107.9
+    ],
+    "s18@w6": [
+     true,
+     104.4
+    ],
+    "s19@w6": [
+     true,
+     90.7
+    ],
+    "s21@w6": [
+     true,
+     93.9
+    ],
+    "s22@w6": [
+     true,
+     93.4
+    ],
+    "s23@w6": [
+     true,
+     91.0
+    ],
+    "s24@w6": [
+     false,
+     102.2
+    ],
+    "s25@w6": [
+     true,
+     100.6
+    ],
+    "s26@w6": [
+     true,
+     158.5
+    ],
+    "s27@w6": [
+     true,
+     131.0
+    ],
+    "s28@w6": [
+     true,
+     91.0
+    ]
+   },
+   "at": {
+    "turn": 89,
+    "usd": 9.0,
+    "tokens": 15821224,
+    "min": 35.8
+   }
+  },
+  {
+   "note": "v15: correct the loaded arm's sag over the stick (closed loop on measured TCP)",
+   "lines": 939,
+   "base": null,
+   "runs": {
+    "s24@w6": [
+     true,
+     94.9
+    ],
+    "s29@w6": [
+     true,
+     115.9
+    ],
+    "s30@w6": [
+     true,
+     92.9
+    ],
+    "s31@w6": [
+     true,
+     88.0
+    ],
+    "s32@w6": [
+     true,
+     103.7
+    ],
+    "s26@w6": [
+     true,
+     158.6
+    ],
+    "s27@w6": [
+     true,
+     134.5
+    ],
+    "s10@w6": [
+     true,
+     83.4
+    ],
+    "s33@w6": [
+     true,
+     110.9
+    ],
+    "s34@w6": [
+     true,
+     102.2
+    ],
+    "s35@w6": [
+     true,
+     88.9
+    ],
+    "s36@w6": [
+     true,
+     85.6
+    ],
+    "s37@w6": [
+     true,
+     103.6
+    ],
+    "s38@w6": [
+     true,
+     105.4
+    ],
+    "s39@w6": [
+     true,
+     85.2
+    ],
+    "s40@w6": [
+     true,
+     109.8
+    ],
+    "s1@w7": [
+     true,
+     83.5
+    ],
+    "s2@w7": [
+     true,
+     123.4
+    ],
+    "s3@w7": [
+     true,
+     101.2
+    ],
+    "s4@w7": [
+     false,
+     15.3
+    ],
+    "s5@w7": [
+     true,
+     88.9
+    ],
+    "s6@w7": [
+     true,
+     138.7
+    ],
+    "s7@w7": [
+     true,
+     83.0
+    ],
+    "s8@w7": [
+     true,
+     112.6
+    ]
+   },
+   "at": {
+    "turn": 99,
+    "usd": 9.92,
+    "tokens": 18940645,
+    "min": 38.9
+   }
+  },
+  {
+   "note": "v16: stick candidates: drop ring-wall ones and duplicates before taking the top 7",
+   "lines": 944,
+   "base": null,
+   "runs": {
+    "s4@w7": [
+     true,
+     83.8
+    ],
+    "s9@w7": [
+     true,
+     93.9
+    ],
+    "s10@w7": [
+     true,
+     86.6
+    ],
+    "s11@w7": [
+     true,
+     93.3
+    ],
+    "s12@w7": [
+     true,
+     80.0
+    ],
+    "s13@w7": [
+     true,
+     100.4
+    ],
+    "s14@w7": [
+     true,
+     104.0
+    ],
+    "s15@w7": [
+     true,
+     104.5
+    ],
+    "s16@w7": [
+     true,
+     93.1
+    ],
+    "s17@w7": [
+     true,
+     82.1
+    ],
+    "s18@w7": [
+     true,
+     104.9
+    ],
+    "s19@w7": [
+     true,
+     95.1
+    ],
+    "s20@w7": [
+     true,
+     92.2
+    ],
+    "s21@w7": [
+     true,
+     121.5
+    ],
+    "s22@w7": [
+     true,
+     81.4
+    ],
+    "s23@w7": [
+     true,
+     113.8
+    ],
+    "s24@w7": [
+     true,
+     84.8
+    ],
+    "s25@w7": [
+     true,
+     123.2
+    ],
+    "s26@w7": [
+     true,
+     95.0
+    ],
+    "s27@w7": [
+     false,
+     323.1
+    ],
+    "s28@w7": [
+     false,
+     328.2
+    ],
+    "s29@w7": [
+     true,
+     100.6
+    ],
+    "s30@w7": [
+     true,
+     99.6
+    ],
+    "s31@w7": [
+     true,
+     79.7
+    ]
+   },
+   "at": {
+    "turn": 105,
+    "usd": 10.53,
+    "tokens": 20927617,
+    "min": 41.1
+   }
+  },
+  {
+   "note": "v17: stricter hole test; stick candidates ranked by plate fraction; stick must be round (1.5) and fit the seen hole",
+   "lines": 954,
+   "base": null,
+   "runs": {
+    "s27@w7": [
+     true,
+     97.9
+    ],
+    "s28@w7": [
+     true,
+     116.3
+    ],
+    "s32@w7": [
+     true,
+     104.7
+    ],
+    "s33@w7": [
+     true,
+     127.7
+    ],
+    "s34@w7": [
+     true,
+     93.9
+    ],
+    "s35@w7": [
+     false,
+     116.2
+    ],
+    "s36@w7": [
+     true,
+     101.1
+    ],
+    "s37@w7": [
+     true,
+     89.5
+    ]
+   },
+   "at": {
+    "turn": 118,
+    "usd": 11.82,
+    "tokens": 25441992,
+    "min": 45.1
+   }
+  },
+  {
+   "note": "v18: finish(): lift clear, go to the start pose by a straight move, then home",
+   "lines": 967,
+   "base": null,
+   "runs": {
+    "s35@w7": [
+     true,
+     131.3
+    ],
+    "s38@w7": [
+     true,
+     123.5
+    ],
+    "s39@w7": [
+     true,
+     108.6
+    ],
+    "s40@w7": [
+     true,
+     123.4
+    ],
+    "s41@w7": [
+     true,
+     115.6
+    ],
+    "s42@w7": [
+     true,
+     110.5
+    ],
+    "s43@w7": [
+     true,
+     86.7
+    ],
+    "s44@w7": [
+     true,
+     107.1
+    ],
+    "s1@w7": [
+     true,
+     91.3
+    ],
+    "s2@w7": [
+     false,
+     112.1
+    ],
+    "s3@w7": [
+     true,
+     111.9
+    ],
+    "s4@w7": [
+     true,
+     90.0
+    ],
+    "s5@w7": [
+     true,
+     95.0
+    ],
+    "s6@w7": [
+     true,
+     108.8
+    ],
+    "s7@w7": [
+     true,
+     89.0
+    ],
+    "s8@w7": [
+     true,
+     120.4
+    ]
+   },
+   "at": {
+    "turn": 124,
+    "usd": 12.34,
+    "tokens": 27618344,
+    "min": 45.9
+   }
+  },
+  {
+   "note": "v19: camera bias from a second look at the squeezed stick (the stand may have been dragged)",
+   "lines": 972,
+   "base": null,
+   "runs": {
+    "s2@w7": [
+     true,
+     139.5
+    ],
+    "s9@w7": [
+     true,
+     112.1
+    ],
+    "s10@w7": [
+     true,
+     104.2
+    ],
+    "s11@w7": [
+     true,
+     125.8
+    ],
+    "s12@w7": [
+     true,
+     102.9
+    ],
+    "s13@w7": [
+     true,
+     115.0
+    ],
+    "s14@w7": [
+     true,
+     107.3
+    ],
+    "s15@w7": [
+     true,
+     116.7
+    ],
+    "s16@w7": [
+     true,
+     106.5
+    ],
+    "s17@w7": [
+     true,
+     131.7
+    ],
+    "s18@w7": [
+     false,
+     99.5
+    ],
+    "s19@w7": [
+     true,
+     113.1
+    ],
+    "s20@w7": [
+     true,
+     99.4
+    ],
+    "s21@w7": [
+     true,
+     124.0
+    ],
+    "s22@w7": [
+     true,
+     94.4
+    ],
+    "s23@w7": [
+     true,
+     126.0
+    ]
+   },
+   "at": {
+    "turn": 132,
+    "usd": 13.16,
+    "tokens": 30588627,
+    "min": 47.9
+   }
+  },
+  {
+   "note": "v20: centring steps by the width excess on later passes (stiff arm / fixed stand)",
+   "lines": 989,
+   "base": null,
+   "runs": {
+    "s18@w7": [
+     true,
+     105.9
+    ],
+    "s24@w7": [
+     true,
+     104.2
+    ],
+    "s25@w7": [
+     true,
+     108.2
+    ],
+    "s26@w7": [
+     true,
+     143.8
+    ],
+    "s27@w7": [
+     true,
+     98.8
+    ],
+    "s28@w7": [
+     true,
+     130.4
+    ],
+    "s29@w7": [
+     false,
+     128.3
+    ],
+    "s30@w7": [
+     true,
+     107.6
+    ]
+   },
+   "at": {
+    "turn": 136,
+    "usd": 13.6,
+    "tokens": 32111903,
+    "min": 49.5
+   }
+  },
+  {
+   "note": "v21: close-ups always with the camera on the survey side (bias consistency); width-step only for the stick",
+   "lines": 996,
+   "base": null,
+   "runs": {
+    "s29@w7": [
+     true,
+     119.7
+    ],
+    "s31@w7": [
+     true,
+     92.8
+    ],
+    "s32@w7": [
+     true,
+     116.9
+    ],
+    "s33@w7": [
+     true,
+     121.1
+    ],
+    "s34@w7": [
+     true,
+     106.5
+    ],
+    "s35@w7": [
+     true,
+     136.3
+    ],
+    "s36@w7": [
+     true,
+     105.3
+    ],
+    "s37@w7": [
+     true,
+     104.1
+    ],
+    "s1@w7": [
+     true,
+     93.5
+    ],
+    "s2@w7": [
+     true,
+     139.5
+    ],
+    "s3@w7": [
+     true,
+     92.5
+    ],
+    "s4@w7": [
+     true,
+     94.1
+    ],
+    "s5@w7": [
+     true,
+     102.3
+    ],
+    "s6@w7": [
+     true,
+     113.8
+    ],
+    "s7@w7": [
+     true,
+     93.5
+    ],
+    "s8@w7": [
+     true,
+     118.3
+    ],
+    "s9@w7": [
+     true,
+     112.1
+    ],
+    "s10@w7": [
+     true,
+     104.2
+    ],
+    "s11@w7": [
+     true,
+     126.0
+    ],
+    "s12@w7": [
+     true,
+     102.9
+    ],
+    "s13@w7": [
+     true,
+     110.5
+    ],
+    "s14@w7": [
+     true,
+     107.3
+    ],
+    "s15@w7": [
+     true,
+     116.7
+    ],
+    "s16@w7": [
+     true,
+     106.5
+    ],
+    "s17@w7": [
+     true,
+     131.7
+    ],
+    "s18@w7": [
+     true,
+     105.9
+    ],
+    "s19@w7": [
+     true,
+     113.1
+    ],
+    "s20@w7": [
+     true,
+     99.4
+    ],
+    "s21@w7": [
+     true,
+     122.7
+    ],
+    "s22@w7": [
+     true,
+     94.4
+    ],
+    "s23@w7": [
+     true,
+     126.0
+    ],
+    "s24@w7": [
+     true,
+     104.2
+    ]
+   },
+   "at": {
+    "turn": 140,
+    "usd": 14.05,
+    "tokens": 33665799,
+    "min": 50.6
+   }
+  },
+  {
+   "note": "v22: ring grasp height adapts to short rings",
+   "lines": 997,
+   "base": null,
+   "runs": {
+    "s1@w8": [
+     true,
+     93.3
+    ],
+    "s2@w8": [
+     true,
+     108.7
+    ],
+    "s3@w8": [
+     true,
+     98.3
+    ],
+    "s4@w8": [
+     false,
+     76.8
+    ],
+    "s5@w8": [
+     true,
+     105.6
+    ],
+    "s6@w8": [
+     true,
+     127.8
+    ],
+    "s7@w8": [
+     true,
+     108.5
+    ],
+    "s8@w8": [
+     true,
+     118.4
+    ]
+   },
+   "at": {
+    "turn": 147,
+    "usd": 14.8,
+    "tokens": 36443336,
+    "min": 53.4
+   }
+  },
+  {
+   "note": "v23: close-up poses go higher when refused",
+   "lines": 1000,
+   "base": null,
+   "runs": {
+    "s4@w9": [
+     false,
+     133.4
+    ],
+    "s9@w9": [
+     true,
+     113.4
+    ],
+    "s10@w9": [
+     true,
+     106.9
+    ],
+    "s11@w9": [
+     true,
+     124.7
+    ],
+    "s12@w9": [
+     true,
+     96.1
+    ],
+    "s13@w9": [
+     true,
+     127.5
+    ],
+    "s14@w9": [
+     true,
+     105.2
+    ],
+    "s15@w9": [
+     true,
+     104.1
+    ],
+    "s1@w11": [
+     true,
+     93.3
+    ],
+    "s2@w11": [
+     true,
+     108.7
+    ],
+    "s3@w11": [
+     true,
+     98.4
+    ],
+    "s4@w11": [
+     true,
+     97.4
+    ],
+    "s5@w11": [
+     true,
+     105.6
+    ],
+    "s6@w11": [
+     true,
+     161.6
+    ],
+    "s7@w11": [
+     true,
+     108.5
+    ],
+    "s8@w11": [
+     true,
+     118.4
+    ],
+    "s16@w11": [
+     true,
+     109.8
+    ],
+    "s17@w11": [
+     true,
+     125.6
+    ],
+    "s18@w11": [
+     true,
+     101.4
+    ],
+    "s19@w11": [
+     true,
+     109.8
+    ],
+    "s20@w11": [
+     true,
+     98.5
+    ],
+    "s21@w11": [
+     true,
+     128.1
+    ],
+    "s22@w11": [
+     true,
+     95.3
+    ],
+    "s23@w11": [
+     true,
+     125.9
+    ],
+    "s24@w11": [
+     true,
+     125.3
+    ],
+    "s25@w11": [
+     true,
+     107.9
+    ],
+    "s26@w11": [
+     true,
+     143.5
+    ],
+    "s27@w11": [
+     true,
+     97.4
+    ],
+    "s28@w11": [
+     true,
+     126.0
+    ],
+    "s29@w11": [
+     true,
+     113.0
+    ],
+    "s30@w11": [
+     true,
+     140.9
+    ],
+    "s31@w11": [
+     true,
+     97.7
+    ],
+    "s32@w11": [
+     true,
+     111.2
+    ],
+    "s33@w11": [
+     true,
+     127.3
+    ],
+    "s34@w11": [
+     true,
+     109.7
+    ],
+    "s35@w11": [
+     true,
+     131.7
+    ],
+    "s36@w11": [
+     true,
+     98.7
+    ],
+    "s37@w11": [
+     true,
+     102.9
+    ],
+    "s38@w11": [
+     true,
+     129.7
+    ],
+    "s39@w11": [
+     true,
+     113.8
+    ],
+    "s1@w12": [
+     true,
+     93.3
+    ],
+    "s2@w12": [
+     true,
+     107.8
+    ],
+    "s3@w12": [
+     false,
+     48.9
+    ],
+    "s4@w12": [
+     false,
+     356.6
+    ],
+    "s5@w12": [
+     true,
+     109.1
+    ],
+    "s6@w12": [
+     true,
+     112.3
+    ],
+    "s7@w12": [
+     true,
+     116.9
+    ],
+    "s8@w12": [
+     true,
+     121.7
+    ]
+   },
+   "at": {
+    "turn": 155,
+    "usd": 15.65,
+    "tokens": 39700437,
+    "min": 55.1
+   }
+  },
+  {
+   "note": "idle: does nothing, prints truth (checks scene stability and that success() fails)",
+   "lines": 6,
+   "base": null,
+   "runs": {
+    "s4@w9": [
+     false,
+     2.0
+    ],
+    "s1@w9": [
+     false,
+     2.0
+    ],
+    "s2@w9": [
+     false,
+     2.0
+    ],
+    "s3@w9": [
+     false,
+     2.0
+    ],
+    "s4@w10": [
+     false,
+     2.0
+    ],
+    "s5@w10": [
+     false,
+     2.0
+    ],
+    "s6@w10": [
+     false,
+     2.0
+    ],
+    "s7@w10": [
+     false,
+     2.0
+    ],
+    "s8@w10": [
+     false,
+     2.0
+    ],
+    "s9@w10": [
+     false,
+     2.0
+    ],
+    "s10@w10": [
+     false,
+     2.0
+    ],
+    "s11@w10": [
+     false,
+     2.0
+    ],
+    "s4@w11": [
+     false,
+     2.0
+    ],
+    "s4@w13": [
+     false,
+     2.0
+    ],
+    "s9@w13": [
+     false,
+     2.0
+    ],
+    "s10@w13": [
+     false,
+     2.0
+    ],
+    "s11@w13": [
+     false,
+     2.0
+    ],
+    "s12@w13": [
+     false,
+     2.0
+    ],
+    "s13@w13": [
+     false,
+     2.0
+    ],
+    "s14@w13": [
+     false,
+     2.0
+    ],
+    "s15@w13": [
+     false,
+     2.0
+    ],
+    "s4@w14": [
+     false,
+     2.0
+    ],
+    "s11@w14": [
+     false,
+     2.0
+    ],
+    "s1@w14": [
+     false,
+     2.0
+    ],
+    "s3@w14": [
+     false,
+     2.0
+    ],
+    "s5@w14": [
+     false,
+     2.0
+    ],
+    "s9@w14": [
+     false,
+     2.0
+    ],
+    "s12@w14": [
+     false,
+     2.0
+    ],
+    "s13@w14": [
+     false,
+     2.0
+    ],
+    "s1@w15": [
+     false,
+     2.0
+    ],
+    "s2@w15": [
+     false,
+     2.0
+    ],
+    "s3@w15": [
+     false,
+     2.0
+    ],
+    "s4@w15": [
+     false,
+     2.0
+    ]
+   },
+   "at": {
+    "turn": 163,
+    "usd": 16.48,
+    "tokens": 43038288,
+    "min": 56.2
+   }
+  },
+  {
+   "note": "v25: stick candidate score: taller counts more, tiny patches penalised, no SAM-ring penalty",
+   "lines": 1001,
+   "base": null,
+   "runs": {
+    "s1@w13": [
+     true,
+     93.3
+    ],
+    "s2@w13": [
+     true,
+     107.8
+    ],
+    "s3@w13": [
+     true,
+     121.2
+    ],
+    "s4@w13": [
+     true,
+     94.0
+    ],
+    "s5@w13": [
+     true,
+     109.1
+    ],
+    "s6@w13": [
+     true,
+     116.7
+    ],
+    "s7@w13": [
+     true,
+     116.9
+    ],
+    "s8@w13": [
+     true,
+     110.2
+    ],
+    "s9@w13": [
+     true,
+     123.9
+    ],
+    "s10@w13": [
+     true,
+     106.9
+    ],
+    "s11@w13": [
+     false,
+     249.2
+    ],
+    "s12@w13": [
+     true,
+     124.6
+    ],
+    "s13@w13": [
+     true,
+     136.3
+    ],
+    "s14@w13": [
+     true,
+     115.2
+    ],
+    "s15@w13": [
+     true,
+     104.1
+    ],
+    "s16@w13": [
+     true,
+     113.5
+    ]
+   },
+   "at": {
+    "turn": 182,
+    "usd": 18.58,
+    "tokens": 51269724,
+    "min": 61.0
+   }
+  },
+  {
+   "note": "v26: ring candidates ranked (hole evidence + survey score); a failed grasp moves on to the next candidate",
+   "lines": 1010,
+   "base": null,
+   "runs": {
+    "s11@w13": [
+     true,
+     392.8
+    ],
+    "s17@w13": [
+     true,
+     153.6
+    ],
+    "s18@w13": [
+     true,
+     104.7
+    ],
+    "s19@w13": [
+     true,
+     151.0
+    ],
+    "s20@w13": [
+     true,
+     112.8
+    ],
+    "s21@w13": [
+     true,
+     113.9
+    ],
+    "s22@w13": [
+     true,
+     91.6
+    ],
+    "s23@w13": [
+     true,
+     114.6
+    ]
+   },
+   "at": {
+    "turn": 188,
+    "usd": 19.32,
+    "tokens": 53992202,
+    "min": 62.8
+   }
+  },
+  {
+   "note": "v27: at most 2 grasp attempts per ring candidate",
+   "lines": 1010,
+   "base": null,
+   "runs": {
+    "s11@w13": [
+     true,
+     255.0
+    ],
+    "s24@w13": [
+     false,
+     107.2
+    ],
+    "s25@w13": [
+     true,
+     111.2
+    ],
+    "s26@w13": [
+     true,
+     131.0
+    ],
+    "s27@w13": [
+     true,
+     93.6
+    ],
+    "s28@w13": [
+     true,
+     129.6
+    ],
+    "s29@w13": [
+     true,
+     113.7
+    ],
+    "s30@w13": [
+     true,
+     110.8
+    ]
+   },
+   "at": {
+    "turn": 191,
+    "usd": 19.67,
+    "tokens": 55375734,
+    "min": 64.2
+   }
+  },
+  {
+   "note": "probe: fingertip touch on the table with stop_on_contact",
+   "lines": 22,
+   "base": null,
+   "runs": {
+    "s1@w13": [
+     false,
+     26.1
+    ],
+    "s2@w13": [
+     false,
+     26.1
+    ]
+   },
+   "at": {
+    "turn": 194,
+    "usd": 20.0,
+    "tokens": 56770633,
+    "min": 65.4
+   }
+  },
+  {
+   "note": "probe: fingertip touch on the table (target z 12.5)",
+   "lines": 22,
+   "base": null,
+   "runs": {
+    "s1@w13": [
+     false,
+     28.8
+    ],
+    "s3@w13": [
+     false,
+     28.8
+    ]
+   },
+   "at": {
+    "turn": 195,
+    "usd": 20.18,
+    "tokens": 57243309,
+    "min": 65.6
+   }
+  },
+  {
+   "note": "v30: larger height margins for the grasp and the release (wrist camera heights ~5 mm off)",
+   "lines": 1011,
+   "base": null,
+   "runs": {
+    "s24@w13": [
+     false,
+     121.4
+    ],
+    "s1@w13": [
+     true,
+     94.6
+    ],
+    "s2@w13": [
+     true,
+     107.7
+    ],
+    "s3@w13": [
+     true,
+     121.0
+    ],
+    "s31@w13": [
+     true,
+     97.1
+    ],
+    "s32@w13": [
+     true,
+     111.0
+    ],
+    "s33@w13": [
+     true,
+     127.2
+    ],
+    "s34@w13": [
+     true,
+     109.4
+    ]
+   },
+   "at": {
+    "turn": 196,
+    "usd": 20.31,
+    "tokens": 57715576,
+    "min": 66.2
+   }
+  },
+  {
+   "note": "v31: release the ring once 15 mm onto the stick (slides down); keep the sag-corrected xy after a search",
+   "lines": 1014,
+   "base": null,
+   "runs": {
+    "s24@w13": [
+     false,
+     119.9
+    ],
+    "s35@w13": [
+     true,
+     129.7
+    ],
+    "s36@w13": [
+     true,
+     105.9
+    ],
+    "s37@w13": [
+     true,
+     96.7
+    ],
+    "s38@w13": [
+     true,
+     144.5
+    ],
+    "s39@w13": [
+     true,
+     105.2
+    ],
+    "s40@w13": [
+     true,
+     255.3
+    ],
+    "s41@w13": [
+     true,
+     121.1
+    ]
+   },
+   "at": {
+    "turn": 201,
+    "usd": 21.0,
+    "tokens": 60116310,
+    "min": 67.5
+   }
+  },
+  {
+   "note": "v32: gentle release (loosen, wait, open)",
+   "lines": 1018,
+   "base": null,
+   "runs": {
+    "s24@w13": [
+     false,
+     122.9
+    ],
+    "s40@w13": [
+     true,
+     258.3
+    ],
+    "s42@w13": [
+     true,
+     108.2
+    ],
+    "s43@w13": [
+     true,
+     89.3
+    ],
+    "s44@w13": [
+     true,
+     107.2
+    ],
+    "s5@w13": [
+     true,
+     107.3
+    ],
+    "s6@w13": [
+     true,
+     113.4
+    ],
+    "s7@w13": [
+     true,
+     96.5
+    ],
+    "s9@w13": [
+     true,
+     127.0
+    ],
+    "s10@w13": [
+     true,
+     107.3
+    ],
+    "s11@w13": [
+     false,
+     489.7
+    ],
+    "s12@w13": [
+     true,
+     106.3
+    ],
+    "s13@w13": [
+     true,
+     135.7
+    ],
+    "s14@w13": [
+     true,
+     126.7
+    ],
+    "s15@w13": [
+     true,
+     102.3
+    ],
+    "s16@w13": [
+     true,
+     112.5
+    ]
+   },
+   "at": {
+    "turn": 204,
+    "usd": 21.38,
+    "tokens": 61574899,
+    "min": 68.5
+   }
+  },
+  {
+   "note": "v33: travel moves (up, across, down) between places",
+   "lines": 1036,
+   "base": null,
+   "runs": {
+    "s11@w13": [
+     false,
+     151.0
+    ],
+    "s17@w13": [
+     true,
+     153.3
+    ],
+    "s18@w13": [
+     true,
+     115.4
+    ],
+    "s19@w13": [
+     true,
+     171.4
+    ],
+    "s20@w13": [
+     true,
+     105.9
+    ],
+    "s21@w13": [
+     true,
+     126.0
+    ],
+    "s22@w13": [
+     true,
+     110.0
+    ],
+    "s23@w13": [
+     true,
+     135.5
+    ],
+    "s11@w14": [
+     true,
+     235.9
+    ],
+    "s24@w14": [
+     true,
+     147.8
+    ],
+    "s1@w14": [
+     false,
+     110.1
+    ],
+    "s2@w14": [
+     true,
+     119.6
+    ],
+    "s3@w14": [
+     false,
+     67.6
+    ],
+    "s4@w14": [
+     true,
+     103.7
+    ],
+    "s5@w14": [
+     true,
+     114.1
+    ],
+    "s6@w14": [
+     true,
+     134.1
+    ],
+    "s1@w15": [
+     true,
+     110.1
+    ],
+    "s3@w15": [
+     false,
+     67.6
+    ],
+    "s11@w15": [
+     true,
+     232.6
+    ],
+    "s24@w15": [
+     false,
+     146.8
+    ],
+    "s4@w15": [
+     true,
+     103.7
+    ],
+    "s7@w15": [
+     true,
+     108.5
+    ],
+    "s8@w15": [
+     true,
+     113.3
+    ],
+    "s9@w15": [
+     true,
+     135.9
+    ]
+   },
+   "at": {
+    "turn": 213,
+    "usd": 22.5,
+    "tokens": 66022347,
+    "min": 71.5
+   }
+  },
+  {
+   "note": "v34: stick close-up opening 40 mm (thick sticks)",
+   "lines": 1036,
+   "base": null,
+   "runs": {
+    "s3@w15": [
+     true,
+     111.2
+    ],
+    "s24@w15": [
+     true,
+     143.5
+    ],
+    "s2@w15": [
+     true,
+     119.6
+    ],
+    "s5@w15": [
+     true,
+     114.2
+    ],
+    "s6@w15": [
+     true,
+     134.1
+    ],
+    "s10@w15": [
+     true,
+     119.4
+    ],
+    "s12@w15": [
+     true,
+     118.0
+    ],
+    "s13@w15": [
+     true,
+     150.1
+    ],
+    "s14@w15": [
+     true,
+     120.8
+    ],
+    "s15@w15": [
+     true,
+     121.4
+    ],
+    "s16@w15": [
+     true,
+     135.7
+    ],
+    "s17@w15": [
+     true,
+     145.6
+    ],
+    "s18@w15": [
+     true,
+     115.4
+    ],
+    "s19@w15": [
+     true,
+     150.1
+    ],
+    "s20@w15": [
+     true,
+     105.9
+    ],
+    "s21@w15": [
+     true,
+     119.4
+    ],
+    "s22@w15": [
+     true,
+     110.5
+    ],
+    "s23@w15": [
+     true,
+     156.6
+    ],
+    "s25@w15": [
+     true,
+     114.6
+    ],
+    "s26@w15": [
+     true,
+     140.4
+    ],
+    "s27@w15": [
+     true,
+     89.0
+    ],
+    "s28@w15": [
+     true,
+     128.0
+    ],
+    "s29@w15": [
+     true,
+     120.7
+    ],
+    "s30@w15": [
+     true,
+     117.4
+    ],
+    "s31@w15": [
+     true,
+     106.3
+    ],
+    "s32@w15": [
+     true,
+     125.1
+    ],
+    "s33@w15": [
+     true,
+     133.5
+    ],
+    "s34@w15": [
+     true,
+     116.5
+    ],
+    "s35@w15": [
+     true,
+     156.1
+    ],
+    "s36@w15": [
+     true,
+     122.2
+    ],
+    "s37@w15": [
+     true,
+     109.8
+    ],
+    "s38@w15": [
+     true,
+     169.5
+    ],
+    "s45@w15": [
+     true,
+     95.9
+    ],
+    "s46@w15": [
+     true,
+     144.8
+    ],
+    "s47@w15": [
+     true,
+     116.2
+    ],
+    "s48@w15": [
+     true,
+     106.0
+    ],
+    "s49@w15": [
+     true,
+     124.2
+    ],
+    "s50@w15": [
+     true,
+     201.4
+    ],
+    "s51@w15": [
+     true,
+     113.8
+    ],
+    "s52@w15": [
+     true,
+     130.6
+    ],
+    "s53@w15": [
+     true,
+     134.6
+    ],
+    "s54@w15": [
+     true,
+     108.0
+    ],
+    "s55@w15": [
+     true,
+     112.2
+    ],
+    "s56@w15": [
+     true,
+     97.5
+    ],
+    "s39@w15": [
+     true,
+     118.7
+    ],
+    "s40@w15": [
+     true,
+     127.5
+    ],
+    "s41@w15": [
+     true,
+     156.2
+    ],
+    "s42@w15": [
+     true,
+     109.7
+    ]
+   },
+   "at": {
+    "turn": 224,
+    "usd": 23.94,
+    "tokens": 71631541,
+    "min": 74.7
+   }
+  },
+  {
+   "note": "v35: = v34 tidied (header doc, unused_* names for old code); no behaviour change",
+   "lines": 1054,
+   "base": null,
+   "runs": {
+    "s43@w15": [
+     true,
+     104.5
+    ],
+    "s44@w15": [
+     true,
+     119.9
+    ],
+    "s1@w15": [
+     true,
+     110.1
+    ],
+    "s4@w15": [
+     true,
+     107.1
+    ],
+    "s7@w15": [
+     true,
+     108.5
+    ],
+    "s8@w15": [
+     true,
+     113.4
+    ],
+    "s9@w15": [
+     true,
+     135.9
+    ],
+    "s11@w15": [
+     true,
+     235.9
+    ]
+   },
+   "at": {
+    "turn": 232,
+    "usd": 24.95,
+    "tokens": 75824266,
+    "min": 78.0
+   }
+  },
+  {
+   "note": "v36: = v35 + on any exception: open, lift clear, go home",
+   "lines": 1065,
+   "base": null,
+   "runs": {
+    "s45@w15": [
+     true,
+     95.9
+    ],
+    "s46@w15": [
+     true,
+     144.8
+    ],
+    "s47@w15": [
+     true,
+     116.2
+    ],
+    "s48@w15": [
+     true,
+     106.0
+    ],
+    "s2@w15": [
+     true,
+     119.6
+    ],
+    "s3@w15": [
+     true,
+     111.2
+    ],
+    "s5@w15": [
+     true,
+     114.2
+    ],
+    "s6@w15": [
+     true,
+     134.1
+    ],
+    "s49@w16": [
+     true,
+     124.2
+    ],
+    "s50@w16": [
+     true,
+     201.4
+    ],
+    "s51@w16": [
+     true,
+     113.8
+    ],
+    "s52@w16": [
+     true,
+     130.6
+    ],
+    "s53@w16": [
+     true,
+     134.6
+    ],
+    "s54@w16": [
+     true,
+     107.1
+    ],
+    "s55@w16": [
+     true,
+     112.2
+    ],
+    "s56@w16": [
+     true,
+     97.5
+    ],
+    "s57@w16": [
+     true,
+     120.8
+    ],
+    "s58@w16": [
+     true,
+     127.5
+    ],
+    "s59@w16": [
+     true,
+     131.4
+    ],
+    "s60@w16": [
+     true,
+     118.3
+    ],
+    "s61@w16": [
+     true,
+     116.2
+    ],
+    "s62@w16": [
+     true,
+     144.1
+    ],
+    "s63@w16": [
+     true,
+     145.5
+    ],
+    "s64@w16": [
+     true,
+     125.1
+    ],
+    "s65@w16": [
+     true,
+     118.9
+    ],
+    "s66@w16": [
+     false,
+     62.6
+    ],
+    "s67@w16": [
+     true,
+     105.4
+    ],
+    "s68@w16": [
+     true,
+     119.7
+    ],
+    "s10@w16": [
+     true,
+     119.4
+    ],
+    "s12@w16": [
+     true,
+     118.0
+    ],
+    "s13@w16": [
+     true,
+     150.1
+    ],
+    "s14@w16": [
+     true,
+     120.8
+    ]
+   },
+   "at": {
+    "turn": 234,
+    "usd": 25.22,
+    "tokens": 76884030,
+    "min": 78.7
+   }
+  },
+  {
+   "note": "v37: accept thick sticks' close-up patch up to 34 mm (24 mm stick + depth blur)",
+   "lines": 1065,
+   "base": null,
+   "runs": {
+    "s66@w16": [
+     false,
+     62.6
+    ],
+    "s15@w16": [
+     true,
+     121.4
+    ],
+    "s16@w16": [
+     true,
+     135.7
+    ],
+    "s17@w16": [
+     true,
+     145.6
+    ],
+    "s18@w16": [
+     true,
+     115.4
+    ],
+    "s19@w16": [
+     true,
+     150.1
+    ],
+    "s20@w16": [
+     true,
+     105.9
+    ],
+    "s21@w16": [
+     true,
+     119.4
+    ]
+   },
+   "at": {
+    "turn": 242,
+    "usd": 26.23,
+    "tokens": 81172596,
+    "min": 81.0
+   }
+  },
+  {
+   "note": "v38: accept thick sticks' close-up patch up to 34 mm (24 mm stick + depth blur) [v37 had not changed]",
+   "lines": 1065,
+   "base": null,
+   "runs": {
+    "s66@w16": [
+     true,
+     108.9
+    ],
+    "s22@w16": [
+     true,
+     110.5
+    ],
+    "s23@w16": [
+     true,
+     156.6
+    ],
+    "s25@w16": [
+     true,
+     114.6
+    ],
+    "s26@w16": [
+     true,
+     140.4
+    ],
+    "s27@w16": [
+     true,
+     89.0
+    ],
+    "s28@w16": [
+     true,
+     128.0
+    ],
+    "s29@w16": [
+     true,
+     120.7
+    ],
+    "s69@w16": [
+     true,
+     122.5
+    ],
+    "s70@w16": [
+     true,
+     150.0
+    ],
+    "s71@w16": [
+     true,
+     136.3
+    ],
+    "s72@w16": [
+     true,
+     168.9
+    ],
+    "s73@w16": [
+     true,
+     129.6
+    ],
+    "s74@w16": [
+     true,
+     107.1
+    ],
+    "s75@w16": [
+     true,
+     126.9
+    ],
+    "s76@w16": [
+     true,
+     104.9
+    ],
+    "s77@w16": [
+     true,
+     125.8
+    ],
+    "s78@w16": [
+     true,
+     140.2
+    ],
+    "s79@w16": [
+     true,
+     118.9
+    ],
+    "s80@w16": [
+     true,
+     121.0
+    ],
+    "s30@w16": [
+     true,
+     117.4
+    ],
+    "s31@w16": [
+     true,
+     106.3
+    ],
+    "s32@w16": [
+     true,
+     125.1
+    ],
+    "s33@w16": [
+     true,
+     133.5
+    ],
+    "s81@w16": [
+     true,
+     108.0
+    ],
+    "s82@w16": [
+     true,
+     116.2
+    ],
+    "s83@w16": [
+     true,
+     161.2
+    ],
+    "s84@w16": [
+     true,
+     226.7
+    ],
+    "s85@w16": [
+     true,
+     118.4
+    ],
+    "s86@w16": [
+     true,
+     120.1
+    ],
+    "s87@w16": [
+     true,
+     123.5
+    ],
+    "s88@w16": [
+     true,
+     124.5
+    ],
+    "s89@w16": [
+     true,
+     165.2
+    ],
+    "s90@w16": [
+     true,
+     171.6
+    ],
+    "s91@w16": [
+     true,
+     115.4
+    ],
+    "s92@w16": [
+     true,
+     147.3
+    ],
+    "s34@w16": [
+     true,
+     116.5
+    ],
+    "s35@w16": [
+     true,
+     156.1
+    ],
+    "s36@w16": [
+     true,
+     122.2
+    ],
+    "s37@w16": [
+     true,
+     109.8
+    ]
+   },
+   "at": {
+    "turn": 243,
+    "usd": 26.37,
+    "tokens": 81716431,
+    "min": 81.5
+   }
+  }
+ ],
+ "task": "insert_varied",
+ "env": "sim_bimanual_grippers",
+ "sensors": "d415",
+ "budget_usd": 50.0,
+ "spent_usd": 27.5356,
+ "compactions": 0,
+ "wall_s": 5100.3,
+ "effort": "xhigh",
+ "task_world": 16,
+ "agent": {
+  "kind": "claude_code",
+  "cli_version": "2.1.331 (Claude Code)",
+  "account": "the user's other Claude account (Pro on 2026-11-25, being upgraded to Max; token login: the CLI reports no email or plan)",
+  "organisation": null,
+  "plan": null,
+  "usage_limits": {
+   "first": {
+    "five_hour": {
+     "first": 0.04,
+     "n": 44,
+     "last": 0.47,
+     "status": "allowed",
+     "resets_at": 1795650600
+    },
+    "seven_day": {
+     "first": 0,
+     "n": 44,
+     "last": 0.04,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   },
+   "last": {
+    "five_hour": {
+     "first": 0.04,
+     "n": 44,
+     "last": 0.47,
+     "status": "allowed",
+     "resets_at": 1795650600
+    },
+    "seven_day": {
+     "first": 0,
+     "n": 44,
+     "last": 0.04,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   }
+  },
+  "cli_turns": 416,
+  "plan_tier": null,
+  "auth": "oauth_token",
+  "model": "opus",
+  "model_resolved": "claude-opus-5-5",
+  "effort": "xhigh",
+  "cost_usd": 27.53564,
+  "cost_is": "the CLI's total_cost_usd (API-equivalent), summed over the invocations",
+  "tokens": {
+   "input": 85825691,
+   "cached": 85275136,
+   "cache_write": 550053,
+   "output": 303909
+  },
+  "replies": 251,
+  "invocations": [
+   {
+    "k": 0,
+    "exit": 0,
+    "stopped": null,
+    "wall_s": 5100.2,
+    "usd": 27.53564,
+    "estimated": false,
+    "cli_total_usd": 27.535639200000002,
+    "subtype": "success",
+    "is_error": false,
+    "num_turns": 416,
+    "replies": 251,
+    "tokens": {
+     "input": 85825691,
+     "cached": 85275136,
+     "cache_write": 550053,
+     "output": 303909
+    },
+    "compactions": 0,
+    "session_id": "aa3eb01d-0fcc-490e-8fe4-2f5adda1c682",
+    "resumed": null,
+    "estimate_usd": 27.53564,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0.04,
+      "n": 44,
+      "last": 0.47,
+      "status": "allowed",
+      "resets_at": 1795650600
+     },
+     "seven_day": {
+      "first": 0,
+      "n": 44,
+      "last": 0.04,
+      "status": "allowed",
+      "resets_at": 1795806000
+     },
+     "_status": {
+      "status": "allowed",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    }
+   }
+  ],
+  "model_usage": [
+   {
+    "claude-opus-5-5": {
+     "inputTokens": 502,
+     "outputTokens": 303909,
+     "cacheReadInputTokens": 85275136,
+     "cacheCreationInputTokens": 550053,
+     "webSearchRequests": 0,
+     "costUSD": 27.535639200000002,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 166167,
+     "cacheCreationEphemeral5mInputTokens": 0,
+     "cacheCreationEphemeral1hInputTokens": 550053,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   }
+  ],
+  "tools": [
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "Read",
+   "Write"
+  ],
+  "mcp_servers": [],
+  "workspace": "/var/tmp/ar-cc/insert_own_cc_xhigh_1125/workspace"
+ }
+}

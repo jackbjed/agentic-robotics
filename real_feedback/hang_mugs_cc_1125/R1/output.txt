@@ -1,0 +1,39 @@
+# task: Hang all the mugs on the mug rack. On the table there are two mugs, standing upright, and one mug rack (a mug tree: a post on a base, with branches sticking out of the post). Pick up each mug and hang it on the rack by its handle: a branch of the rack must pass through the handle so that the rack bears the mug's weight once the gripper lets go of it. Each mug must stay hanging after it is released, and hanging one mug must not knock the other off. Other things on the table are not to be used. At the end all mugs hang on the rack, the gripper is open and the arm is back at its start pose.
+# robot live: robot time limit 2250.0 s, model calls off
+# t=   0.8 set_gripper('left', 80) -> 80 | left tool (-492.5, 93.6, 357.2)
+# t=   7.9 move('left', (-390, -60, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-390.5, -60.1, 599.7)
+# t=   7.9 look([left_wrist]) -> left_wrist: Frame | left tool (-390.5, -60.1, 599.7)
+# t=  14.4 move('left', (-390, 290, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-389, 288.2, 599.6)
+# t=  14.4 look([left_wrist]) -> left_wrist: Frame | left tool (-389, 288.2, 599.6)
+[14.4] table z -5.4, 487200 points
+[14.4] blob at [-176.0, -23.0] top 344 area 18464
+[14.4] blob at [-239.0, 163.0] top 94 area 6512
+[14.4]   cand: C [-242.5, 153.4] r 32.8 H 88 sup 5 hollow True handle True n_h 465 frac 0.38 w 15
+[14.4] blob at [-339.0, -41.0] top 77 area 5600
+[14.4]   cand: C [-341.7, -55.8] r 48.3 H 81 sup -1 hollow True handle False n_h 10 frac 1.00 w 6
+[14.4] rack A [-168.8, -30.1] base_top 15 pole_r 16.0 pole_top 338 top 358 base_r 79, 2 branches
+[14.4]    branch az 131 elev 22 s_tip 100 rb 6.4 ztop(root) 312
+[14.4]    branch az 136 elev 24 s_tip 98 rb 3.8 ztop(root) 127
+# t=  21.1 move('left', (-341.67, -55.83, 560), (0, 0, -1), (0, -1, 0)) -> done | left tool (-340.3, -55.6, 560.4)
+# t=  31.5 move('left', (-341.67, -55.83, 233.99), (0, 0, -1), (0, -1, 0)) -> done | left tool (-340, -57.9, 236.6)
+# t=  31.5 look([left_wrist]) -> left_wrist: Frame | left tool (-340, -57.9, 236.6)
+[31.5] inspect [-342.0, -56.0] -> (True, True, 1074, 15.751464657043112, 847)
+[31.5] 2 mugs found
+[31.5] mug 0: 6 candidates
+[31.5] mug 1: 6 candidates
+[31.5] mug 0 -> branch 0 sigma -1 s_d 49 delta -53 cost 0.24 clear {'descend': (42.1, 73.4, 10.8, 106.3), 'thread': (17.8, 10.2, 6.3, 33.7)}
+# t=  42.4 move('left', (-340, -57.9, 560), (0, 0, -1), (0, -1, 0)) -> done | left tool (-340.5, -64.4, 557.4)
+# t=  42.4 move('left', (-137.54, 62.73, 560), (0, 0, -1), (-0.01, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-340.5, -64.4, 557.4)
+  move [-137.5, 62.7, 560.0] -> moved=False why=the arm cannot reach that pose
+# t=  42.4 move('left', (-137.54, 62.73, 523.53), (0, 0, -1), (-0.01, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-340.5, -64.4, 557.4)
+  move [-137.5, 62.7, 523.5] -> moved=False why=the arm cannot reach that pose
+# t=  42.4 move('left', (-137.54, 62.73, 543.53), (0, 0, -1), (-0.01, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-340.4, -64.5, 557.4)
+  move [-137.5, 62.7, 543.5] -> moved=False why=the arm cannot reach that pose
+# t=  45.8 move('left', (-287.45, 57.5, 523.53), (0, 0, -1), (-0.01, -1, 0)) -> done | left tool (-286.5, 54.5, 519)
+# t=  52.7 move('left', (-286.5, 54.5, 519), (0, 0, -1), (-0.94, -0.34, 0)) -> done | left tool (-287.5, 54.8, 522.3)
+# t=  58.7 move('left', (-286.5, 54.5, 519), (0, 0, -1), (-0.66, 0.75, 0)) -> done | left tool (-286.5, 54.5, 518.3)
+  turn_to: wrong final yaw err 24.7 deg
+# t=  58.7 move('left', (-397.38, 53.68, 523.53), (0, 0, -1), (-0.91, 0.41, 0)) -> EPISODE ENDS: the arm server refuses: the arm is 0.058 rad from the goal it holds at joint 7 (> 0.05: moved by something else, e.g. a franka-interface restart?) | left tool (-286.5, 54.5, 518.3)
+EXCEPTION EpisodeEnd('the arm server refuses: the arm is 0.058 rad from the goal it holds at joint 7 (> 0.05: moved by something else, e.g. a franka-interface restart?)')
+finish failed the arm server refuses: the arm is 0.058 rad from the goal it holds at joint 7 (> 0.05: moved by something else, e.g. a franka-interface restart?)
+# ended: returned

@@ -1,0 +1,3769 @@
+{
+ "ended": "submitted",
+ "submitted": 31,
+ "result_version": 31,
+ "turns": 288,
+ "versions": [
+  {
+   "note": "probe: look, SAM, touch table",
+   "lines": 62,
+   "base": null,
+   "runs": {
+    "s1@w0": [
+     false,
+     0.0
+    ],
+    "s2@w0": [
+     false,
+     0.0
+    ],
+    "s3@w0": [
+     false,
+     0.0
+    ],
+    "s4@w0": [
+     false,
+     0.0
+    ],
+    "s1@w1": [
+     false,
+     0.0
+    ],
+    "s2@w1": [
+     false,
+     0.0
+    ],
+    "s3@w1": [
+     false,
+     0.0
+    ],
+    "s4@w1": [
+     false,
+     0.0
+    ],
+    "s1@w2": [
+     false,
+     12.8
+    ],
+    "s2@w2": [
+     false,
+     12.8
+    ],
+    "s3@w2": [
+     false,
+     12.8
+    ],
+    "s4@w2": [
+     false,
+     12.8
+    ]
+   },
+   "at": {
+    "turn": 11,
+    "usd": 1.14,
+    "tokens": 476313,
+    "min": 5.5
+   }
+  },
+  {
+   "note": "perception probe: top-down map from wrist cam, sponge/target/objects detection vs truth",
+   "lines": 360,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     false,
+     2.2
+    ],
+    "s2@w3": [
+     false,
+     2.2
+    ],
+    "s3@w3": [
+     false,
+     2.2
+    ],
+    "s4@w3": [
+     false,
+     2.2
+    ],
+    "s5@w3": [
+     false,
+     2.2
+    ],
+    "s6@w3": [
+     false,
+     0.0
+    ],
+    "s7@w3": [
+     false,
+     2.2
+    ],
+    "s8@w3": [
+     false,
+     2.2
+    ]
+   },
+   "at": {
+    "turn": 29,
+    "usd": 2.49,
+    "tokens": 1740321,
+    "min": 11.4
+   }
+  },
+  {
+   "note": "v2: first full skill: map, sponge refine+grasp, table touch, radial strokes to target, park+relook rounds",
+   "lines": 762,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     false,
+     109.1
+    ],
+    "s2@w4": [
+     true,
+     102.1
+    ],
+    "s3@w4": [
+     false,
+     110.5
+    ],
+    "s4@w4": [
+     false,
+     4.2
+    ],
+    "s5@w4": [
+     false,
+     108.3
+    ],
+    "s6@w4": [
+     false,
+     53.6
+    ],
+    "s7@w4": [
+     false,
+     53.1
+    ],
+    "s8@w4": [
+     false,
+     190.4
+    ]
+   },
+   "at": {
+    "turn": 39,
+    "usd": 3.86,
+    "tokens": 3088707,
+    "min": 17.0
+   }
+  },
+  {
+   "note": "v3: grasp height from support ring + z limits, ray-height exclusion, lower target threshold + hint colour, reach check, touch at free spot, lifted segment over paper",
+   "lines": 830,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     false,
+     34.8
+    ],
+    "s2@w5": [
+     false,
+     71.0
+    ],
+    "s3@w5": [
+     false,
+     128.7
+    ],
+    "s4@w5": [
+     false,
+     0.2
+    ],
+    "s5@w5": [
+     false,
+     126.8
+    ],
+    "s6@w5": [
+     false,
+     15.0
+    ],
+    "s7@w5": [
+     true,
+     453.8
+    ],
+    "s8@w5": [
+     false,
+     223.6
+    ]
+   },
+   "at": {
+    "turn": 54,
+    "usd": 5.16,
+    "tokens": 5775377,
+    "min": 21.7
+   }
+  },
+  {
+   "note": "v4: plane-fit heights, finger-corner mask, clump vs low-obstacle blobs, sponge top<140, support p90, release retries, aims grid, landing->skip+mark",
+   "lines": 912,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     87.1
+    ],
+    "s2@w6": [
+     true,
+     188.3
+    ],
+    "s3@w6": [
+     true,
+     217.0
+    ],
+    "s4@w6": [
+     false,
+     -0.5
+    ],
+    "s5@w6": [
+     false,
+     62.5
+    ],
+    "s6@w6": [
+     false,
+     5.7
+    ],
+    "s7@w6": [
+     true,
+     275.7
+    ],
+    "s8@w6": [
+     false,
+     2.1
+    ]
+   },
+   "at": {
+    "turn": 75,
+    "usd": 6.96,
+    "tokens": 10431125,
+    "min": 27.3
+   }
+  },
+  {
+   "note": "v5: stricter target fg (hint mask), shallow 15mm grip, long moves split up/across/down, reach near base tighter",
+   "lines": 931,
+   "base": null,
+   "runs": {
+    "s1@w7": [
+     false,
+     55.6
+    ],
+    "s2@w7": [
+     false,
+     77.2
+    ],
+    "s3@w7": [
+     false,
+     71.9
+    ],
+    "s4@w7": [
+     false,
+     61.9
+    ],
+    "s5@w7": [
+     false,
+     7.8
+    ],
+    "s6@w7": [
+     false,
+     64.9
+    ],
+    "s7@w7": [
+     false,
+     78.4
+    ],
+    "s8@w7": [
+     false,
+     4.2
+    ]
+   },
+   "at": {
+    "turn": 85,
+    "usd": 7.9,
+    "tokens": 12936190,
+    "min": 30.4
+   }
+  },
+  {
+   "note": "v6: grip depth by table height (pads centre g below top), regrip higher if no table contact, quadratic table colour model, split moves capped at z 380 with fallback",
+   "lines": 974,
+   "base": null,
+   "runs": {
+    "s1@w8": [
+     true,
+     90.3
+    ],
+    "s2@w8": [
+     true,
+     187.8
+    ],
+    "s3@w8": [
+     false,
+     69.1
+    ],
+    "s4@w8": [
+     true,
+     116.1
+    ],
+    "s5@w8": [
+     false,
+     42.3
+    ],
+    "s6@w8": [
+     false,
+     4.2
+    ],
+    "s7@w8": [
+     false,
+     48.7
+    ],
+    "s8@w8": [
+     false,
+     4.2
+    ]
+   },
+   "at": {
+    "turn": 93,
+    "usd": 8.72,
+    "tokens": 15109440,
+    "min": 32.5
+   }
+  },
+  {
+   "note": "v7: grip 12 mm below top (low table: from thickness), regrip from measured thickness, target kind must match the text, split moves across <= 380",
+   "lines": 986,
+   "base": null,
+   "runs": {
+    "s1@w9": [
+     true,
+     86.7
+    ],
+    "s2@w9": [
+     true,
+     124.5
+    ],
+    "s3@w9": [
+     true,
+     211.7
+    ],
+    "s4@w9": [
+     true,
+     112.3
+    ],
+    "s5@w9": [
+     false,
+     189.2
+    ],
+    "s6@w9": [
+     false,
+     190.7
+    ],
+    "s7@w9": [
+     true,
+     219.8
+    ],
+    "s8@w9": [
+     false,
+     102.5
+    ]
+   },
+   "at": {
+    "turn": 98,
+    "usd": 9.21,
+    "tokens": 16532276,
+    "min": 34.4
+   }
+  },
+  {
+   "note": "v8: over-sheet lift zc+3, turn wrist back if flipped at look, keep first target unless consistent, scene heights every look",
+   "lines": 1005,
+   "base": null,
+   "runs": {
+    "s1@w9": [
+     true,
+     86.7
+    ],
+    "s2@w9": [
+     true,
+     124.5
+    ],
+    "s3@w9": [
+     true,
+     265.4
+    ],
+    "s4@w9": [
+     true,
+     141.6
+    ],
+    "s5@w9": [
+     true,
+     126.7
+    ],
+    "s6@w9": [
+     false,
+     95.1
+    ],
+    "s7@w9": [
+     true,
+     270.3
+    ],
+    "s8@w9": [
+     false,
+     102.5
+    ],
+    "s9@w9": [
+     false,
+     116.6
+    ],
+    "s10@w9": [
+     false,
+     110.1
+    ],
+    "s11@w9": [
+     true,
+     105.9
+    ],
+    "s12@w9": [
+     false,
+     54.9
+    ],
+    "s13@w9": [
+     true,
+     113.0
+    ],
+    "s14@w9": [
+     true,
+     120.3
+    ],
+    "s15@w9": [
+     false,
+     4.0
+    ],
+    "s16@w9": [
+     false,
+     5.6
+    ]
+   },
+   "at": {
+    "turn": 105,
+    "usd": 9.91,
+    "tokens": 18630573,
+    "min": 36.4
+   }
+  },
+  {
+   "note": "v9: grasp by descending until fingertips touch the support (low table: shallow by thickness), touch always at a free spot, ring support p60",
+   "lines": 1005,
+   "base": null,
+   "runs": {
+    "s1@w10": [
+     true,
+     88.6
+    ],
+    "s2@w10": [
+     false,
+     121.3
+    ],
+    "s3@w10": [
+     true,
+     128.7
+    ],
+    "s4@w10": [
+     false,
+     518.8
+    ],
+    "s5@w10": [
+     true,
+     119.3
+    ],
+    "s6@w10": [
+     false,
+     147.4
+    ],
+    "s7@w10": [
+     true,
+     222.1
+    ],
+    "s8@w10": [
+     true,
+     104.1
+    ],
+    "s9@w10": [
+     false,
+     144.9
+    ],
+    "s10@w10": [
+     false,
+     131.0
+    ],
+    "s11@w10": [
+     true,
+     108.0
+    ],
+    "s12@w10": [
+     false,
+     98.0
+    ],
+    "s13@w10": [
+     true,
+     192.8
+    ],
+    "s14@w10": [
+     true,
+     122.0
+    ],
+    "s15@w10": [
+     false,
+     4.0
+    ],
+    "s16@w10": [
+     true,
+     97.1
+    ]
+   },
+   "at": {
+    "turn": 114,
+    "usd": 10.83,
+    "tokens": 21490864,
+    "min": 39.4
+   }
+  },
+  {
+   "note": "v10: support = highest flat level around the sponge, grasp TCP top-10 (>= support+19), finger-landing retry with offsets, stroke clearance 40",
+   "lines": 1014,
+   "base": null,
+   "runs": {
+    "s1@w11": [
+     true,
+     87.7
+    ],
+    "s2@w11": [
+     false,
+     88.7
+    ],
+    "s3@w11": [
+     true,
+     200.1
+    ],
+    "s4@w11": [
+     true,
+     134.6
+    ],
+    "s5@w11": [
+     true,
+     129.1
+    ],
+    "s6@w11": [
+     false,
+     84.1
+    ],
+    "s7@w11": [
+     false,
+     269.7
+    ],
+    "s8@w11": [
+     false,
+     103.4
+    ],
+    "s9@w11": [
+     true,
+     118.6
+    ],
+    "s10@w11": [
+     false,
+     57.5
+    ],
+    "s11@w11": [
+     true,
+     115.5
+    ],
+    "s12@w11": [
+     false,
+     53.6
+    ],
+    "s13@w11": [
+     true,
+     113.5
+    ],
+    "s14@w11": [
+     false,
+     162.3
+    ],
+    "s15@w11": [
+     true,
+     106.1
+    ],
+    "s16@w11": [
+     false,
+     94.6
+    ]
+   },
+   "at": {
+    "turn": 125,
+    "usd": 12.09,
+    "tokens": 25285093,
+    "min": 44.9
+   }
+  },
+  {
+   "note": "v11: free-spot finder (grid) for touch/park, touch validated vs expected sponge bottom, fingertips support+2.5, sweep at zc-0.5, ocol bug",
+   "lines": 1029,
+   "base": null,
+   "runs": {
+    "s1@w12": [
+     true,
+     86.8
+    ],
+    "s2@w12": [
+     true,
+     105.0
+    ],
+    "s3@w12": [
+     false,
+     229.1
+    ],
+    "s4@w12": [
+     true,
+     132.4
+    ],
+    "s5@w12": [
+     true,
+     129.1
+    ],
+    "s6@w12": [
+     false,
+     82.3
+    ],
+    "s7@w12": [
+     true,
+     304.0
+    ],
+    "s8@w12": [
+     false,
+     101.8
+    ],
+    "s9@w12": [
+     true,
+     124.5
+    ],
+    "s10@w12": [
+     false,
+     130.4
+    ],
+    "s11@w12": [
+     true,
+     156.2
+    ],
+    "s12@w12": [
+     false,
+     170.8
+    ],
+    "s13@w12": [
+     false,
+     128.2
+    ],
+    "s14@w12": [
+     false,
+     125.4
+    ],
+    "s15@w12": [
+     true,
+     102.3
+    ],
+    "s16@w12": [
+     true,
+     93.4
+    ]
+   },
+   "at": {
+    "turn": 138,
+    "usd": 13.54,
+    "tokens": 30091542,
+    "min": 48.9
+   }
+  },
+  {
+   "note": "v12: on a loose sheet push only 28 mm past its edge",
+   "lines": 1033,
+   "base": null,
+   "runs": {
+    "s1@w13": [
+     true,
+     86.8
+    ],
+    "s2@w13": [
+     true,
+     105.0
+    ],
+    "s3@w13": [
+     true,
+     229.1
+    ],
+    "s4@w13": [
+     true,
+     132.4
+    ],
+    "s5@w13": [
+     true,
+     126.3
+    ],
+    "s6@w13": [
+     false,
+     82.3
+    ],
+    "s7@w13": [
+     false,
+     291.4
+    ],
+    "s8@w13": [
+     false,
+     166.1
+    ],
+    "s9@w13": [
+     true,
+     121.9
+    ],
+    "s10@w13": [
+     false,
+     177.0
+    ],
+    "s11@w13": [
+     false,
+     158.4
+    ],
+    "s12@w13": [
+     false,
+     170.8
+    ],
+    "s13@w13": [
+     false,
+     128.2
+    ],
+    "s14@w13": [
+     false,
+     124.2
+    ],
+    "s15@w13": [
+     true,
+     102.3
+    ],
+    "s16@w13": [
+     false,
+     92.7
+    ]
+   },
+   "at": {
+    "turn": 146,
+    "usd": 14.41,
+    "tokens": 33190834,
+    "min": 51.8
+   }
+  },
+  {
+   "note": "v13: paper push depth edge+45",
+   "lines": 1033,
+   "base": null,
+   "runs": {
+    "s1@w14": [
+     true,
+     86.8
+    ],
+    "s2@w14": [
+     true,
+     105.0
+    ],
+    "s3@w14": [
+     true,
+     229.1
+    ],
+    "s4@w14": [
+     true,
+     132.4
+    ],
+    "s5@w14": [
+     true,
+     128.4
+    ],
+    "s6@w14": [
+     false,
+     155.2
+    ],
+    "s7@w14": [
+     false,
+     299.9
+    ],
+    "s8@w14": [
+     false,
+     101.7
+    ],
+    "s9@w14": [
+     true,
+     123.5
+    ],
+    "s10@w14": [
+     false,
+     137.8
+    ],
+    "s11@w14": [
+     true,
+     108.0
+    ],
+    "s12@w14": [
+     false,
+     170.8
+    ],
+    "s13@w14": [
+     false,
+     128.2
+    ],
+    "s14@w14": [
+     false,
+     125.0
+    ],
+    "s15@w14": [
+     true,
+     102.3
+    ],
+    "s16@w14": [
+     false,
+     93.2
+    ],
+    "s17@w14": [
+     true,
+     65.7
+    ],
+    "s18@w14": [
+     false,
+     515.0
+    ],
+    "s19@w14": [
+     true,
+     71.6
+    ],
+    "s20@w14": [
+     true,
+     250.8
+    ],
+    "s21@w14": [
+     false,
+     203.2
+    ],
+    "s22@w14": [
+     false,
+     146.6
+    ],
+    "s23@w14": [
+     false,
+     165.9
+    ],
+    "s24@w14": [
+     true,
+     101.0
+    ]
+   },
+   "at": {
+    "turn": 154,
+    "usd": 15.28,
+    "tokens": 36403789,
+    "min": 55.0
+   }
+  },
+  {
+   "note": "v14: reach near base relaxed (x>=-465 for -150<y<0), second pass with smaller start clearance, park away from target/objects, target re-detection accepted more easily, no-stroke reasons",
+   "lines": 1037,
+   "base": null,
+   "runs": {
+    "s1@w14": [
+     true,
+     89.6
+    ],
+    "s2@w14": [
+     true,
+     105.2
+    ],
+    "s3@w14": [
+     false,
+     272.3
+    ],
+    "s4@w14": [
+     true,
+     135.8
+    ],
+    "s5@w14": [
+     true,
+     128.9
+    ],
+    "s6@w14": [
+     false,
+     107.7
+    ],
+    "s7@w14": [
+     false,
+     344.8
+    ],
+    "s8@w14": [
+     true,
+     239.7
+    ],
+    "s9@w14": [
+     true,
+     116.3
+    ],
+    "s10@w14": [
+     false,
+     131.1
+    ],
+    "s11@w14": [
+     true,
+     115.1
+    ],
+    "s12@w14": [
+     false,
+     113.2
+    ],
+    "s13@w14": [
+     true,
+     111.6
+    ],
+    "s14@w14": [
+     false,
+     135.8
+    ],
+    "s15@w14": [
+     true,
+     103.0
+    ],
+    "s16@w14": [
+     true,
+     94.4
+    ],
+    "s17@w14": [
+     true,
+     67.1
+    ],
+    "s18@w14": [
+     false,
+     488.8
+    ],
+    "s19@w14": [
+     true,
+     72.1
+    ],
+    "s20@w14": [
+     true,
+     446.7
+    ],
+    "s21@w14": [
+     true,
+     257.6
+    ],
+    "s22@w14": [
+     false,
+     137.4
+    ],
+    "s23@w14": [
+     false,
+     118.6
+    ],
+    "s24@w14": [
+     true,
+     101.7
+    ]
+   },
+   "at": {
+    "turn": 162,
+    "usd": 16.18,
+    "tokens": 39719651,
+    "min": 61.6
+   }
+  },
+  {
+   "note": "v15: later rounds: big blobs are clumps of objects unless on a known obstacle; strokes may run off-centre (lateral shift), corridor margin 8, faster path check",
+   "lines": 1057,
+   "base": null,
+   "runs": {
+    "s1@w15": [
+     true,
+     89.6
+    ],
+    "s2@w15": [
+     true,
+     533.5
+    ],
+    "s3@w15": [
+     false,
+     70.8
+    ],
+    "s4@w15": [
+     true,
+     135.8
+    ],
+    "s5@w15": [
+     true,
+     128.9
+    ],
+    "s6@w15": [
+     false,
+     27.0
+    ],
+    "s7@w15": [
+     true,
+     424.2
+    ],
+    "s8@w15": [
+     true,
+     246.7
+    ],
+    "s9@w15": [
+     true,
+     116.3
+    ],
+    "s10@w15": [
+     false,
+     131.1
+    ],
+    "s11@w15": [
+     true,
+     144.2
+    ],
+    "s12@w15": [
+     true,
+     99.2
+    ],
+    "s13@w15": [
+     true,
+     111.6
+    ],
+    "s14@w15": [
+     false,
+     179.0
+    ],
+    "s15@w15": [
+     true,
+     154.9
+    ],
+    "s16@w15": [
+     true,
+     94.4
+    ],
+    "s17@w15": [
+     true,
+     67.1
+    ],
+    "s18@w15": [
+     false,
+     490.7
+    ],
+    "s19@w15": [
+     true,
+     85.9
+    ],
+    "s20@w15": [
+     true,
+     426.3
+    ],
+    "s21@w15": [
+     true,
+     230.9
+    ],
+    "s22@w15": [
+     false,
+     70.1
+    ],
+    "s23@w15": [
+     false,
+     118.7
+    ],
+    "s24@w15": [
+     true,
+     124.4
+    ]
+   },
+   "at": {
+    "turn": 170,
+    "usd": 17.16,
+    "tokens": 43162416,
+    "min": 67.6
+   }
+  },
+  {
+   "note": "v16: sponge candidates also by the named colour, must be elongated; grip at least 8 mm deep",
+   "lines": 1078,
+   "base": null,
+   "runs": {
+    "s3@w15": [
+     true,
+     167.2
+    ],
+    "s6@w15": [
+     false,
+     27.0
+    ],
+    "s10@w15": [
+     false,
+     131.1
+    ],
+    "s14@w15": [
+     false,
+     179.0
+    ],
+    "s18@w15": [
+     false,
+     490.7
+    ],
+    "s22@w15": [
+     false,
+     59.0
+    ],
+    "s23@w15": [
+     false,
+     78.7
+    ],
+    "s1@w15": [
+     true,
+     89.6
+    ],
+    "s2@w15": [
+     true,
+     551.9
+    ],
+    "s4@w15": [
+     true,
+     135.8
+    ],
+    "s5@w15": [
+     true,
+     128.9
+    ],
+    "s7@w15": [
+     true,
+     424.2
+    ],
+    "s8@w15": [
+     true,
+     246.7
+    ],
+    "s9@w15": [
+     true,
+     116.3
+    ],
+    "s11@w15": [
+     true,
+     144.2
+    ],
+    "s12@w15": [
+     true,
+     99.2
+    ],
+    "s13@w15": [
+     true,
+     111.6
+    ],
+    "s15@w15": [
+     true,
+     154.9
+    ],
+    "s16@w15": [
+     true,
+     94.4
+    ],
+    "s17@w15": [
+     true,
+     67.1
+    ],
+    "s19@w15": [
+     true,
+     85.9
+    ],
+    "s20@w15": [
+     true,
+     426.3
+    ],
+    "s21@w15": [
+     true,
+     222.3
+    ],
+    "s24@w15": [
+     true,
+     124.5
+    ]
+   },
+   "at": {
+    "turn": 179,
+    "usd": 18.21,
+    "tokens": 47149685,
+    "min": 75.0
+   }
+  },
+  {
+   "note": "v17: scrub colour in the sponge hint, ignore detections where a stroke already went, shallower paper push in later rounds",
+   "lines": 1088,
+   "base": null,
+   "runs": {
+    "s1@w15": [
+     true,
+     89.6
+    ],
+    "s2@w15": [
+     true,
+     137.8
+    ],
+    "s3@w15": [
+     true,
+     167.2
+    ],
+    "s4@w15": [
+     true,
+     135.8
+    ],
+    "s5@w15": [
+     true,
+     128.9
+    ],
+    "s6@w15": [
+     false,
+     27.0
+    ],
+    "s7@w15": [
+     true,
+     368.4
+    ],
+    "s8@w15": [
+     true,
+     252.1
+    ],
+    "s9@w15": [
+     true,
+     116.3
+    ],
+    "s10@w15": [
+     false,
+     131.1
+    ],
+    "s11@w15": [
+     true,
+     144.2
+    ],
+    "s12@w15": [
+     true,
+     99.2
+    ],
+    "s13@w15": [
+     true,
+     111.6
+    ],
+    "s14@w15": [
+     false,
+     179.0
+    ],
+    "s15@w15": [
+     true,
+     165.6
+    ],
+    "s16@w15": [
+     true,
+     94.4
+    ],
+    "s17@w15": [
+     true,
+     67.1
+    ],
+    "s18@w15": [
+     true,
+     154.8
+    ],
+    "s19@w15": [
+     true,
+     85.9
+    ],
+    "s20@w15": [
+     true,
+     260.0
+    ],
+    "s21@w15": [
+     true,
+     244.4
+    ],
+    "s22@w15": [
+     false,
+     222.6
+    ],
+    "s23@w15": [
+     false,
+     308.8
+    ],
+    "s24@w15": [
+     true,
+     124.5
+    ],
+    "s25@w15": [
+     true,
+     167.1
+    ],
+    "s26@w15": [
+     false,
+     162.2
+    ],
+    "s27@w15": [
+     false,
+     85.4
+    ],
+    "s28@w15": [
+     true,
+     140.1
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s30@w15": [
+     false,
+     288.5
+    ],
+    "s31@w15": [
+     false,
+     400.5
+    ],
+    "s32@w15": [
+     true,
+     101.6
+    ]
+   },
+   "at": {
+    "turn": 193,
+    "usd": 19.83,
+    "tokens": 53561063,
+    "min": 83.6
+   }
+  },
+  {
+   "note": "v18: clumps/rows of objects split into 15 mm points (rows no longer taken for pens in later rounds), push depth on a small sheet <= 0.6 x its half-width",
+   "lines": 1101,
+   "base": null,
+   "runs": {
+    "s1@w15": [
+     true,
+     89.6
+    ],
+    "s2@w15": [
+     true,
+     137.8
+    ],
+    "s3@w15": [
+     true,
+     172.6
+    ],
+    "s4@w15": [
+     true,
+     135.8
+    ],
+    "s5@w15": [
+     true,
+     128.9
+    ],
+    "s6@w15": [
+     false,
+     26.3
+    ],
+    "s7@w15": [
+     true,
+     523.6
+    ],
+    "s8@w15": [
+     false,
+     254.0
+    ],
+    "s9@w15": [
+     true,
+     115.0
+    ],
+    "s10@w15": [
+     true,
+     321.5
+    ],
+    "s11@w15": [
+     true,
+     144.2
+    ],
+    "s12@w15": [
+     true,
+     99.2
+    ],
+    "s13@w15": [
+     true,
+     111.6
+    ],
+    "s14@w15": [
+     false,
+     395.5
+    ],
+    "s15@w15": [
+     true,
+     165.6
+    ],
+    "s16@w15": [
+     false,
+     93.9
+    ],
+    "s17@w15": [
+     true,
+     67.1
+    ],
+    "s18@w15": [
+     true,
+     314.5
+    ],
+    "s19@w15": [
+     true,
+     85.9
+    ],
+    "s20@w15": [
+     false,
+     514.0
+    ],
+    "s21@w15": [
+     false,
+     503.6
+    ],
+    "s22@w15": [
+     false,
+     325.6
+    ],
+    "s23@w15": [
+     false,
+     238.1
+    ],
+    "s24@w15": [
+     true,
+     124.5
+    ]
+   },
+   "at": {
+    "turn": 200,
+    "usd": 20.63,
+    "tokens": 56853512,
+    "min": 88.0
+   }
+  },
+  {
+   "note": "v19: v18 without the small-sheet depth limit (clump splitting kept)",
+   "lines": 1101,
+   "base": null,
+   "runs": {
+    "s8@w15": [
+     true,
+     246.2
+    ],
+    "s10@w15": [
+     true,
+     432.2
+    ],
+    "s14@w15": [
+     false,
+     284.8
+    ],
+    "s16@w15": [
+     true,
+     268.5
+    ],
+    "s20@w15": [
+     true,
+     526.4
+    ],
+    "s21@w15": [
+     false,
+     503.6
+    ],
+    "s22@w15": [
+     false,
+     362.6
+    ],
+    "s23@w15": [
+     false,
+     408.5
+    ],
+    "s25@w15": [
+     true,
+     167.1
+    ],
+    "s26@w15": [
+     false,
+     518.6
+    ],
+    "s27@w15": [
+     false,
+     85.4
+    ],
+    "s28@w15": [
+     false,
+     238.6
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s30@w15": [
+     false,
+     525.2
+    ],
+    "s31@w15": [
+     false,
+     558.0
+    ],
+    "s32@w15": [
+     true,
+     101.6
+    ]
+   },
+   "at": {
+    "turn": 202,
+    "usd": 20.86,
+    "tokens": 57804651,
+    "min": 93.4
+   }
+  },
+  {
+   "note": "v20: v19 + over-sheet height zc+4, reach x>=-360 for y<-150",
+   "lines": 1101,
+   "base": null,
+   "runs": {
+    "s25@w15": [
+     true,
+     167.1
+    ],
+    "s26@w15": [
+     true,
+     274.6
+    ],
+    "s27@w15": [
+     false,
+     80.1
+    ],
+    "s28@w15": [
+     true,
+     250.6
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s30@w15": [
+     false,
+     362.7
+    ],
+    "s31@w15": [
+     false,
+     567.2
+    ],
+    "s32@w15": [
+     true,
+     101.6
+    ],
+    "s1@w15": [
+     true,
+     89.6
+    ],
+    "s2@w15": [
+     true,
+     137.8
+    ],
+    "s3@w15": [
+     true,
+     172.6
+    ],
+    "s4@w15": [
+     true,
+     135.8
+    ],
+    "s5@w15": [
+     true,
+     128.8
+    ],
+    "s6@w15": [
+     false,
+     27.1
+    ],
+    "s7@w15": [
+     true,
+     236.5
+    ],
+    "s8@w15": [
+     true,
+     118.6
+    ],
+    "s9@w15": [
+     true,
+     116.3
+    ],
+    "s10@w15": [
+     true,
+     195.1
+    ],
+    "s11@w15": [
+     true,
+     144.1
+    ],
+    "s12@w15": [
+     true,
+     99.2
+    ],
+    "s13@w15": [
+     true,
+     112.0
+    ],
+    "s14@w15": [
+     true,
+     175.2
+    ],
+    "s15@w15": [
+     true,
+     165.6
+    ],
+    "s16@w15": [
+     false,
+     268.4
+    ],
+    "s17@w15": [
+     true,
+     67.1
+    ],
+    "s18@w15": [
+     true,
+     224.3
+    ],
+    "s19@w15": [
+     true,
+     85.9
+    ],
+    "s20@w15": [
+     true,
+     292.8
+    ],
+    "s21@w15": [
+     true,
+     221.0
+    ],
+    "s22@w15": [
+     false,
+     424.4
+    ],
+    "s23@w15": [
+     false,
+     236.8
+    ],
+    "s24@w15": [
+     true,
+     124.5
+    ]
+   },
+   "at": {
+    "turn": 208,
+    "usd": 21.55,
+    "tokens": 60688887,
+    "min": 100.5
+   }
+  },
+  {
+   "note": "v21: later-round clumps only near previous objects/target and < 3500 mm2",
+   "lines": 1110,
+   "base": null,
+   "runs": {
+    "s6@w15": [
+     false,
+     27.1
+    ],
+    "s16@w15": [
+     false,
+     268.4
+    ],
+    "s22@w15": [
+     false,
+     424.4
+    ],
+    "s23@w15": [
+     false,
+     236.8
+    ],
+    "s27@w15": [
+     false,
+     80.1
+    ],
+    "s30@w15": [
+     true,
+     351.8
+    ],
+    "s31@w15": [
+     false,
+     567.2
+    ],
+    "s26@w15": [
+     true,
+     274.6
+    ]
+   },
+   "at": {
+    "turn": 212,
+    "usd": 22.14,
+    "tokens": 62652747,
+    "min": 107.9
+   }
+  },
+  {
+   "note": "v22: two table touches at different free places, the lower one counts",
+   "lines": 1122,
+   "base": null,
+   "runs": {
+    "s6@w15": [
+     false,
+     27.1
+    ],
+    "s16@w15": [
+     true,
+     157.8
+    ],
+    "s22@w15": [
+     true,
+     323.7
+    ],
+    "s23@w15": [
+     false,
+     139.6
+    ],
+    "s27@w15": [
+     false,
+     85.6
+    ],
+    "s30@w15": [
+     false,
+     22.8
+    ],
+    "s31@w15": [
+     false,
+     554.4
+    ],
+    "s26@w15": [
+     true,
+     564.4
+    ]
+   },
+   "at": {
+    "turn": 218,
+    "usd": 22.82,
+    "tokens": 65630316,
+    "min": 111.0
+   }
+  },
+  {
+   "note": "v23: track a moved sheet by fitting its first-seen rectangle to sheet-coloured pixels",
+   "lines": 1170,
+   "base": null,
+   "runs": {
+    "s6@w15": [
+     false,
+     27.1
+    ],
+    "s16@w15": [
+     false,
+     293.8
+    ],
+    "s22@w15": [
+     true,
+     259.0
+    ],
+    "s23@w15": [
+     true,
+     454.4
+    ],
+    "s27@w15": [
+     false,
+     85.6
+    ],
+    "s30@w15": [
+     false,
+     480.8
+    ],
+    "s31@w15": [
+     false,
+     585.8
+    ],
+    "s26@w15": [
+     true,
+     179.3
+    ],
+    "s1@w15": [
+     true,
+     94.5
+    ],
+    "s2@w15": [
+     true,
+     142.8
+    ],
+    "s3@w15": [
+     true,
+     178.0
+    ],
+    "s4@w15": [
+     true,
+     140.7
+    ],
+    "s5@w15": [
+     true,
+     133.9
+    ],
+    "s7@w15": [
+     true,
+     226.9
+    ],
+    "s8@w15": [
+     true,
+     123.5
+    ],
+    "s9@w15": [
+     true,
+     116.3
+    ],
+    "s10@w15": [
+     true,
+     338.2
+    ],
+    "s11@w15": [
+     true,
+     149.1
+    ],
+    "s12@w15": [
+     true,
+     104.2
+    ],
+    "s13@w15": [
+     true,
+     112.0
+    ],
+    "s14@w15": [
+     true,
+     211.5
+    ],
+    "s15@w15": [
+     true,
+     170.6
+    ],
+    "s17@w15": [
+     true,
+     72.0
+    ],
+    "s18@w15": [
+     true,
+     165.0
+    ],
+    "s19@w15": [
+     true,
+     90.9
+    ],
+    "s20@w15": [
+     true,
+     336.8
+    ],
+    "s21@w15": [
+     false,
+     476.1
+    ],
+    "s24@w15": [
+     true,
+     124.5
+    ],
+    "s25@w15": [
+     true,
+     172.0
+    ],
+    "s28@w15": [
+     true,
+     483.4
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s32@w15": [
+     true,
+     106.4
+    ]
+   },
+   "at": {
+    "turn": 221,
+    "usd": 23.25,
+    "tokens": 67139229,
+    "min": 114.2
+   }
+  },
+  {
+   "note": "v24: deeper grip on normal tables (top-18, fingertips >= support+4), touch at the arm's lowest with force counts as contact",
+   "lines": 1175,
+   "base": null,
+   "runs": {
+    "s6@w15": [
+     false,
+     82.5
+    ],
+    "s16@w15": [
+     false,
+     100.4
+    ],
+    "s21@w15": [
+     true,
+     429.2
+    ],
+    "s27@w15": [
+     true,
+     163.0
+    ],
+    "s30@w15": [
+     false,
+     306.5
+    ],
+    "s31@w15": [
+     false,
+     530.0
+    ],
+    "s3@w15": [
+     true,
+     178.0
+    ],
+    "s7@w15": [
+     true,
+     290.8
+    ],
+    "s1@w15": [
+     true,
+     95.3
+    ],
+    "s2@w15": [
+     true,
+     144.5
+    ],
+    "s4@w15": [
+     true,
+     142.5
+    ],
+    "s5@w15": [
+     true,
+     133.7
+    ],
+    "s8@w15": [
+     true,
+     124.4
+    ],
+    "s9@w15": [
+     true,
+     117.1
+    ],
+    "s10@w15": [
+     false,
+     65.0
+    ],
+    "s11@w15": [
+     true,
+     150.0
+    ],
+    "s12@w15": [
+     true,
+     105.2
+    ],
+    "s13@w15": [
+     true,
+     91.1
+    ],
+    "s14@w15": [
+     false,
+     206.5
+    ],
+    "s15@w15": [
+     true,
+     170.9
+    ],
+    "s17@w15": [
+     true,
+     72.0
+    ],
+    "s18@w15": [
+     true,
+     165.7
+    ],
+    "s19@w15": [
+     false,
+     73.0
+    ],
+    "s20@w15": [
+     true,
+     551.7
+    ],
+    "s22@w15": [
+     true,
+     215.0
+    ],
+    "s23@w15": [
+     true,
+     81.7
+    ],
+    "s24@w15": [
+     true,
+     129.3
+    ],
+    "s25@w15": [
+     true,
+     120.5
+    ],
+    "s26@w15": [
+     true,
+     179.4
+    ],
+    "s28@w15": [
+     true,
+     208.8
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s32@w15": [
+     true,
+     106.4
+    ]
+   },
+   "at": {
+    "turn": 225,
+    "usd": 23.8,
+    "tokens": 69177750,
+    "min": 122.8
+   }
+  },
+  {
+   "note": "v25: v24 with fingertips 2.5 mm above the support (thin sponges)",
+   "lines": 1175,
+   "base": null,
+   "runs": {
+    "s10@w15": [
+     true,
+     338.2
+    ],
+    "s14@w15": [
+     false,
+     206.5
+    ],
+    "s19@w15": [
+     true,
+     90.9
+    ],
+    "s27@w15": [
+     true,
+     163.0
+    ],
+    "s21@w15": [
+     true,
+     429.2
+    ],
+    "s6@w15": [
+     false,
+     82.5
+    ],
+    "s30@w15": [
+     true,
+     317.9
+    ],
+    "s16@w15": [
+     false,
+     100.4
+    ],
+    "s1@w15": [
+     true,
+     95.3
+    ],
+    "s2@w15": [
+     true,
+     144.5
+    ],
+    "s3@w15": [
+     true,
+     178.0
+    ],
+    "s4@w15": [
+     true,
+     142.5
+    ],
+    "s5@w15": [
+     true,
+     133.9
+    ],
+    "s7@w15": [
+     true,
+     290.8
+    ],
+    "s8@w15": [
+     false,
+     188.8
+    ],
+    "s9@w15": [
+     true,
+     117.1
+    ],
+    "s11@w15": [
+     true,
+     150.0
+    ],
+    "s12@w15": [
+     true,
+     105.3
+    ],
+    "s13@w15": [
+     true,
+     91.1
+    ],
+    "s15@w15": [
+     true,
+     170.6
+    ],
+    "s17@w15": [
+     true,
+     72.0
+    ],
+    "s18@w15": [
+     true,
+     165.8
+    ],
+    "s20@w15": [
+     true,
+     312.5
+    ],
+    "s22@w15": [
+     true,
+     215.0
+    ],
+    "s23@w15": [
+     true,
+     454.4
+    ],
+    "s24@w15": [
+     true,
+     129.3
+    ],
+    "s25@w15": [
+     true,
+     172.3
+    ],
+    "s26@w15": [
+     true,
+     254.3
+    ],
+    "s28@w15": [
+     true,
+     208.8
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s31@w15": [
+     false,
+     535.1
+    ],
+    "s32@w15": [
+     true,
+     106.4
+    ]
+   },
+   "at": {
+    "turn": 228,
+    "usd": 24.2,
+    "tokens": 70726093,
+    "min": 129.7
+   }
+  },
+  {
+   "note": "v26: if the fingertips end < 5 mm above the table, regrip higher at the touch place",
+   "lines": 1194,
+   "base": null,
+   "runs": {
+    "s31@w15": [
+     false,
+     561.1
+    ],
+    "s6@w15": [
+     false,
+     139.0
+    ],
+    "s8@w15": [
+     true,
+     130.5
+    ],
+    "s14@w15": [
+     false,
+     206.5
+    ],
+    "s16@w15": [
+     false,
+     100.4
+    ],
+    "s27@w15": [
+     true,
+     163.0
+    ],
+    "s19@w15": [
+     true,
+     90.9
+    ],
+    "s10@w15": [
+     true,
+     338.2
+    ],
+    "s1@w15": [
+     true,
+     95.3
+    ],
+    "s2@w15": [
+     true,
+     144.5
+    ],
+    "s3@w15": [
+     true,
+     178.0
+    ],
+    "s4@w15": [
+     true,
+     142.5
+    ],
+    "s5@w15": [
+     true,
+     133.9
+    ],
+    "s7@w15": [
+     true,
+     290.8
+    ],
+    "s9@w15": [
+     true,
+     117.1
+    ],
+    "s11@w15": [
+     true,
+     150.0
+    ],
+    "s12@w15": [
+     true,
+     111.2
+    ],
+    "s13@w15": [
+     true,
+     91.1
+    ],
+    "s15@w15": [
+     true,
+     170.6
+    ],
+    "s17@w15": [
+     true,
+     72.0
+    ],
+    "s18@w15": [
+     true,
+     171.8
+    ],
+    "s20@w15": [
+     true,
+     448.9
+    ],
+    "s21@w15": [
+     true,
+     429.2
+    ],
+    "s22@w15": [
+     true,
+     215.0
+    ],
+    "s23@w15": [
+     true,
+     454.4
+    ],
+    "s24@w15": [
+     true,
+     129.3
+    ],
+    "s25@w15": [
+     true,
+     172.3
+    ],
+    "s26@w15": [
+     true,
+     351.9
+    ],
+    "s28@w15": [
+     true,
+     208.8
+    ],
+    "s29@w15": [
+     true,
+     111.2
+    ],
+    "s30@w15": [
+     true,
+     287.5
+    ],
+    "s32@w15": [
+     true,
+     106.4
+    ],
+    "s33@w15": [
+     true,
+     133.0
+    ],
+    "s34@w15": [
+     false,
+     64.0
+    ],
+    "s35@w15": [
+     false,
+     244.1
+    ],
+    "s36@w15": [
+     true,
+     271.9
+    ],
+    "s37@w15": [
+     false,
+     52.1
+    ],
+    "s38@w15": [
+     true,
+     120.9
+    ],
+    "s39@w15": [
+     true,
+     87.7
+    ],
+    "s40@w15": [
+     true,
+     156.8
+    ]
+   },
+   "at": {
+    "turn": 232,
+    "usd": 24.81,
+    "tokens": 72815565,
+    "min": 137.2
+   }
+  },
+  {
+   "note": "v27: second overview nearer the robot when the sponge found is doubtful",
+   "lines": 1215,
+   "base": null,
+   "runs": {
+    "s33@w16": [
+     false,
+     155.9
+    ],
+    "s34@w16": [
+     false,
+     64.2
+    ],
+    "s35@w16": [
+     false,
+     328.3
+    ],
+    "s36@w16": [
+     true,
+     271.9
+    ],
+    "s37@w16": [
+     true,
+     135.7
+    ],
+    "s38@w16": [
+     true,
+     120.9
+    ],
+    "s39@w16": [
+     true,
+     117.5
+    ],
+    "s40@w16": [
+     false,
+     5.2
+    ],
+    "s33@w17": [
+     false,
+     155.9
+    ],
+    "s34@w17": [
+     false,
+     64.2
+    ],
+    "s35@w17": [
+     false,
+     328.3
+    ],
+    "s36@w17": [
+     true,
+     271.9
+    ],
+    "s37@w17": [
+     true,
+     135.7
+    ],
+    "s38@w17": [
+     true,
+     120.9
+    ],
+    "s39@w17": [
+     true,
+     117.5
+    ],
+    "s40@w17": [
+     false,
+     5.2
+    ],
+    "s33@w18": [
+     false,
+     155.9
+    ],
+    "s34@w18": [
+     false,
+     64.2
+    ],
+    "s35@w18": [
+     false,
+     328.3
+    ],
+    "s36@w18": [
+     true,
+     271.9
+    ],
+    "s37@w18": [
+     true,
+     135.7
+    ],
+    "s38@w18": [
+     true,
+     120.9
+    ],
+    "s39@w18": [
+     true,
+     117.5
+    ],
+    "s40@w18": [
+     false,
+     5.2
+    ],
+    "s33@w19": [
+     false,
+     155.9
+    ],
+    "s34@w19": [
+     false,
+     64.2
+    ],
+    "s35@w19": [
+     false,
+     163.6
+    ],
+    "s36@w19": [
+     true,
+     226.0
+    ],
+    "s37@w19": [
+     true,
+     135.7
+    ],
+    "s38@w19": [
+     true,
+     120.9
+    ],
+    "s39@w19": [
+     true,
+     117.5
+    ],
+    "s40@w19": [
+     false,
+     517.8
+    ],
+    "s1@w19": [
+     true,
+     118.8
+    ],
+    "s2@w19": [
+     true,
+     151.1
+    ],
+    "s3@w19": [
+     true,
+     177.8
+    ],
+    "s4@w19": [
+     true,
+     143.3
+    ],
+    "s5@w19": [
+     true,
+     135.1
+    ],
+    "s6@w19": [
+     false,
+     88.9
+    ],
+    "s7@w19": [
+     true,
+     243.0
+    ],
+    "s8@w19": [
+     true,
+     131.7
+    ],
+    "s9@w19": [
+     true,
+     118.7
+    ],
+    "s10@w19": [
+     true,
+     332.4
+    ],
+    "s11@w19": [
+     false,
+     145.6
+    ],
+    "s12@w19": [
+     true,
+     257.6
+    ],
+    "s13@w19": [
+     true,
+     92.4
+    ],
+    "s14@w19": [
+     true,
+     242.1
+    ],
+    "s15@w19": [
+     true,
+     170.6
+    ],
+    "s16@w19": [
+     true,
+     199.3
+    ],
+    "s17@w19": [
+     true,
+     73.4
+    ],
+    "s18@w19": [
+     true,
+     173.0
+    ],
+    "s19@w19": [
+     true,
+     85.8
+    ],
+    "s20@w19": [
+     true,
+     448.9
+    ],
+    "s21@w19": [
+     true,
+     429.2
+    ],
+    "s22@w19": [
+     true,
+     256.2
+    ],
+    "s23@w19": [
+     true,
+     454.4
+    ],
+    "s24@w19": [
+     true,
+     154.3
+    ],
+    "s25@w19": [
+     true,
+     173.3
+    ],
+    "s26@w19": [
+     true,
+     190.3
+    ],
+    "s27@w19": [
+     true,
+     157.3
+    ],
+    "s28@w19": [
+     true,
+     495.5
+    ],
+    "s29@w19": [
+     true,
+     112.2
+    ],
+    "s30@w19": [
+     false,
+     584.0
+    ],
+    "s31@w19": [
+     false,
+     541.1
+    ],
+    "s32@w19": [
+     true,
+     152.2
+    ]
+   },
+   "at": {
+    "turn": 241,
+    "usd": 25.99,
+    "tokens": 77612220,
+    "min": 146.5
+   }
+  },
+  {
+   "note": "v28: free spots (touch/park) only at x -450..-160 (well seen)",
+   "lines": 1215,
+   "base": null,
+   "runs": {
+    "s11@w19": [
+     true,
+     149.5
+    ],
+    "s33@w19": [
+     false,
+     186.8
+    ],
+    "s6@w19": [
+     false,
+     83.5
+    ],
+    "s30@w19": [
+     false,
+     526.5
+    ],
+    "s31@w19": [
+     false,
+     506.8
+    ],
+    "s34@w19": [
+     false,
+     64.2
+    ],
+    "s35@w19": [
+     false,
+     365.8
+    ],
+    "s40@w19": [
+     true,
+     504.9
+    ]
+   },
+   "at": {
+    "turn": 256,
+    "usd": 27.92,
+    "tokens": 85784126,
+    "min": 163.2
+   }
+  },
+  {
+   "note": "v29: things looked for up to x=-50 (low obstacles at the far edge are seen), stroke start 12 mm inside the reach",
+   "lines": 1215,
+   "base": null,
+   "runs": {
+    "s11@w19": [
+     true,
+     149.5
+    ],
+    "s33@w19": [
+     false,
+     287.8
+    ],
+    "s6@w19": [
+     false,
+     83.5
+    ],
+    "s30@w19": [
+     false,
+     526.5
+    ],
+    "s31@w19": [
+     false,
+     525.2
+    ],
+    "s34@w19": [
+     false,
+     64.2
+    ],
+    "s35@w19": [
+     false,
+     343.1
+    ],
+    "s40@w19": [
+     true,
+     520.7
+    ],
+    "s1@w19": [
+     true,
+     118.3
+    ],
+    "s2@w19": [
+     true,
+     151.3
+    ],
+    "s3@w19": [
+     true,
+     288.4
+    ],
+    "s4@w19": [
+     true,
+     143.6
+    ],
+    "s5@w19": [
+     true,
+     134.7
+    ],
+    "s7@w19": [
+     true,
+     206.7
+    ],
+    "s8@w19": [
+     true,
+     137.7
+    ],
+    "s9@w19": [
+     true,
+     175.8
+    ],
+    "s10@w19": [
+     true,
+     268.6
+    ],
+    "s12@w19": [
+     true,
+     121.2
+    ],
+    "s13@w19": [
+     true,
+     103.4
+    ],
+    "s14@w19": [
+     true,
+     322.1
+    ],
+    "s15@w19": [
+     true,
+     200.4
+    ],
+    "s16@w19": [
+     false,
+     143.9
+    ],
+    "s17@w19": [
+     true,
+     119.1
+    ],
+    "s18@w19": [
+     true,
+     163.6
+    ],
+    "s19@w19": [
+     true,
+     86.1
+    ],
+    "s20@w19": [
+     true,
+     435.5
+    ],
+    "s21@w19": [
+     true,
+     429.1
+    ],
+    "s22@w19": [
+     true,
+     219.5
+    ],
+    "s23@w19": [
+     false,
+     412.9
+    ],
+    "s24@w19": [
+     true,
+     131.3
+    ],
+    "s25@w19": [
+     true,
+     182.9
+    ],
+    "s26@w19": [
+     true,
+     190.6
+    ],
+    "s27@w19": [
+     true,
+     175.0
+    ],
+    "s28@w19": [
+     true,
+     260.8
+    ],
+    "s29@w19": [
+     true,
+     111.9
+    ],
+    "s32@w19": [
+     true,
+     107.4
+    ],
+    "s36@w19": [
+     true,
+     216.3
+    ],
+    "s37@w19": [
+     true,
+     194.2
+    ],
+    "s38@w19": [
+     true,
+     122.5
+    ],
+    "s39@w19": [
+     true,
+     116.8
+    ]
+   },
+   "at": {
+    "turn": 260,
+    "usd": 28.44,
+    "tokens": 88008968,
+    "min": 167.5
+   }
+  },
+  {
+   "note": "v30: doubtful sponge: second looks near the robot at y 290 then -40",
+   "lines": 1224,
+   "base": null,
+   "runs": {
+    "s34@w19": [
+     true,
+     430.8
+    ],
+    "s33@w19": [
+     false,
+     183.0
+    ],
+    "s35@w19": [
+     false,
+     262.5
+    ],
+    "s39@w19": [
+     true,
+     92.6
+    ],
+    "s36@w19": [
+     true,
+     216.3
+    ],
+    "s30@w19": [
+     false,
+     39.4
+    ],
+    "s16@w19": [
+     true,
+     280.2
+    ],
+    "s7@w19": [
+     true,
+     201.4
+    ],
+    "s1@w19": [
+     true,
+     99.2
+    ],
+    "s2@w19": [
+     true,
+     155.8
+    ],
+    "s3@w19": [
+     true,
+     292.8
+    ],
+    "s4@w19": [
+     true,
+     148.1
+    ],
+    "s5@w19": [
+     true,
+     139.2
+    ],
+    "s6@w19": [
+     false,
+     86.1
+    ],
+    "s8@w19": [
+     true,
+     140.9
+    ],
+    "s9@w19": [
+     true,
+     179.8
+    ],
+    "s10@w19": [
+     true,
+     335.5
+    ],
+    "s11@w19": [
+     true,
+     203.4
+    ],
+    "s12@w19": [
+     true,
+     124.1
+    ],
+    "s13@w19": [
+     true,
+     295.0
+    ],
+    "s14@w19": [
+     true,
+     304.5
+    ],
+    "s15@w19": [
+     true,
+     200.4
+    ],
+    "s17@w19": [
+     true,
+     77.7
+    ],
+    "s18@w19": [
+     true,
+     166.4
+    ],
+    "s19@w19": [
+     true,
+     95.2
+    ],
+    "s20@w19": [
+     true,
+     435.5
+    ],
+    "s21@w19": [
+     true,
+     429.1
+    ],
+    "s22@w19": [
+     true,
+     219.5
+    ],
+    "s23@w19": [
+     false,
+     412.9
+    ],
+    "s24@w19": [
+     true,
+     133.8
+    ],
+    "s25@w19": [
+     true,
+     185.8
+    ],
+    "s26@w19": [
+     true,
+     195.5
+    ],
+    "s27@w19": [
+     true,
+     144.8
+    ],
+    "s28@w19": [
+     true,
+     88.5
+    ],
+    "s29@w19": [
+     true,
+     114.6
+    ],
+    "s31@w19": [
+     false,
+     456.6
+    ],
+    "s32@w19": [
+     true,
+     112.1
+    ],
+    "s37@w19": [
+     true,
+     194.2
+    ],
+    "s38@w19": [
+     true,
+     122.5
+    ],
+    "s40@w19": [
+     false,
+     522.6
+    ]
+   },
+   "at": {
+    "turn": 262,
+    "usd": 28.73,
+    "tokens": 89129952,
+    "min": 177.0
+   }
+  },
+  {
+   "note": "v31: experiment: over-sheet height zc+5.5",
+   "lines": 1224,
+   "base": null,
+   "runs": {
+    "s6@w19": [
+     false,
+     86.1
+    ],
+    "s23@w19": [
+     true,
+     279.0
+    ],
+    "s30@w19": [
+     false,
+     544.2
+    ],
+    "s31@w19": [
+     false,
+     569.7
+    ],
+    "s40@w19": [
+     true,
+     423.5
+    ],
+    "s34@w19": [
+     true,
+     314.7
+    ],
+    "s26@w19": [
+     true,
+     217.8
+    ],
+    "s8@w19": [
+     false,
+     140.8
+    ],
+    "s1@w19": [
+     true,
+     99.2
+    ],
+    "s2@w19": [
+     true,
+     155.8
+    ],
+    "s3@w19": [
+     true,
+     292.8
+    ],
+    "s4@w19": [
+     true,
+     148.1
+    ],
+    "s5@w19": [
+     true,
+     139.1
+    ],
+    "s7@w19": [
+     true,
+     290.9
+    ],
+    "s9@w19": [
+     true,
+     180.1
+    ],
+    "s10@w19": [
+     true,
+     247.7
+    ],
+    "s11@w19": [
+     true,
+     154.0
+    ],
+    "s12@w19": [
+     true,
+     124.1
+    ],
+    "s13@w19": [
+     true,
+     295.0
+    ],
+    "s14@w19": [
+     true,
+     305.1
+    ],
+    "s15@w19": [
+     true,
+     200.4
+    ],
+    "s16@w19": [
+     true,
+     104.1
+    ],
+    "s17@w19": [
+     true,
+     77.7
+    ],
+    "s18@w19": [
+     true,
+     166.2
+    ],
+    "s19@w19": [
+     true,
+     95.2
+    ],
+    "s20@w19": [
+     true,
+     159.8
+    ],
+    "s21@w19": [
+     false,
+     377.8
+    ],
+    "s22@w19": [
+     true,
+     250.9
+    ],
+    "s24@w19": [
+     true,
+     133.8
+    ],
+    "s25@w19": [
+     true,
+     185.8
+    ],
+    "s27@w19": [
+     true,
+     144.8
+    ],
+    "s28@w19": [
+     true,
+     88.4
+    ],
+    "s29@w19": [
+     true,
+     114.6
+    ],
+    "s32@w19": [
+     true,
+     112.1
+    ],
+    "s33@w19": [
+     false,
+     183.0
+    ],
+    "s35@w19": [
+     true,
+     353.4
+    ],
+    "s36@w19": [
+     true,
+     216.1
+    ],
+    "s37@w19": [
+     true,
+     194.2
+    ],
+    "s38@w19": [
+     true,
+     122.5
+    ],
+    "s39@w19": [
+     true,
+     92.6
+    ],
+    "s21@w20": [
+     true,
+     377.8
+    ],
+    "s1@w20": [
+     true,
+     99.2
+    ],
+    "s6@w20": [
+     false,
+     86.1
+    ],
+    "s2@w20": [
+     true,
+     155.8
+    ],
+    "s3@w20": [
+     true,
+     292.8
+    ],
+    "s4@w20": [
+     true,
+     148.1
+    ],
+    "s5@w20": [
+     true,
+     139.1
+    ],
+    "s7@w20": [
+     true,
+     290.9
+    ],
+    "s8@w20": [
+     false,
+     140.8
+    ],
+    "s9@w20": [
+     true,
+     180.1
+    ],
+    "s10@w20": [
+     true,
+     247.7
+    ],
+    "s11@w20": [
+     true,
+     154.0
+    ],
+    "s12@w20": [
+     true,
+     124.1
+    ],
+    "s13@w20": [
+     true,
+     295.0
+    ],
+    "s14@w20": [
+     true,
+     305.1
+    ],
+    "s15@w20": [
+     true,
+     200.4
+    ],
+    "s16@w20": [
+     true,
+     104.1
+    ],
+    "s17@w20": [
+     true,
+     77.7
+    ],
+    "s18@w20": [
+     true,
+     166.2
+    ],
+    "s19@w20": [
+     true,
+     95.2
+    ],
+    "s20@w20": [
+     true,
+     159.8
+    ],
+    "s22@w20": [
+     true,
+     250.9
+    ],
+    "s23@w20": [
+     true,
+     279.0
+    ],
+    "s24@w20": [
+     true,
+     133.8
+    ],
+    "s25@w20": [
+     true,
+     185.8
+    ],
+    "s26@w20": [
+     true,
+     217.8
+    ],
+    "s27@w20": [
+     true,
+     144.8
+    ],
+    "s28@w20": [
+     true,
+     88.4
+    ],
+    "s29@w20": [
+     true,
+     114.6
+    ],
+    "s30@w20": [
+     false,
+     544.2
+    ],
+    "s31@w20": [
+     false,
+     569.7
+    ],
+    "s32@w20": [
+     true,
+     112.1
+    ],
+    "s33@w20": [
+     false,
+     183.0
+    ],
+    "s34@w20": [
+     true,
+     314.7
+    ],
+    "s35@w20": [
+     true,
+     353.4
+    ],
+    "s36@w20": [
+     true,
+     216.1
+    ],
+    "s37@w20": [
+     true,
+     194.2
+    ],
+    "s38@w20": [
+     true,
+     122.5
+    ],
+    "s39@w20": [
+     true,
+     92.6
+    ],
+    "s40@w20": [
+     true,
+     423.5
+    ],
+    "s1@w21": [
+     true,
+     99.2
+    ],
+    "s2@w21": [
+     true,
+     155.8
+    ],
+    "s3@w21": [
+     true,
+     292.8
+    ],
+    "s4@w21": [
+     true,
+     148.1
+    ],
+    "s5@w21": [
+     true,
+     139.1
+    ],
+    "s7@w21": [
+     true,
+     290.9
+    ],
+    "s9@w21": [
+     true,
+     180.1
+    ],
+    "s10@w21": [
+     true,
+     247.7
+    ],
+    "s6@w21": [
+     false,
+     86.1
+    ],
+    "s8@w21": [
+     false,
+     140.8
+    ],
+    "s11@w21": [
+     true,
+     154.0
+    ],
+    "s12@w21": [
+     true,
+     124.1
+    ],
+    "s13@w21": [
+     true,
+     295.0
+    ],
+    "s14@w21": [
+     true,
+     305.1
+    ],
+    "s15@w21": [
+     true,
+     200.4
+    ],
+    "s16@w21": [
+     true,
+     104.1
+    ],
+    "s17@w21": [
+     true,
+     77.7
+    ],
+    "s18@w21": [
+     true,
+     166.2
+    ],
+    "s19@w21": [
+     true,
+     95.2
+    ],
+    "s20@w21": [
+     true,
+     159.8
+    ],
+    "s21@w21": [
+     true,
+     377.8
+    ],
+    "s22@w21": [
+     true,
+     250.9
+    ],
+    "s23@w21": [
+     true,
+     279.0
+    ],
+    "s24@w21": [
+     true,
+     133.8
+    ],
+    "s25@w21": [
+     true,
+     185.8
+    ],
+    "s26@w21": [
+     true,
+     217.8
+    ],
+    "s27@w21": [
+     true,
+     144.8
+    ],
+    "s28@w21": [
+     true,
+     88.4
+    ],
+    "s29@w21": [
+     true,
+     114.6
+    ],
+    "s30@w21": [
+     false,
+     544.2
+    ],
+    "s31@w21": [
+     false,
+     569.7
+    ],
+    "s32@w21": [
+     true,
+     112.1
+    ],
+    "s33@w21": [
+     false,
+     183.0
+    ],
+    "s34@w21": [
+     true,
+     314.7
+    ],
+    "s35@w21": [
+     true,
+     353.4
+    ],
+    "s36@w21": [
+     true,
+     216.1
+    ],
+    "s37@w21": [
+     true,
+     194.2
+    ],
+    "s38@w21": [
+     true,
+     122.5
+    ],
+    "s39@w21": [
+     true,
+     92.6
+    ],
+    "s40@w21": [
+     true,
+     423.5
+    ],
+    "s41@w21": [
+     true,
+     178.6
+    ],
+    "s42@w21": [
+     true,
+     277.0
+    ],
+    "s43@w21": [
+     true,
+     157.3
+    ],
+    "s44@w21": [
+     false,
+     244.4
+    ],
+    "s45@w21": [
+     true,
+     112.6
+    ],
+    "s46@w21": [
+     true,
+     94.0
+    ],
+    "s47@w21": [
+     false,
+     527.7
+    ],
+    "s48@w21": [
+     true,
+     186.8
+    ]
+   },
+   "at": {
+    "turn": 265,
+    "usd": 29.19,
+    "tokens": 90829408,
+    "min": 186.6
+   }
+  },
+  {
+   "note": "v32: does nothing (to check that success() fails then)",
+   "lines": 3,
+   "base": null,
+   "runs": {
+    "s1@w20": [
+     false,
+     0.0
+    ],
+    "s2@w20": [
+     false,
+     0.0
+    ],
+    "s3@w20": [
+     false,
+     0.0
+    ],
+    "s4@w20": [
+     false,
+     0.0
+    ]
+   },
+   "at": {
+    "turn": 271,
+    "usd": 30.05,
+    "tokens": 94273739,
+    "min": 197.4
+   }
+  },
+  {
+   "note": "v33: v31 + small clump cells kept (>=6 px), objects within 12 mm of a sheet's edge still count as outside",
+   "lines": 1225,
+   "base": null,
+   "runs": {
+    "s44@w21": [
+     false,
+     244.4
+    ],
+    "s8@w21": [
+     false,
+     140.8
+    ],
+    "s6@w21": [
+     false,
+     86.1
+    ],
+    "s30@w21": [
+     false,
+     545.9
+    ],
+    "s31@w21": [
+     false,
+     590.5
+    ],
+    "s23@w21": [
+     true,
+     249.8
+    ],
+    "s40@w21": [
+     true,
+     491.7
+    ],
+    "s34@w21": [
+     true,
+     314.7
+    ]
+   },
+   "at": {
+    "turn": 285,
+    "usd": 32.12,
+    "tokens": 102494883,
+    "min": 220.9
+   }
+  }
+ ],
+ "task": "insert_varied",
+ "env": "sim_bimanual_grippers",
+ "sensors": "d415",
+ "budget_usd": 50.0,
+ "spent_usd": 32.5703,
+ "compactions": 0,
+ "wall_s": 13499.3,
+ "effort": "xhigh",
+ "task_world": 21,
+ "agent": {
+  "kind": "claude_code",
+  "cli_version": "2.1.331 (Claude Code)",
+  "account": "the user's other Claude account (Pro on 2026-11-25, being upgraded to Max; token login: the CLI reports no email or plan)",
+  "organisation": null,
+  "plan": null,
+  "usage_limits": {
+   "first": {
+    "five_hour": {
+     "first": 0.29,
+     "n": 50,
+     "last": 0.14,
+     "status": "allowed",
+     "resets_at": 1795690200
+    },
+    "seven_day": {
+     "first": 0.09,
+     "n": 50,
+     "last": 0.16,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   },
+   "last": {
+    "five_hour": {
+     "first": 0.29,
+     "n": 50,
+     "last": 0.14,
+     "status": "allowed",
+     "resets_at": 1795690200
+    },
+    "seven_day": {
+     "first": 0.09,
+     "n": 50,
+     "last": 0.16,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   }
+  },
+  "cli_turns": 553,
+  "plan_tier": null,
+  "auth": "oauth_token",
+  "model": "opus",
+  "model_resolved": "claude-opus-5-5",
+  "effort": "xhigh",
+  "cost_usd": 32.57025,
+  "cost_is": "the CLI's total_cost_usd (API-equivalent), summed over the invocations",
+  "tokens": {
+   "input": 103934696,
+   "cached": 103340702,
+   "cache_write": 593418,
+   "output": 357623
+  },
+  "replies": 288,
+  "invocations": [
+   {
+    "k": 0,
+    "exit": 0,
+    "stopped": null,
+    "wall_s": 13499.3,
+    "usd": 32.57025,
+    "estimated": false,
+    "cli_total_usd": 32.57024840000002,
+    "subtype": "success",
+    "is_error": false,
+    "num_turns": 553,
+    "replies": 288,
+    "tokens": {
+     "input": 103934696,
+     "cached": 103340702,
+     "cache_write": 593418,
+     "output": 357623
+    },
+    "compactions": 0,
+    "session_id": "b2d8b38a-251f-4663-ae30-e5ff9b6d8bea",
+    "resumed": null,
+    "estimate_usd": 32.57025,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0.29,
+      "n": 50,
+      "last": 0.14,
+      "status": "allowed",
+      "resets_at": 1795690200
+     },
+     "seven_day": {
+      "first": 0.09,
+      "n": 50,
+      "last": 0.16,
+      "status": "allowed",
+      "resets_at": 1795806000
+     },
+     "_status": {
+      "status": "allowed",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    }
+   }
+  ],
+  "model_usage": [
+   {
+    "claude-opus-5-5": {
+     "inputTokens": 576,
+     "outputTokens": 357623,
+     "cacheReadInputTokens": 103340702,
+     "cacheCreationInputTokens": 593418,
+     "webSearchRequests": 0,
+     "costUSD": 32.57024840000002,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 188252,
+     "cacheCreationEphemeral5mInputTokens": 0,
+     "cacheCreationEphemeral1hInputTokens": 593418,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   }
+  ],
+  "tools": [
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "Read",
+   "Write"
+  ],
+  "mcp_servers": [],
+  "workspace": "/var/tmp/ar-cc/sponge_sweep_own_cc_xhigh_1125/workspace"
+ }
+}

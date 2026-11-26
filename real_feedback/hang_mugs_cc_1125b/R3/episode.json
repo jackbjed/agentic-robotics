@@ -1,0 +1,621 @@
+{
+ "name": "R3",
+ "run": "20261125_173841_robot_live_mugs_cc2",
+ "when": "20261125_173841",
+ "setup": "The same objects as R2, set out anew.",
+ "contact": "the arm's guarded line at 5 mm/s with 10 mm of lag; stops of the arm's server with less than 3.9 N not passed on (the rig text: move(..., stop_on_contact=True))",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": true,
+ "knocked_off": false,
+ "robot_time_s": 276.0,
+ "program_ended": null,
+ "moves_until_contact": [
+  {
+   "t": 68.7,
+   "goal_mm": [
+    -349.2,
+    153.41,
+    47.9
+   ],
+   "result": "stopped: contact",
+   "tool_after_mm": [
+    -342.2,
+    153.8,
+    67.8
+   ],
+   "server_stops_not_passed_on": 2,
+   "ordinary_steps": 0
+  },
+  {
+   "t": 131.7,
+   "goal_mm": [
+    -380.76,
+    122.57,
+    47.49
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -380.6,
+    121.1,
+    47.2
+   ],
+   "server_stops_not_passed_on": 0,
+   "ordinary_steps": 0
+  },
+  {
+   "t": 197.9,
+   "goal_mm": [
+    -379.54,
+    122.78,
+    47.66
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -380.2,
+    121.6,
+    47.2
+   ],
+   "server_stops_not_passed_on": 0,
+   "ordinary_steps": 0
+  }
+ ],
+ "server_guarded_lines": [
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 15.58,
+   "hand_behind_mm": 11.55,
+   "came_down_mm": 63.69,
+   "force_change_n": 3.41
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 11.62,
+   "hand_behind_mm": 10.9,
+   "came_down_mm": 1.0,
+   "force_change_n": 0.49
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 2.91,
+   "hand_behind_mm": 11.26,
+   "came_down_mm": 0.96,
+   "force_change_n": 4.11
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "ran to its end",
+   "seconds": null,
+   "hand_behind_mm": null,
+   "came_down_mm": null,
+   "force_change_n": null
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "ran to its end",
+   "seconds": null,
+   "hand_behind_mm": null,
+   "came_down_mm": null,
+   "force_change_n": null
+  }
+ ],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.946,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.228,
+   "depth_mm": {
+    "nearest": 315,
+    "p5": 723,
+    "median": 736,
+    "p95": 743
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 14.443,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.185,
+   "depth_mm": {
+    "nearest": 318,
+    "p5": 724,
+    "median": 739,
+    "p95": 745
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 34.284,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.231,
+   "depth_mm": {
+    "nearest": 300,
+    "p5": 634,
+    "median": 663,
+    "p95": 761
+   }
+  },
+  {
+   "image": "look_03_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 57.852,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.291,
+   "depth_mm": {
+    "nearest": 284,
+    "p5": 369,
+    "median": 383,
+    "p95": 385
+   }
+  },
+  {
+   "image": "look_04_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 134.06,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.221,
+   "depth_mm": {
+    "nearest": 322,
+    "p5": 655,
+    "median": 670,
+    "p95": 839
+   }
+  },
+  {
+   "image": "look_05_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 157.042,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.298,
+   "depth_mm": {
+    "nearest": 290,
+    "p5": 368,
+    "median": 383,
+    "p95": 385
+   }
+  },
+  {
+   "image": "look_06_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 218.931,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.228,
+   "depth_mm": {
+    "nearest": 302,
+    "p5": 660,
+    "median": 676,
+    "p95": 974
+   }
+  },
+  {
+   "image": "look_07_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 241.686,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.296,
+   "depth_mm": {
+    "nearest": 291,
+    "p5": 369,
+    "median": 384,
+    "p95": 385
+   }
+  },
+  {
+   "image": "video_scene_000.0s",
+   "camera": "scene",
+   "robot_time_s": 0.0,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.26,
+   "depth_mm": {
+    "nearest": 750,
+    "p5": 848,
+    "median": 1347,
+    "p95": 7752
+   }
+  },
+  {
+   "image": "video_scene_040.7s",
+   "camera": "scene",
+   "robot_time_s": 40.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.253,
+   "depth_mm": {
+    "nearest": 753,
+    "p5": 845,
+    "median": 1531,
+    "p95": 7975
+   }
+  },
+  {
+   "image": "video_scene_082.7s",
+   "camera": "scene",
+   "robot_time_s": 82.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.287,
+   "depth_mm": {
+    "nearest": 754,
+    "p5": 847,
+    "median": 1309,
+    "p95": 7975
+   }
+  },
+  {
+   "image": "video_scene_123.7s",
+   "camera": "scene",
+   "robot_time_s": 123.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.271,
+   "depth_mm": {
+    "nearest": 753,
+    "p5": 846,
+    "median": 1339,
+    "p95": 7806
+   }
+  },
+  {
+   "image": "video_scene_164.7s",
+   "camera": "scene",
+   "robot_time_s": 164.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.268,
+   "depth_mm": {
+    "nearest": 521,
+    "p5": 846,
+    "median": 1306,
+    "p95": 7541
+   }
+  },
+  {
+   "image": "video_scene_205.7s",
+   "camera": "scene",
+   "robot_time_s": 205.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.263,
+   "depth_mm": {
+    "nearest": 754,
+    "p5": 847,
+    "median": 1320,
+    "p95": 7862
+   }
+  },
+  {
+   "image": "video_scene_247.7s",
+   "camera": "scene",
+   "robot_time_s": 247.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.246,
+   "depth_mm": {
+    "nearest": 754,
+    "p5": 842,
+    "median": 1365,
+    "p95": 7645
+   }
+  },
+  {
+   "image": "video_scene_288.7s",
+   "camera": "scene",
+   "robot_time_s": 288.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.279,
+   "depth_mm": {
+    "nearest": 753,
+    "p5": 844,
+    "median": 1312,
+    "p95": 7918
+   }
+  },
+  {
+   "image": "video_wrist_000.0s",
+   "camera": "left_wrist",
+   "robot_time_s": 0.0,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.233,
+   "depth_mm": {
+    "nearest": 308,
+    "p5": 448,
+    "median": 490,
+    "p95": 553
+   }
+  },
+  {
+   "image": "video_wrist_040.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 40.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.215,
+   "depth_mm": {
+    "nearest": 308,
+    "p5": 681,
+    "median": 696,
+    "p95": 885
+   }
+  },
+  {
+   "image": "video_wrist_082.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 82.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.707,
+   "depth_mm": {
+    "nearest": 272,
+    "p5": 292,
+    "median": 450,
+    "p95": 3559
+   }
+  },
+  {
+   "image": "video_wrist_123.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 123.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.275,
+   "depth_mm": {
+    "nearest": 280,
+    "p5": 426,
+    "median": 446,
+    "p95": 453
+   }
+  },
+  {
+   "image": "video_wrist_164.8s",
+   "camera": "left_wrist",
+   "robot_time_s": 164.8,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.299,
+   "depth_mm": {
+    "nearest": 290,
+    "p5": 374,
+    "median": 387,
+    "p95": 390
+   }
+  },
+  {
+   "image": "video_wrist_205.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 205.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.752,
+   "depth_mm": {
+    "nearest": 273,
+    "p5": 384,
+    "median": 429,
+    "p95": 10609
+   }
+  },
+  {
+   "image": "video_wrist_247.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 247.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.231,
+   "depth_mm": {
+    "nearest": 280,
+    "p5": 611,
+    "median": 626,
+    "p95": 676
+   }
+  },
+  {
+   "image": "video_wrist_288.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 288.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.802,
+   "depth_mm": {
+    "nearest": 273,
+    "p5": 295,
+    "median": 463,
+    "p95": 1855
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_overview_-60",
+  "shown_01_overview_290",
+  "shown_02_hang_hover",
+  "shown_03_grasp_hover",
+  "shown_04_hang_hover",
+  "shown_05_grasp_hover",
+  "shown_06_hang_hover",
+  "shown_07_grasp_hover"
+ ],
+ "video_frames": {},
+ "output_lines": 86,
+ "version": 38
+}

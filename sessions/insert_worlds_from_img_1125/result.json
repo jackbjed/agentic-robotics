@@ -1,0 +1,1313 @@
+{
+ "ended": "submitted",
+ "submitted": 23,
+ "result_version": 23,
+ "turns": 127,
+ "versions": [
+  {
+   "note": "probe: look, segment, camera poses, reach map",
+   "lines": 34,
+   "base": null,
+   "runs": {
+    "s1@w0": [
+     false,
+     0.0
+    ],
+    "s2@w0": [
+     false,
+     0.0
+    ],
+    "s1@w1": [
+     false,
+     0.0
+    ],
+    "s2@w1": [
+     false,
+     0.0
+    ],
+    "s1@w2": [
+     false,
+     0.0
+    ],
+    "s2@w2": [
+     false,
+     0.0
+    ],
+    "s1@w3": [
+     false,
+     294.6
+    ],
+    "s2@w3": [
+     false,
+     260.6
+    ]
+   },
+   "at": {
+    "turn": 10,
+    "usd": 1.06,
+    "tokens": 334869,
+    "min": 5.0
+   }
+  },
+  {
+   "note": "v1: perception only: wrist survey height map, stick + cylinder candidates, close-ups, truth comparison",
+   "lines": 328,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     false,
+     21.7
+    ],
+    "s2@w4": [
+     false,
+     50.7
+    ],
+    "s3@w4": [
+     false,
+     47.9
+    ],
+    "s4@w4": [
+     false,
+     48.4
+    ],
+    "s5@w4": [
+     false,
+     53.1
+    ],
+    "s6@w4": [
+     false,
+     21.3
+    ],
+    "s7@w4": [
+     false,
+     22.9
+    ],
+    "s8@w4": [
+     false,
+     22.0
+    ]
+   },
+   "at": {
+    "turn": 22,
+    "usd": 2.14,
+    "tokens": 1177653,
+    "min": 10.5
+   }
+  },
+  {
+   "note": "v2: full pipeline: survey level-set detection, close-ups, double grasp centring, camera-bias calibration, spiral insertion",
+   "lines": 533,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     false,
+     137.3
+    ],
+    "s2@w5": [
+     false,
+     221.6
+    ],
+    "s3@w5": [
+     false,
+     237.1
+    ],
+    "s4@w5": [
+     false,
+     209.7
+    ],
+    "s5@w5": [
+     false,
+     9.8
+    ],
+    "s6@w5": [
+     false,
+     247.0
+    ],
+    "s7@w5": [
+     false,
+     70.7
+    ],
+    "s8@w5": [
+     false,
+     9.8
+    ]
+   },
+   "at": {
+    "turn": 26,
+    "usd": 2.86,
+    "tokens": 1679058,
+    "min": 13.7
+   }
+  },
+  {
+   "note": "v3: v2 + finger regions masked in survey, stick criteria",
+   "lines": 536,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     true,
+     70.1
+    ],
+    "s2@w5": [
+     true,
+     69.5
+    ],
+    "s3@w5": [
+     true,
+     87.3
+    ],
+    "s4@w5": [
+     true,
+     82.6
+    ],
+    "s5@w5": [
+     false,
+     75.8
+    ],
+    "s6@w5": [
+     false,
+     50.1
+    ],
+    "s7@w5": [
+     true,
+     72.9
+    ],
+    "s8@w5": [
+     true,
+     211.1
+    ]
+   },
+   "at": {
+    "turn": 28,
+    "usd": 3.02,
+    "tokens": 1946357,
+    "min": 15.1
+   }
+  },
+  {
+   "note": "v4: measuring yaw chosen where reachable, lift before centring turn, accept fingertip-on-support contact, insertion yaw search, cam 320mm",
+   "lines": 607,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     72.3
+    ],
+    "s2@w6": [
+     false,
+     57.4
+    ],
+    "s3@w6": [
+     true,
+     86.0
+    ],
+    "s4@w6": [
+     false,
+     292.8
+    ],
+    "s5@w6": [
+     true,
+     89.3
+    ],
+    "s6@w6": [
+     true,
+     85.8
+    ],
+    "s7@w6": [
+     true,
+     93.4
+    ],
+    "s8@w6": [
+     false,
+     57.7
+    ]
+   },
+   "at": {
+    "turn": 42,
+    "usd": 4.28,
+    "tokens": 4273753,
+    "min": 19.5
+   }
+  },
+  {
+   "note": "v5: two-yaw cylinder measurement (camera bias vs position), centring grasp at the corrected position, calibration check + re-centre",
+   "lines": 682,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     76.8
+    ],
+    "s2@w6": [
+     true,
+     83.1
+    ],
+    "s3@w6": [
+     true,
+     90.6
+    ],
+    "s4@w6": [
+     true,
+     98.0
+    ],
+    "s5@w6": [
+     true,
+     94.7
+    ],
+    "s6@w6": [
+     true,
+     90.4
+    ],
+    "s7@w6": [
+     true,
+     97.9
+    ],
+    "s8@w6": [
+     true,
+     82.4
+    ],
+    "s9@w6": [
+     true,
+     91.4
+    ],
+    "s10@w6": [
+     true,
+     96.6
+    ],
+    "s11@w6": [
+     true,
+     79.7
+    ],
+    "s12@w6": [
+     true,
+     82.3
+    ],
+    "s13@w6": [
+     true,
+     91.1
+    ],
+    "s14@w6": [
+     true,
+     116.4
+    ],
+    "s15@w6": [
+     true,
+     84.9
+    ],
+    "s16@w6": [
+     true,
+     81.7
+    ]
+   },
+   "at": {
+    "turn": 48,
+    "usd": 5.08,
+    "tokens": 5506923,
+    "min": 23.1
+   }
+  },
+  {
+   "note": "v6: obstacle-aware transit via survey height map; stop below felt tip = inserted; hang tracking",
+   "lines": 715,
+   "base": null,
+   "runs": {
+    "s1@w7": [
+     true,
+     86.1
+    ],
+    "s2@w7": [
+     true,
+     81.8
+    ],
+    "s3@w7": [
+     true,
+     88.9
+    ],
+    "s4@w7": [
+     true,
+     106.1
+    ],
+    "s5@w7": [
+     true,
+     84.6
+    ],
+    "s6@w7": [
+     true,
+     88.0
+    ],
+    "s7@w7": [
+     true,
+     98.4
+    ],
+    "s8@w7": [
+     true,
+     93.8
+    ]
+   },
+   "at": {
+    "turn": 59,
+    "usd": 6.38,
+    "tokens": 8286054,
+    "min": 26.7
+   }
+  },
+  {
+   "note": "v7: v6 + compact logs, second-yaw view by plain move when turning in place is refused",
+   "lines": 711,
+   "base": null,
+   "runs": {
+    "s9@w8": [
+     true,
+     96.8
+    ],
+    "s10@w8": [
+     true,
+     91.6
+    ],
+    "s11@w8": [
+     false,
+     11.1
+    ],
+    "s12@w8": [
+     true,
+     86.1
+    ],
+    "s13@w8": [
+     true,
+     97.4
+    ],
+    "s14@w8": [
+     true,
+     89.9
+    ],
+    "s15@w8": [
+     true,
+     88.6
+    ],
+    "s16@w8": [
+     true,
+     93.0
+    ]
+   },
+   "at": {
+    "turn": 63,
+    "usd": 6.91,
+    "tokens": 9416867,
+    "min": 28.1
+   }
+  },
+  {
+   "note": "v8: debug print of blobs near the true cylinder when it is not a candidate",
+   "lines": 715,
+   "base": null,
+   "runs": {
+    "s11@w8": [
+     false,
+     11.1
+    ],
+    "s11@w9": [
+     false,
+     11.1
+    ],
+    "s17@w9": [
+     true,
+     107.9
+    ],
+    "s18@w9": [
+     true,
+     88.3
+    ],
+    "s19@w9": [
+     true,
+     87.4
+    ],
+    "s20@w9": [
+     true,
+     88.8
+    ],
+    "s21@w9": [
+     true,
+     92.9
+    ],
+    "s22@w9": [
+     true,
+     86.9
+    ],
+    "s23@w9": [
+     true,
+     93.3
+    ],
+    "s11@w10": [
+     true,
+     89.8
+    ],
+    "s24@w10": [
+     true,
+     88.8
+    ]
+   },
+   "at": {
+    "turn": 64,
+    "usd": 7.1,
+    "tokens": 9719680,
+    "min": 28.6
+   }
+  },
+  {
+   "note": "probe2: watch the cylinder in the first second",
+   "lines": 10,
+   "base": null,
+   "runs": {
+    "s11@w9": [
+     false,
+     0.6
+    ]
+   },
+   "at": {
+    "turn": 68,
+    "usd": 7.59,
+    "tokens": 10975039,
+    "min": 29.8
+   }
+  },
+  {
+   "note": "v10: staged main with retries: stick candidates, rescan fallback, put back + retry if insertion not found, re-find if lost",
+   "lines": 912,
+   "base": null,
+   "runs": {
+    "s25@w10": [
+     false,
+     21.8
+    ],
+    "s26@w10": [
+     true,
+     123.9
+    ],
+    "s27@w10": [
+     true,
+     80.5
+    ],
+    "s28@w10": [
+     true,
+     91.1
+    ],
+    "s29@w10": [
+     true,
+     87.0
+    ],
+    "s30@w10": [
+     true,
+     91.0
+    ],
+    "s31@w10": [
+     true,
+     86.1
+    ],
+    "s32@w10": [
+     true,
+     94.6
+    ]
+   },
+   "at": {
+    "turn": 77,
+    "usd": 8.69,
+    "tokens": 13983973,
+    "min": 32.5
+   }
+  },
+  {
+   "note": "v11: close-ups and grasps fall back to other yaws when refused; rescan pose fix",
+   "lines": 931,
+   "base": null,
+   "runs": {
+    "s25@w11": [
+     true,
+     79.7
+    ],
+    "s33@w11": [
+     true,
+     133.9
+    ],
+    "s34@w11": [
+     true,
+     92.0
+    ],
+    "s35@w11": [
+     true,
+     107.6
+    ],
+    "s36@w11": [
+     true,
+     87.8
+    ],
+    "s1@w11": [
+     true,
+     86.1
+    ],
+    "s2@w11": [
+     true,
+     81.8
+    ],
+    "s3@w11": [
+     true,
+     89.8
+    ]
+   },
+   "at": {
+    "turn": 80,
+    "usd": 9.13,
+    "tokens": 15058625,
+    "min": 33.5
+   }
+  },
+  {
+   "note": "v12: relocate the cylinder to a free spot when it cannot be viewed from two yaws where it stands",
+   "lines": 981,
+   "base": null,
+   "runs": {
+    "s25@w11": [
+     true,
+     79.7
+    ],
+    "s5@w11": [
+     true,
+     97.8
+    ],
+    "s9@w11": [
+     true,
+     97.4
+    ],
+    "s37@w11": [
+     true,
+     80.5
+    ],
+    "s38@w11": [
+     true,
+     94.0
+    ],
+    "s39@w11": [
+     true,
+     88.2
+    ],
+    "s40@w11": [
+     true,
+     96.3
+    ],
+    "s41@w11": [
+     true,
+     98.4
+    ]
+   },
+   "at": {
+    "turn": 82,
+    "usd": 9.52,
+    "tokens": 15823392,
+    "min": 34.6
+   }
+  },
+  {
+   "note": "v13: free spot = locally flat (99th pct within 6 mm of median)",
+   "lines": 983,
+   "base": null,
+   "runs": {
+    "s25@w11": [
+     true,
+     121.9
+    ],
+    "s42@w11": [
+     true,
+     138.2
+    ],
+    "s43@w11": [
+     true,
+     126.5
+    ],
+    "s44@w11": [
+     true,
+     96.6
+    ],
+    "s45@w11": [
+     true,
+     77.3
+    ],
+    "s46@w11": [
+     true,
+     82.2
+    ],
+    "s47@w11": [
+     true,
+     89.4
+    ],
+    "s48@w11": [
+     true,
+     96.1
+    ],
+    "s4@w11": [
+     true,
+     105.4
+    ],
+    "s1@w12": [
+     true,
+     96.1
+    ],
+    "s2@w12": [
+     true,
+     123.7
+    ],
+    "s3@w12": [
+     true,
+     88.7
+    ],
+    "s4@w12": [
+     true,
+     92.2
+    ],
+    "s5@w12": [
+     true,
+     101.8
+    ],
+    "s6@w12": [
+     true,
+     91.4
+    ],
+    "s7@w12": [
+     true,
+     84.0
+    ],
+    "s8@w12": [
+     true,
+     105.9
+    ]
+   },
+   "at": {
+    "turn": 83,
+    "usd": 9.74,
+    "tokens": 16221861,
+    "min": 35.6
+   }
+  },
+  {
+   "note": "v14: measure only from a reached close-up pose; relocation spot from a grid, nearest flat free one",
+   "lines": 987,
+   "base": null,
+   "runs": {
+    "s1@w12": [
+     true,
+     96.1
+    ],
+    "s9@w12": [
+     false,
+     91.3
+    ],
+    "s10@w12": [
+     true,
+     112.1
+    ],
+    "s11@w12": [
+     true,
+     81.6
+    ],
+    "s12@w12": [
+     true,
+     83.6
+    ],
+    "s13@w12": [
+     true,
+     106.0
+    ],
+    "s14@w12": [
+     true,
+     92.3
+    ],
+    "s15@w12": [
+     true,
+     99.5
+    ]
+   },
+   "at": {
+    "turn": 88,
+    "usd": 10.66,
+    "tokens": 18341063,
+    "min": 38.2
+   }
+  },
+  {
+   "note": "v15: survey views flattened by a robust table-plane fit (camera tilt error); relocation avoid radius 130",
+   "lines": 1004,
+   "base": null,
+   "runs": {
+    "s9@w12": [
+     false,
+     78.0
+    ],
+    "s16@w12": [
+     true,
+     146.1
+    ],
+    "s17@w12": [
+     true,
+     80.9
+    ],
+    "s18@w12": [
+     true,
+     110.6
+    ],
+    "s19@w12": [
+     true,
+     100.4
+    ],
+    "s20@w12": [
+     true,
+     105.5
+    ],
+    "s21@w12": [
+     false,
+     26.3
+    ],
+    "s22@w12": [
+     true,
+     101.0
+    ]
+   },
+   "at": {
+    "turn": 93,
+    "usd": 11.41,
+    "tokens": 20636602,
+    "min": 39.7
+   }
+  },
+  {
+   "note": "v16: debug print of blobs per line",
+   "lines": 1006,
+   "base": null,
+   "runs": {
+    "s9@w12": [
+     false,
+     78.0
+    ]
+   },
+   "at": {
+    "turn": 97,
+    "usd": 11.86,
+    "tokens": 22498935,
+    "min": 42.1
+   }
+  },
+  {
+   "note": "v17: detection per survey view (views not merged: camera error displaces each view differently), candidates merged",
+   "lines": 1044,
+   "base": null,
+   "runs": {
+    "s9@w12": [
+     true,
+     135.7
+    ],
+    "s21@w12": [
+     false,
+     26.3
+    ]
+   },
+   "at": {
+    "turn": 101,
+    "usd": 12.41,
+    "tokens": 24397214,
+    "min": 43.1
+   }
+  },
+  {
+   "note": "v18: adaptive close-up distance (320/300/285) chosen at the stick, kept for all close-ups; quieter logs",
+   "lines": 1053,
+   "base": null,
+   "runs": {
+    "s21@w12": [
+     true,
+     216.2
+    ],
+    "s23@w12": [
+     true,
+     91.9
+    ],
+    "s24@w12": [
+     true,
+     87.5
+    ],
+    "s26@w12": [
+     true,
+     93.4
+    ],
+    "s27@w12": [
+     true,
+     90.6
+    ],
+    "s28@w12": [
+     true,
+     78.4
+    ],
+    "s29@w12": [
+     true,
+     83.7
+    ],
+    "s30@w12": [
+     true,
+     154.4
+    ],
+    "s1@w13": [
+     true,
+     89.7
+    ],
+    "s2@w13": [
+     true,
+     82.5
+    ],
+    "s3@w13": [
+     true,
+     95.1
+    ],
+    "s4@w13": [
+     true,
+     96.7
+    ],
+    "s5@w13": [
+     true,
+     102.3
+    ],
+    "s6@w13": [
+     true,
+     100.3
+    ],
+    "s7@w13": [
+     true,
+     100.4
+    ],
+    "s8@w13": [
+     true,
+     90.0
+    ]
+   },
+   "at": {
+    "turn": 103,
+    "usd": 12.78,
+    "tokens": 25369197,
+    "min": 45.7
+   }
+  },
+  {
+   "note": "v19: relocation free-spot test relaxed (+-70 mm, p98)",
+   "lines": 1053,
+   "base": null,
+   "runs": {
+    "s5@w13": [
+     true,
+     128.3
+    ],
+    "s9@w13": [
+     true,
+     122.0
+    ],
+    "s10@w13": [
+     true,
+     96.7
+    ],
+    "s11@w13": [
+     true,
+     97.5
+    ],
+    "s12@w13": [
+     true,
+     85.2
+    ],
+    "s13@w13": [
+     true,
+     246.4
+    ],
+    "s14@w13": [
+     true,
+     92.7
+    ],
+    "s15@w13": [
+     true,
+     88.3
+    ]
+   },
+   "at": {
+    "turn": 107,
+    "usd": 13.55,
+    "tokens": 27415595,
+    "min": 48.2
+   }
+  },
+  {
+   "note": "v20: camera bias = mean of the calibration look and the two-yaw estimate when they agree",
+   "lines": 1053,
+   "base": null,
+   "runs": {
+    "s16@w13": [
+     true,
+     90.1
+    ],
+    "s17@w13": [
+     true,
+     102.9
+    ],
+    "s18@w13": [
+     true,
+     84.9
+    ],
+    "s19@w13": [
+     true,
+     76.5
+    ],
+    "s20@w13": [
+     true,
+     95.2
+    ],
+    "s21@w13": [
+     true,
+     92.2
+    ],
+    "s22@w13": [
+     true,
+     120.9
+    ],
+    "s23@w13": [
+     true,
+     90.3
+    ]
+   },
+   "at": {
+    "turn": 108,
+    "usd": 13.82,
+    "tokens": 27952227,
+    "min": 49.0
+   }
+  },
+  {
+   "note": "v21: relocation set-down clamped to the TCP limit (z >= 11)",
+   "lines": 1053,
+   "base": null,
+   "runs": {
+    "s22@w13": [
+     true,
+     120.9
+    ],
+    "s24@w13": [
+     true,
+     114.3
+    ]
+   },
+   "at": {
+    "turn": 109,
+    "usd": 14.07,
+    "tokens": 28503671,
+    "min": 49.5
+   }
+  },
+  {
+   "note": "v22: set-down clamp 12.5 (fingertip limit), robot.show capped at 10, header doc",
+   "lines": 1085,
+   "base": null,
+   "runs": {
+    "s25@w13": [
+     true,
+     92.5
+    ],
+    "s26@w13": [
+     true,
+     92.7
+    ],
+    "s27@w13": [
+     true,
+     126.5
+    ],
+    "s28@w13": [
+     true,
+     85.3
+    ],
+    "s29@w13": [
+     true,
+     87.6
+    ],
+    "s30@w13": [
+     true,
+     102.6
+    ],
+    "s31@w13": [
+     true,
+     82.8
+    ],
+    "s32@w13": [
+     true,
+     85.5
+    ],
+    "s1@w14": [
+     true,
+     89.6
+    ],
+    "s2@w14": [
+     false,
+     155.8
+    ],
+    "s3@w14": [
+     false,
+     151.3
+    ],
+    "s4@w14": [
+     true,
+     96.7
+    ],
+    "s5@w14": [
+     false,
+     112.8
+    ],
+    "s6@w14": [
+     true,
+     155.7
+    ],
+    "s7@w14": [
+     true,
+     100.6
+    ],
+    "s8@w14": [
+     true,
+     90.0
+    ]
+   },
+   "at": {
+    "turn": 114,
+    "usd": 14.78,
+    "tokens": 31298767,
+    "min": 50.5
+   }
+  },
+  {
+   "note": "v23: hole test robust to edge fattening (centre < 0.6, hole < 40 mm, outline < 82 mm), rejected places remembered, looser candidates as last resort",
+   "lines": 1108,
+   "base": null,
+   "runs": {
+    "s2@w14": [
+     true,
+     103.6
+    ],
+    "s3@w14": [
+     true,
+     95.2
+    ],
+    "s5@w14": [
+     false,
+     232.8
+    ],
+    "s9@w14": [
+     true,
+     116.5
+    ],
+    "s10@w14": [
+     true,
+     135.9
+    ],
+    "s11@w14": [
+     true,
+     98.6
+    ],
+    "s12@w14": [
+     true,
+     85.1
+    ],
+    "s13@w14": [
+     true,
+     206.8
+    ],
+    "s33@w13": [
+     true,
+     85.7
+    ],
+    "s34@w13": [
+     true,
+     89.9
+    ],
+    "s35@w13": [
+     true,
+     99.1
+    ],
+    "s36@w13": [
+     true,
+     86.4
+    ],
+    "s37@w13": [
+     true,
+     103.7
+    ],
+    "s38@w13": [
+     true,
+     90.5
+    ],
+    "s39@w13": [
+     true,
+     88.6
+    ],
+    "s40@w13": [
+     true,
+     88.4
+    ]
+   },
+   "at": {
+    "turn": 121,
+    "usd": 16.11,
+    "tokens": 35464826,
+    "min": 53.3
+   }
+  }
+ ],
+ "task": "insert_varied",
+ "env": "sim_bimanual_grippers",
+ "sensors": "d415",
+ "budget_usd": 50.0,
+ "spent_usd": 17.2979,
+ "compactions": 0,
+ "wall_s": 3425.8,
+ "effort": "xhigh",
+ "task_world": 13,
+ "agent": {
+  "kind": "claude_code",
+  "cli_version": "2.1.331 (Claude Code)",
+  "account": "the user's other Claude account (Pro on 2026-11-25, being upgraded to Max; token login: the CLI reports no email or plan)",
+  "organisation": null,
+  "plan": null,
+  "usage_limits": {
+   "first": {
+    "five_hour": {
+     "first": 0,
+     "n": 19,
+     "last": 0.17,
+     "status": "allowed",
+     "resets_at": 1795672200
+    },
+    "seven_day": {
+     "first": 0.06,
+     "n": 19,
+     "last": 0.08,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   },
+   "last": {
+    "five_hour": {
+     "first": 0,
+     "n": 19,
+     "last": 0.17,
+     "status": "allowed",
+     "resets_at": 1795672200
+    },
+    "seven_day": {
+     "first": 0.06,
+     "n": 19,
+     "last": 0.08,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   }
+  },
+  "cli_turns": 225,
+  "plan_tier": null,
+  "auth": "oauth_token",
+  "model": "opus",
+  "model_resolved": "claude-opus-5-5",
+  "effort": "xhigh",
+  "cost_usd": 17.2979,
+  "cost_is": "the CLI's total_cost_usd (API-equivalent), summed over the invocations",
+  "tokens": {
+   "input": 39031359,
+   "cached": 38398922,
+   "cache_write": 632183,
+   "output": 227982
+  },
+  "replies": 127,
+  "invocations": [
+   {
+    "k": 0,
+    "exit": 0,
+    "stopped": null,
+    "wall_s": 3425.8,
+    "usd": 17.2979,
+    "estimated": false,
+    "cli_total_usd": 17.29790440000001,
+    "subtype": "success",
+    "is_error": false,
+    "num_turns": 225,
+    "replies": 127,
+    "tokens": {
+     "input": 39031359,
+     "cached": 38398922,
+     "cache_write": 632183,
+     "output": 227982
+    },
+    "compactions": 0,
+    "session_id": "df844379-fa81-43c5-bb43-78ba7115c0df",
+    "resumed": null,
+    "estimate_usd": 17.2979,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0,
+      "n": 19,
+      "last": 0.17,
+      "status": "allowed",
+      "resets_at": 1795672200
+     },
+     "seven_day": {
+      "first": 0.06,
+      "n": 19,
+      "last": 0.08,
+      "status": "allowed",
+      "resets_at": 1795806000
+     },
+     "_status": {
+      "status": "allowed",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    }
+   }
+  ],
+  "model_usage": [
+   {
+    "claude-opus-5-5": {
+     "inputTokens": 254,
+     "outputTokens": 227982,
+     "cacheReadInputTokens": 38398922,
+     "cacheCreationInputTokens": 632183,
+     "webSearchRequests": 0,
+     "costUSD": 17.29790440000001,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 126531,
+     "cacheCreationEphemeral5mInputTokens": 0,
+     "cacheCreationEphemeral1hInputTokens": 632183,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   }
+  ],
+  "tools": [
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "Read",
+   "Write"
+  ],
+  "mcp_servers": [],
+  "workspace": "/var/tmp/ar-cc/insert_worlds_from_img_1125/workspace"
+ },
+ "kind": "worlds_from_img",
+ "images": "<WORKSPACE>/agentic-robotics/runs/bimanual/real_images/insert_181140"
+}

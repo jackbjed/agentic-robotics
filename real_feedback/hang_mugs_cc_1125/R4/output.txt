@@ -1,0 +1,86 @@
+# task: Hang all the mugs on the mug rack. On the table there are two mugs, standing upright, and one mug rack (a mug tree: a post on a base, with branches sticking out of the post). Pick up each mug and hang it on the rack by its handle: a branch of the rack must pass through the handle so that the rack bears the mug's weight once the gripper lets go of it. Each mug must stay hanging after it is released, and hanging one mug must not knock the other off. Other things on the table are not to be used. At the end all mugs hang on the rack, the gripper is open and the arm is back at its start pose.
+# robot live: robot time limit 2250.0 s, model calls off
+# t=   0.8 set_gripper('left', 80) -> 80 | left tool (-492.3, 92.1, 356.2)
+# t=   7.9 move('left', (-390, -60, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-389.9, -59.1, 599.2)
+# t=   7.9 look([left_wrist]) -> left_wrist: Frame | left tool (-389.9, -59.1, 599.2)
+# t=  14.4 move('left', (-390, 290, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-389.3, 288.4, 601)
+# t=  14.4 look([left_wrist]) -> left_wrist: Frame | left tool (-389.3, 288.4, 601)
+[14.4] table z -5.0, 481779 points
+[14.4] blob at [-255.0, 2.0] top 350 area 22720
+[14.4] blob at [-316.0, 182.0] top 95 area 7440
+[14.4]   cand: C [-324.4, 165.5] r 40.7 H 92 sup 3 hollow True handle True n_h 344 frac 1.00 w 15
+[14.4] rack A [-238.8, -2.0] base_top 15 pole_r 22.0 pole_top 350 top 358 base_r 86, 2 branches
+[14.4]    branch az -6 elev 23 s_tip 83 rb 5.8 ztop(root) 138
+[14.4]    branch az 174 elev 23 s_tip 108 rb 3.0 ztop(root) 311
+[14.4] 1 mugs found
+[14.4] mug 0: 6 candidates
+[14.4] mug 0 -> branch 1 sigma -1 s_d 63 delta -48 cost 0.21 clear {'descend': (52.0, 75.6, 11.1, 105.8), 'thread': (28.5, 21.6, 7.4, 41.6)}
+# t=  19.7 move('left', (-289.62, 113.75, 560), (0, 0, -1), (-0, -1, 0)) -> done | left tool (-287.8, 112.5, 561.2)
+# t=  25.3 move('left', (-287.8, 112.5, 561.2), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-286.5, 109, 560.7)
+# t=  30.8 move('left', (-287.8, 112.5, 561.2), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-287, 112.5, 560.8)
+# t=  34.3 move('left', (-289.62, 113.75, 525.91), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-289.4, 116.4, 526.6)
+# t=  34.3 look([left_wrist]) -> left_wrist: Frame | left tool (-289.4, 116.4, 526.6)
+[34.3] branch refined: d_xy 1.1 dz -0.8 daz -1.0
+# t=  37.7 move('left', (-289.4, 116.4, 560), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-290.3, 119.4, 557.9)
+# t=  37.7 move('left', (-357.7, 202.74, 560), (0, 0, -1), (-0.99, 0.1, 0)) -> REFUSED: the arm cannot reach that pose (the hand would stay 3 degrees short of that orientation: t | left tool (-290.3, 119.4, 557.9)
+  move [-357.7, 202.7, 560.0] -> moved=False why=the arm cannot reach that pose (the hand would stay 3 degrees short of that orientation: the wrist is at the end of its range)
+# t=  44.3 move('left', (-357.7, 202.74, 490), (0, 0, -1), (-0.99, 0.1, 0)) -> done | left tool (-356.6, 201.5, 490.1)
+# t=  49.7 move('left', (-356.6, 201.5, 490.1), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-357.3, 202.1, 491.5)
+# t=  57.9 move('left', (-357.7, 202.74, 250.29), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-358.6, 203.5, 250)
+# t=  57.9 look([left_wrist]) -> left_wrist: Frame | left tool (-358.6, 203.5, 249.9)
+[57.9] mug refined: dC [7.6, 6.8] dth -11.6 r 37.6 H 100 rim 104 hole_rc 53.2 r_out 80.1 rh 6.9 hole_top-rim -34.5
+# t=  58.6 set_gripper('left', 34) -> 34.1 | left tool (-358.6, 203.5, 249.9)
+# t=  67.1 move('left', (-349.2, 153.41, 134.44), (0, 0, -1), (-0.86, -0.5, 0)) -> done | left tool (-350.8, 152.8, 132.9)
+#          (the arm's server stopped the line at z 69.2 mm, +65.2 mm on: the hand 11.55 mm behind, force change 3.41 N: not taken as a contact)
+#          (the arm's server stopped the line at z 68.2 mm, +1.1 mm on: the hand 10.9 mm behind, force change 0.49 N: not taken as a contact)
+#          (the tool stood 17.1 mm beside its line: an ordinary move back onto it, now 0.6 mm beside, z 68.8 mm)
+# t=  68.7 move('left', (-349.2, 153.41, 47.9), (0, 0, -1), (-0.86, -0.5, 0), True) -> stopped: contact | left tool (-342.2, 153.8, 67.8)
+[68.7] grasp descent stopped early at 67.8 (target 47.9): contact
+# t=  72.0 move('left', (-342.2, 153.8, 92.8), (0, 0, -1), (-0.87, -0.5, 0)) -> done | left tool (-345.2, 153.2, 89.8)
+[72.0] mug 0 -> branch 1 sigma -1 s_d 77 delta -48 cost 0.21 clear {'descend': (52.0, 75.6, 11.1, 105.8), 'thread': (29.4, 32.9, 7.4, 55.5)}
+# t=  85.8 move('left', (-345.2, 153.2, 560), (0, 0, -1), (-0.87, -0.5, 0)) -> done | left tool (-345, 152.5, 559.3)
+# t=  88.9 move('left', (-303.54, 115.28, 560), (0, 0, -1), (-0.87, -0.5, 0)) -> done | left tool (-303.4, 114.7, 560.2)
+# t=  93.8 move('left', (-303.4, 114.7, 560.2), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-303.3, 114.9, 563.6)
+# t=  97.0 move('left', (-303.54, 115.28, 531.72), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-303.2, 115.5, 533.7)
+# t=  97.0 look([left_wrist]) -> left_wrist: Frame | left tool (-303.2, 115.5, 533.7)
+[97.0] branch refined: d_xy 0.6 dz -0.4 daz -0.8
+# t= 100.2 move('left', (-303.2, 115.5, 560), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-304.1, 117.1, 558.8)
+# t= 100.2 move('left', (-357.7, 202.74, 560), (0, 0, -1), (-0.99, 0.1, 0)) -> REFUSED: the arm cannot reach that pose (the hand would stay 3 degrees short of that orientation: t | left tool (-304.1, 117.1, 558.8)
+  move [-357.7, 202.7, 560.0] -> moved=False why=the arm cannot reach that pose (the hand would stay 3 degrees short of that orientation: the wrist is at the end of its range)
+# t= 106.4 move('left', (-357.7, 202.74, 490), (0, 0, -1), (-0.99, 0.1, 0)) -> done | left tool (-357.2, 202.6, 490.4)
+# t= 111.8 move('left', (-357.2, 202.6, 490.4), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-358, 203, 491.3)
+# t= 120.0 move('left', (-357.7, 202.74, 250.29), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-357.4, 200.6, 250)
+# t= 120.0 look([left_wrist]) -> left_wrist: Frame | left tool (-357.4, 200.6, 250)
+[120.0] mug refined: dC [-26.7, -12.0] dth 4.3 r 42.8 H 93 rim 98 hole_rc 53.7 r_out 75.6 rh 6.7 hole_top-rim -30.0
+# t= 120.0 set_gripper('left', 34) -> 34 | left tool (-357.4, 200.6, 250)
+# t= 129.6 move('left', (-380.76, 122.57, 127.79), (0, 0, -1), (-0.69, -0.72, 0)) -> done | left tool (-379.9, 121.7, 128.3)
+#          (the line ran to its end: the tool 5.8 mm from its goal, the arm's settle follows)
+# t= 131.7 move('left', (-380.76, 122.57, 47.49), (0, 0, -1), (-0.69, -0.72, 0), True) -> done | left tool (-380.6, 121.1, 47.2)
+# t= 132.4 set_gripper('left', 0) -> 0.2 | left tool (-380.6, 121.2, 47.2)
+[132.4] grasp width 0.2
+# t= 133.2 set_gripper('left', 80) -> 79.9 | left tool (-380.6, 121.2, 47.1)
+# t= 137.0 move('left', (-380.6, 121.2, 107.1), (0, 0, -1), (-0.7, -0.72, 0)) -> done | left tool (-383.8, 122, 103.6)
+[137.0] mug 0 -> branch 1 sigma -1 s_d 91 delta -48 cost 0.21 clear {'descend': (52.0, 75.6, 11.1, 105.8), 'thread': (30.4, 44.9, 7.4, 69.6)}
+# t= 150.5 move('left', (-383.8, 122, 560), (0, 0, -1), (-0.69, -0.72, 0)) -> done | left tool (-384.3, 122.8, 559.7)
+# t= 154.0 move('left', (-317.45, 116.81, 560), (0, 0, -1), (-0.69, -0.72, 0)) -> done | left tool (-316.8, 116.4, 559.4)
+# t= 159.8 move('left', (-316.8, 116.4, 559.4), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-316.7, 116.3, 560.4)
+# t= 162.8 move('left', (-317.45, 116.81, 537.52), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-317.4, 116.4, 539.9)
+# t= 162.8 look([left_wrist]) -> left_wrist: Frame | left tool (-317.4, 116.4, 539.8)
+[162.8] branch refined: d_xy 0.4 dz -1.0 daz -0.0
+# t= 166.0 move('left', (-317.4, 116.4, 560), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-317.8, 117.7, 561.2)
+# t= 166.0 move('left', (-357.7, 202.74, 560), (0, 0, -1), (-0.99, 0.11, 0)) -> REFUSED: the arm cannot reach that pose (the hand would stay 3 degrees short of that orientation: t | left tool (-317.8, 117.7, 561.2)
+  move [-357.7, 202.7, 560.0] -> moved=False why=the arm cannot reach that pose (the hand would stay 3 degrees short of that orientation: the wrist is at the end of its range)
+# t= 172.0 move('left', (-357.7, 202.74, 490), (0, 0, -1), (-0.99, 0.11, 0)) -> done | left tool (-357.2, 202.8, 490.9)
+# t= 177.4 move('left', (-357.2, 202.8, 490.9), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-357.9, 202.9, 491)
+# t= 185.6 move('left', (-357.7, 202.74, 250.29), (0, 0, -1), (-0.75, -0.67, 0)) -> done | left tool (-358.2, 203.7, 250.5)
+# t= 185.6 look([left_wrist]) -> left_wrist: Frame | left tool (-358.2, 203.7, 250.5)
+[185.6] mug refined: dC [-26.4, -11.8] dth 5.2 r 42.2 H 92 rim 96 hole_rc 53.3 r_out 75.7 rh 6.9 hole_top-rim -28.2
+# t= 186.4 set_gripper('left', 34) -> 34.1 | left tool (-358.2, 203.8, 250.5)
+# t= 196.0 move('left', (-379.54, 122.78, 126.3), (0, 0, -1), (-0.68, -0.73, 0)) -> done | left tool (-379.3, 120.4, 125.9)
+#          (the line ran to its end: the tool 4.4 mm from its goal, the arm's settle follows)
+# t= 197.9 move('left', (-379.54, 122.78, 47.66), (0, 0, -1), (-0.68, -0.73, 0), True) -> done | left tool (-380.2, 121.6, 47.2)
+# t= 198.7 set_gripper('left', 0) -> 0 | left tool (-380.2, 121.6, 47.2)
+[198.7] grasp width 0.0
+# t= 199.5 set_gripper('left', 80) -> 80 | left tool (-380.3, 121.6, 47.1)
+# t= 203.2 move('left', (-380.3, 121.6, 107.1), (0, 0, -1), (-0.68, -0.73, 0)) -> done | left tool (-383.4, 121.6, 103.8)
+[203.2] mug 0 -> branch 1 sigma 1 s_d 63 delta 132 cost 0.59 clear {'descend': (52.0, 70.3, 11.1, 107.5), 'thread': (28.5, 13.9, 7.4, 41.2)}

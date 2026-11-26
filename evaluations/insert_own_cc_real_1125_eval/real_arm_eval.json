@@ -1,0 +1,154 @@
+{
+ "skill": "runs/bimanual/insert_own_cc_real_1125/program.py (v63)",
+ "what": "the real left Panda, live, the operator's verdict; simulation plays no part",
+ "chosen_by": "the operator, 2026-11-25, after the runs: these 11 are the evaluation; the other 5 runs of v63 'had problems' (the operator's words; the reason for each is not recorded)",
+ "evaluation": [
+  {
+   "run": "20261125_180005_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 281.95,
+   "setup": "orange ring; stand on the table",
+   "given_to_the_next_session": false
+  },
+  {
+   "run": "20261125_180629_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 234.8,
+   "setup": "blue ring; stand at an angle",
+   "given_to_the_next_session": false
+  },
+  {
+   "run": "20261125_181140_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 272.33,
+   "setup": "blue ring; stand on the tape square",
+   "given_to_the_next_session": true
+  },
+  {
+   "run": "20261125_181801_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": true,
+   "knocked_off": true,
+   "rig_time_s": null,
+   "setup": "blue ring on a cardboard box; stand on a book",
+   "given_to_the_next_session": true
+  },
+  {
+   "run": "20261125_182109_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 213.393,
+   "setup": "blue ring on the table; stand on a book",
+   "given_to_the_next_session": false
+  },
+  {
+   "run": "20261125_182939_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 141.954,
+   "setup": "green ring on a large box; stand on a book",
+   "given_to_the_next_session": true
+  },
+  {
+   "run": "20261125_183447_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 289.405,
+   "setup": "blue ring on a large box; stand on a box",
+   "given_to_the_next_session": false
+  },
+  {
+   "run": "20261125_184153_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 96.504,
+   "setup": "red ring on a book; objects beside the stand",
+   "given_to_the_next_session": true
+  },
+  {
+   "run": "20261125_184426_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 209.855,
+   "setup": "red ring on the table; objects beside the stand",
+   "given_to_the_next_session": false
+  },
+  {
+   "run": "20261125_202414_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 47.546,
+   "setup": "blue ring on toy blocks; stand on two stacked boxes",
+   "given_to_the_next_session": true
+  },
+  {
+   "run": "20261125_202835_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": true,
+   "knocked_off": true,
+   "rig_time_s": null,
+   "setup": "blue ring on toy blocks; stand on the table",
+   "given_to_the_next_session": true
+  }
+ ],
+ "excluded": [
+  {
+   "run": "20261125_174759_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": false,
+   "knocked_off": true,
+   "rig_time_s": 216.369,
+   "reason": "not recorded"
+  },
+  {
+   "run": "20261125_175453_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": false,
+   "knocked_off": true,
+   "rig_time_s": 213.505,
+   "reason": "not recorded"
+  },
+  {
+   "run": "20261125_184924_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": true,
+   "knocked_off": false,
+   "rig_time_s": null,
+   "reason": "not recorded"
+  },
+  {
+   "run": "20261125_185144_robot_live_insert_cc_v63",
+   "success": false,
+   "intervened": false,
+   "knocked_off": true,
+   "rig_time_s": 212.258,
+   "reason": "not recorded"
+  },
+  {
+   "run": "20261125_185850_robot_live_insert_cc_v63",
+   "success": true,
+   "intervened": false,
+   "knocked_off": false,
+   "rig_time_s": 209.619,
+   "reason": "not recorded"
+  }
+ ],
+ "successes": 6,
+ "episodes": 11,
+ "all_16_runs": {
+  "successes": 7,
+  "episodes": 16
+ }
+}

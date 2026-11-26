@@ -1,0 +1,217 @@
+# task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# robot live: robot time limit 1500.0 s, model calls off
+[prog] task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# t=   0.8 set_gripper('left', 80) -> 80 | left tool (-491.6, 81.8, 357.3)
+[prog] gripper 80 -> 80.0
+# t=   0.8 look([scene]) -> scene: Frame | left tool (-491.6, 81.8, 357.3)
+# t=   0.8 segment('wooden stick') -> 6 masks, best score 0.84 | left tool (-491.6, 81.8, 357.3)
+[prog] stand mask wooden stick score 0.84 wood 0.79 area 706
+[prog] stand mask wooden stick score 0.45 wood 0.39 area 5608
+[prog] stand mask wooden stick score 0.33 wood 0.44 area 6278
+# t=   0.8 segment('wooden stand') -> 6 masks, best score 0.80 | left tool (-491.6, 81.8, 357.3)
+[prog] stand mask wooden stand score 0.80 wood 0.43 area 6133
+[prog] stand mask wooden stand score 0.30 wood 0.78 area 707
+[prog] stand mask wooden stand score 0.21 wood 0.39 area 5596
+# t=   0.8 segment('wooden board') -> 6 masks, best score 0.95 | left tool (-491.6, 81.8, 357.3)
+[prog] stand mask wooden board score 0.95 wood 0.39 area 5583
+[prog] stand mask wooden board score 0.50 wood 0.30 area 623
+[prog] stand mask wooden board score 0.33 wood 0.51 area 426
+[prog] stick (scene) u 386 v 240..326 base [-134.6, 91.7, 22.3] top 196
+# t=   0.8 segment('blue cylinder') -> 1 masks, best score 0.81 | left tool (-491.6, 81.8, 357.3)
+# t=   0.8 segment('blue ring') -> 1 masks, best score 0.37 | left tool (-491.6, 81.8, 357.3)
+[prog] cyl cand blue cylinder score 1.81 bf 1.00 ext 69 [-179.2, -99.6, 13.4]
+[prog] cyl cand blue ring score 1.37 bf 1.00 ext 69 [-179.2, -99.7, 13.3]
+[prog] cyl cand colour score 1.30 bf 1.00 ext 82 [-180.1, -99.6, 10.9]
+[prog] coarse: stick [-134.6, 91.7] cylinder [-179.2, -99.6]
+# t=   4.2 move('left', (-491.6, 81.8, 420), (0, 0, -1), (0.09, -1, 0)) -> done | left tool (-492.6, 79, 418.2)
+[prog] move straighten [-491.6, 81.8, 420.0] th=-85 -> done=True moved=True why='' tcp=[-492.6, 79.0, 418.2] f=[-2.7, -0.3, -3.8]
+# t=   7.3 move('left', (-492.6, 79, 465.65), (0, 0, -1), (0.09, -1, 0)) -> done | left tool (-491.9, 78.3, 468.2)
+[prog] move up [-492.6, 79.0, 465.7] th=-85 -> done=True moved=True why='' tcp=[-491.9, 78.3, 468.2] f=[-2.4, 0.3, -4.3]
+# t=   7.3 move('left', (-134.57, 91.7, 465.65), (0, 0, -1), (0.09, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-491.9, 78.3, 468.2)
+[prog] move across [-134.6, 91.7, 465.7] th=-85 -> done=False moved=False why='the arm cannot reach that pose' tcp=[-491.9, 78.3, 468.2] f=[-2.4, 0.3, -4.3]
+# t=   7.3 move('left', (-134.57, 91.7, 525.65), (0, 0, -1), (0.09, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-491.9, 78.3, 468.2)
+[prog] move across-high [-134.6, 91.7, 525.7] th=-85 -> done=False moved=False why='the arm cannot reach that pose' tcp=[-491.9, 78.3, 468.2] f=[-2.5, 0.4, -4.2]
+# t=  10.7 move('left', (-491.9, 78.3, 520), (0, 0, -1), (0.09, -1, 0)) -> done | left tool (-491.2, 78.1, 522.1)
+[prog] move up [-491.9, 78.3, 520.0] th=-85 -> done=True moved=True why='' tcp=[-491.2, 78.1, 522.1] f=[-1.9, 1.1, -3.3]
+# t=  15.0 move('left', (-330, 0, 520), (0, 0, -1), (0.09, -1, 0)) -> done | left tool (-329.1, -0.7, 520.3)
+[prog] move across [-330.0, 0.0, 520.0] th=-85 -> done=True moved=True why='' tcp=[-329.1, -0.7, 520.3] f=[-2.7, 2.0, -3.7]
+# t=  15.0 look([left_wrist]) -> left_wrist: Frame | left tool (-329.1, -0.7, 520.3)
+[prog] find_tall cand [-383.0, 22.9] top 354.0 floor -4.4 frac 0.93 topw 11.0 n 1220
+# t=  17.9 move('left', (-329.1, -0.7, 536.91), (0, 0, -1), (0.08, -1, 0)) -> done | left tool (-329.2, -2.9, 536.4)
+[prog] move up [-329.1, -0.7, 536.9] th=-85 -> done=True moved=True why='' tcp=[-329.2, -2.9, 536.4] f=[-4.0, 2.4, -5.7]
+# t=  21.7 move('left', (-383.04, 22.94, 536.91), (0, 0, -1), (0.08, -1, 0)) -> done | left tool (-381.4, 22.6, 538.3)
+[prog] move across [-383.0, 22.9, 536.9] th=-85 -> done=True moved=True why='' tcp=[-381.4, 22.6, 538.3] f=[-0.1, 0.7, -0.8]
+# t=  24.1 move('left', (-383.04, 22.94, 536.91), (0, 0, -1), (0.08, -1, 0)) -> done | left tool (-382.8, 21.8, 536.2)
+[prog] move down [-383.0, 22.9, 536.9] th=-85 -> done=True moved=True why='' tcp=[-382.8, 21.8, 536.2] f=[1.1, -0.2, 0.7]
+# t=  24.1 look([left_wrist]) -> left_wrist: Frame | left tool (-382.8, 21.8, 536.2)
+[prog] find_tall cand [-430.0, 40.3] top 364.0 floor 15.4 frac 1.00 topw 9.2 n 983
+[prog] stick (wrist) [-430.0, 40.3] top 362.0 board 15.6
+[prog] choose_theta -> -90 (score 29.8)
+# t=  24.1 set_gripper('left', 80) -> 80 | left tool (-382.8, 21.8, 536.2)
+[prog] gripper 80 -> 80.0
+# t=  27.1 move('left', (-430.03, 40.33, 536.2), (0, 0, -1), (0, -1, 0)) -> done | left tool (-430.3, 38.3, 537.6)
+[prog] move across [-430.0, 40.3, 536.2] th=-90 -> done=True moved=True why='' tcp=[-430.3, 38.3, 537.6] f=[0.7, -0.8, -0.0]
+# t=  31.4 move('left', (-430.03, 40.33, 401.95), (0, 0, -1), (0, -1, 0)) -> done | left tool (-430.6, 40.7, 400.3)
+[prog] move down [-430.0, 40.3, 402.0] th=-90 -> done=True moved=True why='' tcp=[-430.6, 40.7, 400.3] f=[0.7, -0.4, -0.0]
+#          (the line ran to its end: the tool 2.1 mm from its goal, no settle)
+# t=  34.6 move('left', (-430.03, 40.33, 271.95), (0, 0, -1), (0, -1, 0), True) -> done | left tool (-430.6, 40, 274)
+[prog] move around stick [-430.0, 40.3, 272.0] th=-90 STOP -> done=True moved=True why='' tcp=[-430.6, 40.0, 274.0] f=[0.0, -0.5, 0.3]
+# t=  35.4 set_gripper('left', 0) -> 0.1 | left tool (-430.6, 40, 273.9)
+[prog] gripper 0 -> 0.1
+# t=  36.2 set_gripper('left', 80) -> 79.9 | left tool (-430.6, 40, 273.9)
+[prog] gripper 80 -> 79.9
+# t=  39.0 move('left', (-418.03, 40.22, 271.95), (0, 0, -1), (-0.01, -1, 0)) -> done | left tool (-419.3, 40.7, 270.7)
+[prog] move shift [-418.0, 40.2, 272.0] th=-91 -> done=True moved=True why='' tcp=[-419.3, 40.7, 270.7] f=[-3.9, -0.2, -1.7]
+# t=  39.8 set_gripper('left', 0) -> 0.2 | left tool (-419.3, 40.6, 270.6)
+[prog] gripper 0 -> 0.2
+# t=  40.6 set_gripper('left', 80) -> 79.9 | left tool (-419.3, 40.6, 270.6)
+[prog] gripper 80 -> 79.9
+# t=  43.4 move('left', (-442.03, 40.44, 271.95), (0, 0, -1), (-0.01, -1, 0)) -> done | left tool (-439.6, 39.3, 274.5)
+[prog] move shift [-442.0, 40.4, 272.0] th=-91 -> done=True moved=True why='' tcp=[-439.6, 39.3, 274.5] f=[0.8, -0.5, -0.3]
+# t=  44.2 set_gripper('left', 0) -> 0.2 | left tool (-439.6, 39.4, 274.5)
+[prog] gripper 0 -> 0.2
+# t=  45.0 set_gripper('left', 80) -> 79.9 | left tool (-439.6, 39.4, 274.5)
+[prog] gripper 80 -> 79.9
+# t=  48.1 move('left', (-406.03, 40.11, 271.95), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-406.8, 39.4, 271.5)
+[prog] move shift [-406.0, 40.1, 272.0] th=-91 -> done=True moved=True why='' tcp=[-406.8, 39.4, 271.5] f=[-4.0, -0.7, -1.7]
+# t=  48.8 set_gripper('left', 0) -> 0 | left tool (-406.8, 39.4, 271.1)
+[prog] gripper 0 -> 0.0
+# t=  49.6 set_gripper('left', 80) -> 80 | left tool (-406.8, 39.4, 271)
+[prog] gripper 80 -> 80.0
+# t=  53.1 move('left', (-454.03, 40.55, 271.95), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-454.7, 39.6, 270.4)
+[prog] move shift [-454.0, 40.5, 272.0] th=-91 -> done=True moved=True why='' tcp=[-454.7, 39.6, 270.4] f=[0.8, -1.2, -0.3]
+# t=  53.8 set_gripper('left', 0) -> 0.1 | left tool (-454.7, 39.7, 270.4)
+[prog] gripper 0 -> 0.1
+[prog] stick_center: bad first grip 0.1
+# t=  54.6 set_gripper('left', 80) -> 80 | left tool (-454.7, 39.7, 270.4)
+[prog] gripper 80 -> 80.0
+# t=  60.0 move('left', (-454.7, 39.7, 401.95), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-454.5, 41.1, 402.2)
+[prog] move back up [-454.7, 39.7, 402.0] th=-91 -> done=True moved=True why='' tcp=[-454.5, 41.1, 402.2] f=[-2.7, 0.2, -3.3]
+# t=  65.9 move('left', (-454.5, 41.1, 620), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-454.3, 42, 619.6)
+[prog] move up [-454.5, 41.1, 620.0] th=-91 -> done=True moved=True why='' tcp=[-454.3, 42.0, 619.6] f=[-3.1, 0.1, -7.8]
+# t=  68.7 move('left', (-430.03, 40.33, 620), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-429.7, 40.8, 620.4)
+[prog] move across [-430.0, 40.3, 620.0] th=-91 -> done=True moved=True why='' tcp=[-429.7, 40.8, 620.4] f=[-2.9, 0.3, -5.9]
+# t=  68.7 look([left_wrist]) -> left_wrist: Frame | left tool (-429.7, 40.8, 620.4)
+[prog] find_tall: nothing tall
+# t=  73.4 move('left', (-330, 0, 620.4), (0, 0, -1), (-0.01, -1, 0)) -> done | left tool (-329.5, 0.1, 621.3)
+[prog] move across [-330.0, 0.0, 620.4] th=-91 -> done=True moved=True why='' tcp=[-329.5, 0.1, 621.3] f=[-0.4, 0.5, 2.2]
+# t=  73.4 look([left_wrist]) -> left_wrist: Frame | left tool (-329.5, 0.1, 621.3)
+[prog] find_tall cand [-264.7, -72.7] top 479.4 floor -5.9 frac 0.38 topw 18.6 n 1232
+[prog] find_tall cand [-374.1, 41.2] top 474.8 floor -5.9 frac 0.45 topw 3.3 n 127
+[prog] find_tall cand [-145.2, 92.3] top 189.5 floor -5.9 frac 1.00 topw 6.1 n 128
+# t=  73.4 move('left', (-145.24, 92.31, 621.3), (0, 0, -1), (-0.02, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-329.5, 0.1, 621.3)
+[prog] move across [-145.2, 92.3, 621.3] th=-91 -> done=False moved=False why='the arm cannot reach that pose' tcp=[-329.5, 0.1, 621.3] f=[-0.4, 0.5, 2.2]
+# t=  78.4 move('left', (-145.24, 92.31, 433.49), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-143.3, 85.4, 432.7)
+[prog] move across-high [-145.2, 92.3, 433.5] th=-91 -> done=True moved=True why='' tcp=[-143.3, 85.4, 432.7] f=[-0.4, 0.5, 2.2]
+# t=  82.6 move('left', (-145.24, 92.31, 373.49), (0, 0, -1), (-0.02, -1, 0)) -> done | left tool (-142.6, 90.8, 376.1)
+[prog] move down [-145.2, 92.3, 373.5] th=-91 -> done=True moved=True why='' tcp=[-142.6, 90.8, 376.1] f=[1.4, -0.6, 0.2]
+# t=  82.6 look([left_wrist]) -> left_wrist: Frame | left tool (-142.6, 90.8, 376)
+[prog] find_tall cand [-146.0, 85.4] top 191.8 floor 2.5 frac 1.00 topw 5.5 n 387
+[prog] stick (wrist) [-146.0, 85.4] top 191.6 board 21.1
+[prog] choose_theta -> -90 (score 29.9)
+# t=  82.6 set_gripper('left', 80) -> 80 | left tool (-142.6, 90.8, 376)
+[prog] gripper 80 -> 80.0
+# t=  85.7 move('left', (-145.99, 85.42, 376), (0, 0, -1), (0, -1, 0)) -> done | left tool (-143.7, 86.7, 376)
+[prog] move across [-146.0, 85.4, 376.0] th=-90 -> done=True moved=True why='' tcp=[-143.7, 86.7, 376.0] f=[1.2, 0.7, -0.6]
+# t=  91.5 move('left', (-145.99, 85.42, 231.64), (0, 0, -1), (0, -1, 0)) -> done | left tool (-145.3, 86.6, 229.6)
+[prog] move down [-146.0, 85.4, 231.6] th=-90 -> done=True moved=True why='' tcp=[-145.3, 86.6, 229.6] f=[3.1, 0.5, 0.1]
+#          (the arm's server stopped the line at z 211.5 mm, +20.1 mm on: the hand 10.07 mm behind, force change 0.14 N: not taken as a contact)
+#          (the arm's server stopped the line at z 210.5 mm, +1.0 mm on: the hand 10.04 mm behind, force change 0.22 N: not taken as a contact)
+#          (the arm's server stopped the line at z 210.0 mm, +0.6 mm on: the hand 10.03 mm behind, force change 0.16 N: not taken as a contact)
+#          (an ordinary step of 4.0 mm: +6.6 mm on, to z 203.3 mm, force change 1.02 N)
+#          (the line ran to its end: the tool 1.6 mm from its goal, no settle)
+# t=  94.7 move('left', (-145.99, 85.42, 101.64), (0, 0, -1), (0, -1, 0), True) -> done | left tool (-145, 85.9, 102.8)
+[prog] move around stick [-146.0, 85.4, 101.6] th=-90 STOP -> done=True moved=True why='' tcp=[-145.0, 85.9, 102.8] f=[0.7, 0.6, 0.2]
+#          (the gripper's grasp: reported done 0.6 s after the fingers stood still)
+# t=  95.5 set_gripper('left', 0) -> 5.4 | left tool (-144.8, 85.4, 102.9)
+[prog] gripper 0 -> 5.4
+# t=  96.3 set_gripper('left', 80) -> 79.9 | left tool (-145, 85.4, 102.5)
+[prog] gripper 80 -> 79.9
+# t= 104.2 turn('left', (-145, 85.4, 102.5), (0, 0, 1), 90) -> done | left tool (-145.1, 84.5, 102.9)
+[prog] turn 90.0 -> True True  th=-0
+#          (the gripper's grasp: reported done 0.5 s after the fingers stood still)
+# t= 105.0 set_gripper('left', 0) -> 5.4 | left tool (-145.3, 84.4, 102.9)
+[prog] gripper 0 -> 5.4
+[prog] stick centred at [-145.3, 84.4] diam 5.4 / 5.4, moved 1.2 mm from vision
+# t= 105.7 set_gripper('left', 80) -> 79.9 | left tool (-145.4, 84.4, 102.6)
+[prog] gripper 80 -> 79.9
+# t= 111.1 move('left', (-145.3, 84.4, 232.64), (0, 0, -1), (1, -0, 0)) -> done | left tool (-147.4, 83.8, 228.7)
+[prog] move above top [-145.3, 84.4, 232.6] th=-0 -> done=True moved=True why='' tcp=[-147.4, 83.8, 228.7] f=[-2.5, 0.7, -2.4]
+# t= 111.9 set_gripper('left', 0) -> 0 | left tool (-147.4, 83.8, 228.8)
+[prog] gripper 0 -> 0.0
+#          (the arm's server stopped the line at z 231.3 mm, +1.3 mm on: the hand 14.08 mm behind, force change 1.49 N: not taken as a contact)
+#          (the arm's server stopped the line at z 239.3 mm, -8.0 mm on: the hand 14.04 mm behind, force change 1.03 N: not taken as a contact)
+#          (an ordinary step of 4.0 mm: +3.0 mm on, to z 236.3 mm, force change 4.21 N: a contact)
+# t= 112.0 move('left', (-145.3, 84.4, 167.64), (0, 0, -1), (1, -0, 0), True) -> stopped: contact | left tool (-145.3, 84.2, 236.3)
+[prog] move touch top [-145.3, 84.4, 167.6] th=-0 STOP -> done=False moved=True why='contact' tcp=[-145.3, 84.2, 236.3] f=[1.8, 1.2, -0.3]
+[prog] stick top touched: TCP z 236.3 -> top z 220.3 (vision 191.6)
+# t= 114.5 move('left', (-145.3, 84.4, 246.3), (0, 0, -1), (1, -0, 0)) -> done | left tool (-142.6, 83.5, 252.1)
+[prog] move off top [-145.3, 84.4, 246.3] th=-0 -> done=True moved=True why='' tcp=[-142.6, 83.5, 252.1] f=[-1.7, 0.7, -2.0]
+# t= 115.3 set_gripper('left', 80) -> 80 | left tool (-142.7, 83.5, 252.1)
+[prog] gripper 80 -> 80.0
+# t= 118.3 move('left', (-142.7, 83.5, 281.3), (0, 0, -1), (1, -0.01, 0)) -> done | left tool (-141.7, 84.5, 284.1)
+[prog] move up [-142.7, 83.5, 281.3] th=-0 -> done=True moved=True why='' tcp=[-141.7, 84.5, 284.1] f=[-2.0, 0.6, -1.4]
+# t= 125.6 move('left', (-179.22, -99.62, 281.3), (0, 0, -1), (1, -0.01, 0)) -> done | left tool (-181.7, -98.9, 277.6)
+[prog] move across [-179.2, -99.6, 281.3] th=-0 -> done=True moved=True why='' tcp=[-181.7, -98.9, 277.6] f=[-0.1, 1.4, -1.1]
+# t= 128.0 move('left', (-179.22, -99.62, 281.3), (0, 0, -1), (1, -0.01, 0)) -> done | left tool (-178.9, -98.2, 280.6)
+[prog] move down [-179.2, -99.6, 281.3] th=-0 -> done=True moved=True why='' tcp=[-178.9, -98.2, 280.6] f=[-2.4, 1.7, -1.8]
+# t= 128.0 look([left_wrist]) -> left_wrist: Frame | left tool (-178.9, -98.3, 280.6)
+# t= 128.0 segment('blue cylinder') -> 1 masks, best score 0.46 | left tool (-178.9, -98.2, 280.6)
+# t= 128.0 segment('blue ring') -> 2 masks, best score 0.57 | left tool (-178.9, -98.2, 280.6)
+[prog] cyl cand blue ring score 1.33 bf 0.76 ext 33 [-188.3, -104.5, 29.5]
+[prog] cyl cand colour score 1.30 bf 1.00 ext 35 [-192.4, -100.2, 29.5]
+[prog] cyl cand colour score 1.30 bf 1.00 ext 47 [-287.1, -24.5, 0.7]
+[prog] cyl cand colour score 1.30 bf 1.00 ext 21 [-288.6, 26.8, 0.1]
+[prog] cyl measure ctr [-188.9, -104.6] top 30.5 R 19.3 support 1.0 h 29.5
+[prog] choose_theta -> 0 (score 1.3)
+# t= 128.0 set_gripper('left', 80) -> 80 | left tool (-178.9, -98.2, 280.6)
+[prog] gripper 80 -> 80.0
+# t= 130.6 move('left', (-188.89, -104.65, 281.3), (0, 0, -1), (1, 0, 0)) -> done | left tool (-188.1, -104.2, 280)
+[prog] move over cylinder [-188.9, -104.6, 281.3] th=0 -> done=True moved=True why='' tcp=[-188.1, -104.2, 280.0] f=[2.4, 1.0, 0.0]
+# t= 143.6 move('left', (-188.89, -104.65, 66.49), (0, 0, -1), (1, 0, 0)) -> done | left tool (-188.8, -103.5, 65.8)
+[prog] move near cylinder [-188.9, -104.6, 66.5] th=0 -> done=True moved=True why='' tcp=[-188.8, -103.5, 65.8] f=[0.2, 0.2, 0.1]
+#          (the line ran to its end: the tool 7.7 mm from its goal, the arm's settle follows)
+# t= 144.8 move('left', (-188.89, -104.65, 12.5), (0, 0, -1), (1, 0, 0), True) -> done | left tool (-185.9, -106.4, 17)
+[prog] move down to support [-188.9, -104.6, 12.5] th=0 STOP -> done=True moved=True why='' tcp=[-185.9, -106.4, 17.0] f=[0.4, -0.0, 3.8]
+# t= 147.5 move('left', (-188.89, -104.65, 20), (0, 0, -1), (1, -0, 0)) -> done | left tool (-191.1, -104.3, 17.7)
+[prog] move grip height [-188.9, -104.6, 20.0] th=-0 -> done=True moved=True why='' tcp=[-191.1, -104.3, 17.7] f=[2.2, -0.1, 0.8]
+#          (the gripper's grasp: reported done 0.3 s after the fingers stood still)
+# t= 148.2 set_gripper('left', 0) -> 16.9 | left tool (-191, -104.1, 19.1)
+[prog] gripper 0 -> 16.9
+#          (the gripper stands at 16.9 mm after the command to open to 80 mm: sent again)
+# t= 149.8 set_gripper('left', 80) -> 79.9 | left tool (-194.9, -103.2, 17.8)
+[prog] gripper 80 -> 79.9
+# t= 158.1 turn('left', (-194.9, -103.2, 17.8), (0, 0, 1), 90) -> done | left tool (-197.7, -94.2, 17)
+[prog] turn 90.0 -> True True  th=90
+#          (the gripper's grasp: reported done 0.1 s after the fingers stood still)
+# t= 158.8 set_gripper('left', 0) -> 17.2 | left tool (-198.2, -94.9, 18.5)
+[prog] gripper 0 -> 17.2
+[prog] cylinder gripped: D 16.9/17.2 h 29.5 g 17.5
+# t= 167.7 move('left', (-198.2, -94.9, 281.3), (0, 0, -1), (0, 1, 0)) -> done | left tool (-200, -96.4, 280.8)
+[prog] move lift cylinder [-198.2, -94.9, 281.3] th=90 -> done=True moved=True why='' tcp=[-200.0, -96.4, 280.8] f=[-1.5, 1.0, -2.1]
+# t= 174.6 move('left', (-145.3, 84.4, 281.3), (0, 0, -1), (0.01, 1, 0)) -> done | left tool (-144.7, 82.3, 282.6)
+[prog] move across [-145.3, 84.4, 281.3] th=90 -> done=True moved=True why='' tcp=[-144.7, 82.3, 282.6] f=[-4.7, -1.4, -2.5]
+# t= 177.3 move('left', (-145.3, 84.4, 262.8), (0, 0, -1), (0.01, 1, 0)) -> done | left tool (-147, 87.6, 260.6)
+[prog] move down [-145.3, 84.4, 262.8] th=90 -> done=True moved=True why='' tcp=[-147.0, 87.6, 260.6] f=[-1.2, -0.8, -0.4]
+# t= 180.0 move('left', (-145.3, 84.4, 240.3), (0, 0, -1), (0, 1, 0)) -> done | left tool (-146.9, 87.2, 237.5)
+[prog] move above0 [-145.3, 84.4, 240.3] th=90 -> done=True moved=True why='' tcp=[-146.9, 87.2, 237.5] f=[-1.5, 0.3, -0.6]
+#          (the arm's server stopped the line at z 234.5 mm, +5.8 mm on: the hand 14.2 mm behind, force change 1.8 N: not taken as a contact)
+#          (the arm's server stopped the line at z 233.9 mm, +0.6 mm on: the hand 11.51 mm behind, force change 1.25 N: not taken as a contact)
+#          (the tool stood 13.0 mm beside its line: an ordinary move back onto it, now 1.7 mm beside, z 233.6 mm)
+#          (the arm's server stopped the line at z 222.7 mm, +10.8 mm on: the hand 10.05 mm behind, force change 0.52 N: not taken as a contact)
+#          (the tool stood 4.6 mm beside its line: an ordinary move back onto it, now 2.1 mm beside, z 222.9 mm)
+#          (the arm's server stopped the line at z 221.4 mm, +1.5 mm on: the hand 10.02 mm behind, force change 1.71 N: not taken as a contact)
+#          (the tool stood 5.6 mm beside its line: an ordinary move back onto it, now 2.0 mm beside, z 220.4 mm)
+#          (the arm's server stopped the line at z 210.8 mm, +9.6 mm on: the hand 10.23 mm behind, force change 0.66 N: not taken as a contact)
+#          (the tool stood 4.3 mm beside its line: an ordinary move back onto it, now 1.9 mm beside, z 211.3 mm)
+#          (the arm's server stopped the line at z 210.5 mm, +0.8 mm on: the hand 10.35 mm behind, force change 1.53 N: not taken as a contact)
+#          (the tool stood 5.8 mm beside its line: an ordinary move back onto it, now 1.1 mm beside, z 210.0 mm)
+#          (the line ran to its end: the tool 15.1 mm from its goal, the arm's settle follows)
+# t= 181.6 move('left', (-145.3, 84.4, 196.3), (0, 0, -1), (-0, 1, 0), True) -> done | left tool (-154.1, 82.5, 177.8)
+[prog] move insert0 (0.0,0.0) [-145.3, 84.4, 196.3] th=90 STOP -> done=True moved=True why='' tcp=[-154.1, 82.5, 177.8] f=[0.1, 0.5, -0.7]
+[prog] insert: the stick is in the hole (TCP 177.8, top contact level 237.8)
+# t= 182.3 set_gripper('left', 80) -> 80 | left tool (-152.3, 82.3, 185.7)
+[prog] gripper 80 -> 80.0
+# t= 182.8 wait(0.5) ->  | left tool (-152.3, 82.3, 185.7)
+# t= 187.9 move('left', (-145.3, 84.4, 276.3), (0, 0, -1), (0, 1, 0)) -> done | left tool (-146.1, 80.5, 276.8)
+[prog] move leave [-145.3, 84.4, 276.3] th=90 -> done=True moved=True why='' tcp=[-146.1, 80.5, 276.8] f=[-2.5, 0.5, -2.4]

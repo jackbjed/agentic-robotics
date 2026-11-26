@@ -1,0 +1,34 @@
+# task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# robot live: robot time limit 1500.0 s, model calls off
+# t=   0.8 set_gripper('left', 80) -> 80 | left tool (-494.9, 89.6, 355.1)
+# t=   9.2 move('left', (-350, 60, 620), (0, 0, -1), (0, -1, 0)) -> done | left tool (-348.9, 61.9, 617.6)
+# t=   9.2 look([left_wrist]) -> left_wrist: Frame | left tool (-348.9, 61.9, 617.6)
+# t=   9.2 segment('ring') -> 1 masks, best score 0.33 | left tool (-348.9, 61.9, 617.6)
+# t=   9.2 segment('cylinder with a hole') -> 4 masks, best score 0.84 | left tool (-348.9, 61.9, 617.6)
+plane [ 0.0071  0.0074 -2.6061] zmax 122.9 camoff [51.9 -2.6] cam up 132.8
+STICKC {'uv': (255, 95), 'xyz': [-173.2, 113.6, 212.2], 'top': 212.18, 'lrise': 170.36, 'eqd': 16.72, 'ped': 41.05, 'score': 5.3}
+RINGC {'sam': 1.16, 'uv': (439, 203), 'xyz': [-258.7, -76.4, 62.9], 'top': 62.88, 'rise': 26.28, 'eqd': 42.29, 'circ': 0.91, 'holey': 1.0, 'score': 3.36}
+RINGC {'sam': 0.0, 'uv': (334, 102), 'xyz': [-137.4, 38.7, 18.9], 'top': 18.92, 'rise': 23.83, 'eqd': 17.03, 'circ': 0.84, 'holey': 0.0, 'score': 1.2}
+RINGC {'sam': 0.0, 'uv': (243, 211), 'xyz': [-266.1, 146.9, 16.8], 'top': 16.79, 'rise': 21.99, 'eqd': 18.68, 'circ': 0.67, 'holey': 0.0, 'score': 0.8}
+cylinder candidates to look at: 6
+# t=  16.3 move('left', (-310.55, -73.77, 310.11), (0, 0, -1), (0, -1, 0)) -> done | left tool (-309.2, -73.1, 310.7)
+# t=  16.3 look([left_wrist]) -> left_wrist: Frame | left tool (-309.2, -73.1, 310.7)
+RING closeup {'xy': [-261.6, -82.6], 'top': 70.74, 'od': 40.21, 'hole_d': 17.06, 'low': 1.0, 'high': 0.0, 'deep': 1.0, 'hd2': 16.59, 'lowc': 1.0, 'lowfin': 0.46, 'sup': 39.64, 'uv': (327.8333333333333, 247.52410714285713), 'cen': 11.23}
+ring candidates [([-262.0, -83.0], 15.36)]
+# t=  21.1 move('left', (-309.2, -73.1, 459.4), (0, 0, -1), (-0, -1, 0)) -> done | left tool (-310.2, -78.3, 457.8)
+# t=  25.1 move('left', (-225.03, 116.21, 459.4), (0, 0, -1), (0, -1, 0)) -> done | left tool (-224.2, 111.5, 458.8)
+# t=  25.1 look([left_wrist]) -> left_wrist: Frame | left tool (-224.2, 111.5, 458.8)
+STICK closeup {'xy': [-175.1, 111.8], 'top': 213.07, 'eqd': 11.91, 'base': 43.86, 'lrise': 169.08, 'plate': 1.0, 'uv': (310.496644295302, 244.5234899328859), 'cen': 4.54}
+ring closing angle 0 clearance 3.0 zc 58.6 sup 39.6
+# t=  34.4 move('left', (-261.63, -82.61, 200), (0, 0, -1), (1, 0, 0)) -> done | left tool (-260.7, -84.7, 202.2)
+# t=  41.9 move('left', (-261.63, -82.61, 94.74), (0, 0, -1), (1, 0, 0)) -> done | left tool (-263.8, -81.7, 91.6)
+# t=  44.3 move('left', (-261.63, -82.61, 89.74), (0, 0, -1), (1, -0, -0.01)) -> done | left tool (-263.3, -84, 86.8)
+#          (the arm's server stopped the line at z 74.5 mm, +15.3 mm on: the hand 12.92 mm behind, force change 1.08 N: not taken as a contact)
+#          (the tool stood 7.0 mm beside its line: an ordinary move back onto it, now 1.5 mm beside, z 74.2 mm)
+#          (the arm's server stopped the line at z 71.4 mm, +2.7 mm on: the hand 12.17 mm behind, force change 1.36 N: not taken as a contact)
+#          (the tool stood 6.4 mm beside its line: an ordinary move back onto it, now 0.7 mm beside, z 72.6 mm)
+#          (the line ran to its end: the tool 8.4 mm from its goal, the arm's settle follows)
+# t=  45.1 move('left', (-261.63, -82.61, 58.64), (0, 0, -1), (1, -0, -0.01), True) -> done | left tool (-261.1, -80.7, 58.9)
+# t=  45.9 set_gripper('left', 0) -> 0 | left tool (-261.4, -80.1, 58.4)
+CYL-a w 0.00 push 0.67
+# t=  46.6 set_gripper('left', 64.23) -> 64.1 | left tool (-261.7, -80, 58.2)

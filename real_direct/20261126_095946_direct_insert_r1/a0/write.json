@@ -1,0 +1,31 @@
+{
+ "writer": "claude",
+ "why": "",
+ "usd": 10.104366599999999,
+ "turns": 13,
+ "model": "claude-opus-5-5",
+ "tools": [
+  "Edit",
+  "Glob",
+  "Grep",
+  "Read",
+  "Write"
+ ],
+ "mcp_servers": [],
+ "usage": {
+  "input_tokens": 22,
+  "cache_creation_input_tokens": 90210,
+  "cache_read_input_tokens": 463193,
+  "output_tokens": 464498
+ },
+ "wall_s": 4462.7,
+ "exit": 0,
+ "workspace": "/var/tmp/ar-cc/direct_direct_insert_r1_095951/a0/workspace",
+ "files_written": [
+  "program.py"
+ ],
+ "ok": true,
+ "attempt": 1,
+ "look": "<WORKSPACE>/agentic-robotics/real/results/20261126_095946_robot_dry_direct_insert_r1_look0",
+ "program_lines": 744
+}

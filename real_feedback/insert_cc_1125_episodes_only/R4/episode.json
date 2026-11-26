@@ -1,0 +1,151 @@
+{
+ "name": "R4",
+ "run": "20261125_160622_robot_live_insert_cc1",
+ "when": "20261125_160622",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": true,
+ "knocked_off": true,
+ "robot_time_s": 434.8,
+ "program_ended": null,
+ "moves_until_contact": [
+  {
+   "t": 54.7,
+   "goal_mm": [
+    -189.83,
+    90.21,
+    46.79
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -184.1,
+    90.4,
+    56.6
+   ]
+  },
+  {
+   "t": 127.7,
+   "goal_mm": [
+    -136.0,
+    -118.37,
+    23.48
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -134.8,
+    -115.5,
+    22.2
+   ]
+  }
+ ],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.945,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.199,
+   "depth_mm": {
+    "nearest": 295,
+    "p5": 714,
+    "median": 733,
+    "p95": 746
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 24.238,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.229,
+   "depth_mm": {
+    "nearest": 360,
+    "p5": 391,
+    "median": 394,
+    "p95": 398
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 35.642,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.191,
+   "depth_mm": {
+    "nearest": 297,
+    "p5": 481,
+    "median": 502,
+    "p95": 506
+   }
+  },
+  {
+   "image": "look_03_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 379.162,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.186,
+   "depth_mm": {
+    "nearest": 320,
+    "p5": 488,
+    "median": 510,
+    "p95": 515
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_survey",
+  "shown_01_ring_closeup"
+ ],
+ "video_frames": {
+  "scene": [
+   "video_scene_000.0s",
+   "video_scene_071.9s",
+   "video_scene_143.8s",
+   "video_scene_215.7s",
+   "video_scene_287.6s",
+   "video_scene_359.5s",
+   "video_scene_431.4s",
+   "video_scene_503.3s"
+  ],
+  "wrist": [
+   "video_wrist_000.0s",
+   "video_wrist_071.9s",
+   "video_wrist_143.8s",
+   "video_wrist_215.7s",
+   "video_wrist_287.6s",
+   "video_wrist_359.5s",
+   "video_wrist_431.4s",
+   "video_wrist_503.3s"
+  ]
+ },
+ "output_lines": 136,
+ "version": 38
+}

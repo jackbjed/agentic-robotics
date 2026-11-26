@@ -1,0 +1,32 @@
+{
+ "tag": "direct_sim_s2007_r1",
+ "task": "insert_varied",
+ "writer": "claude",
+ "model": "opus",
+ "effort": "xhigh",
+ "mode": "live",
+ "backend": "sim",
+ "rewrites_allowed": 2,
+ "budget_usd": 20.0,
+ "spent_usd": 6.1454,
+ "attempts": [
+  {
+   "attempt": 1,
+   "dir": "<WORKSPACE>/agentic-robotics/runs/bimanual/real_direct/20261125_232315_direct_sim_s2007_r1/a0",
+   "run": "<WORKSPACE>/agentic-robotics/real/results/20261126_000321_sim_live_direct_sim_s2007_r1_a1",
+   "verdict": {
+    "by": "sim judge",
+    "success": true,
+    "category": "success",
+    "t_success": null
+   },
+   "write": {
+    "usd": 6.1454196,
+    "program_lines": 968,
+    "writer": "claude",
+    "turns": 10,
+    "wall_s": 2402.6
+   }
+  }
+ ]
+}

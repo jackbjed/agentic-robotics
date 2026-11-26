@@ -1,0 +1,15 @@
+{
+ "started": "2026-11-26T09:59:46",
+ "scene_reset_s": null,
+ "look_s": 5.0,
+ "write_started": "2026-11-26T09:59:51",
+ "write_s": 4462.7,
+ "run_started": "2026-11-26T11:14:13",
+ "run_s": 427.0,
+ "robot_time_s": 337.4,
+ "episode_wall_s": 396.0,
+ "ended": "2026-11-26T11:21:20",
+ "rig_notes": "",
+ "reconstructed": "from file times: the run ended with Ctrl-C before the times were written. look_s: record folder to writer's workspace; write_s: write.json; run_s: program written (11:14:13) to the last recorded file (11:21:20), the operator's LIVE included, no verdict typed",
+ "attempt_s": 4894.7
+}

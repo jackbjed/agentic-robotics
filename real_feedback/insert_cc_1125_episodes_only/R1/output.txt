@@ -1,0 +1,40 @@
+# task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# robot live: robot time limit 1500.0 s, model calls off
+# t=   0.0 set_gripper('left', 80) -> 80.4 | left tool (-493.3, 92.4, 354.3)
+# t=   7.2 move('left', (-420, 60, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-420.4, 65.9, 600.3)
+# t=   7.3 look([left_wrist]) -> left_wrist: Frame | left tool (-420.3, 65.8, 600.3)
+# t=   7.3 segment('stick') -> 2 masks, best score 0.56 | left tool (-420.3, 65.8, 600.3)
+# t=   7.3 segment('ring') -> 1 masks, best score 0.49 | left tool (-420.3, 65.8, 600.3)
+# t=   7.3 segment('cylinder with a hole') -> 6 masks, best score 0.88 | left tool (-420.3, 65.8, 600.3)
+# t=   7.3 segment('washer') -> 1 masks, best score 0.27 | left tool (-420.3, 65.8, 600.3)
+plane [-6.6000e-03  1.3100e-02 -8.2724e+00] zmax 46.6 camoff [50.8 -3.9]
+STICKC {'uv': (470, 0), 'xyz': [-136.9, -69.8, 145.2], 'top': 145.25, 'lrise': 128.0, 'eqd': 5.21, 'ped': 17.13, 'sam': 0.56, 'ringv': 0.0, 'score': 4.07}
+STICKC {'uv': (299, 454), 'xyz': [-622.7, 89.5, -8.3], 'top': -8.27, 'lrise': 141.09, 'eqd': 19.29, 'ped': -154.44, 'sam': 0.0, 'ringv': 0.0, 'score': 3.8}
+STICKC {'uv': (278, 458), 'xyz': [-878.3, 165.2, -725.7], 'top': -725.71, 'lrise': 40.63, 'eqd': 14.52, 'ped': -777.85, 'sam': 0.0, 'ringv': 0.0, 'score': 2.15}
+RINGC {'sam': 1.64, 'uv': (282, 66), 'xyz': [-166.7, 116.8, 20.3], 'top': 20.31, 'rise': 29.5, 'eqd': 44.93, 'circ': 0.89, 'score': 2.84}
+RINGC {'sam': 0.16, 'uv': (281, 62), 'xyz': [-161.8, 118.2, 18.5], 'top': 18.52, 'rise': 25.45, 'eqd': 16.63, 'circ': 0.98, 'score': 1.36}
+RINGC {'sam': 0.0, 'uv': (612, 6), 'xyz': [-87.0, -266.8, 4.1], 'top': 4.12, 'rise': 13.25, 'eqd': 20.93, 'circ': 0.69, 'score': 0.8}
+# t=  19.6 move('left', (-217.59, 120.74, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-217.6, 122.4, 259.7)
+# t=  21.9 move('left', (-217.59, 120.74, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-217.6, 121.5, 259.6)
+# t=  21.9 look([left_wrist]) -> left_wrist: Frame | left tool (-217.6, 121.5, 259.6)
+RING closeup {'xy': [-162.3, 109.7], 'top': 29.58, 'od': 41.54, 'hole_d': 14.19, 'low': 1.0, 'high': 0.0, 'deep': 1.0, 'hd2': 13.73, 'lowc': 1.0, 'sup': -0.64, 'uv': (332.3562483346656, 234.13882227551292)}
+ring candidates [([-162.0, 110.0], 4.84)]
+# t=  25.8 move('left', (-217.6, 121.5, 330.25), (0, 0, -1), (0, -1, 0)) -> done | left tool (-218, 120, 327.8)
+# t=  29.5 move('left', (-187.76, -65.87, 330.25), (0, 0, -1), (0, -1, 0)) -> done | left tool (-188.5, -67.5, 330.5)
+# t=  30.8 move('left', (-187.76, -65.87, 330.25), (0, 0, -1), (0, -1, 0)) -> done | left tool (-188.2, -66.8, 329.9)
+# t=  30.8 look([left_wrist]) -> left_wrist: Frame | left tool (-188.2, -66.7, 329.8)
+STICK closeup {'xy': [-155.2, -58.3], 'top': 22.67, 'eqd': 47.24, 'base': 19.99, 'lrise': 2.45, 'plate': 0.58, 'uv': (301.3226386806597, 266.33658170914543)}
+# t=  46.0 move('left', (-673.52, 93.39, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-673, 94, 261.8)
+# t=  48.3 move('left', (-673.52, 93.39, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-673.7, 94.1, 259.6)
+# t=  48.3 look([left_wrist]) -> left_wrist: Frame | left tool (-673.7, 94.1, 259.6)
+STICK closeup {'xy': [-658.1, 155.4], 'top': -442.12, 'eqd': 1.63, 'base': -95.04, 'lrise': -347.08, 'plate': 0.0, 'uv': (270.4, 267.2)}
+# t=  52.5 move('left', (-700, 169.09, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-700.5, 168.6, 258.2)
+# t=  54.9 move('left', (-700, 169.09, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-700.4, 169.5, 260.2)
+# t=  54.9 look([left_wrist]) -> left_wrist: Frame | left tool (-700.4, 169.6, 260.3)
+STICK closeup None
+no stick found
+# t=  54.9 set_gripper('left', 80) -> 80.4 | left tool (-700.4, 169.7, 260.5)
+# t=  58.1 move('left', (-700.4, 169.7, 300), (0, 0, -1), (0, -1, -0)) -> done | left tool (-700.7, 171.6, 301.8)
+# t=  63.4 move('left', (-478, 41, 350), (0, 0, -1), (0, -1, 0)) -> done | left tool (-477.9, 39.2, 347.8)
+# t=  65.3 home('left') -> done | left tool (-486.2, 80.7, 364.7)
+# ended: returned

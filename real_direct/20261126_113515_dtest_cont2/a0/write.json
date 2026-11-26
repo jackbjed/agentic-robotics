@@ -1,0 +1,10 @@
+{
+ "writer": "file",
+ "source": "/tmp/claude-1000/-WORKSPACE-agentic-robotics/3f33002b-5f39-4338-8043-d0b64f03d66d/scratchpad/direct_test/a0.py",
+ "usd": 0.0,
+ "ok": true,
+ "why": "",
+ "attempt": 1,
+ "look": "<WORKSPACE>/agentic-robotics/real/results/20261126_113515_sim_dry_dtest_cont2_look0",
+ "program_lines": 4
+}

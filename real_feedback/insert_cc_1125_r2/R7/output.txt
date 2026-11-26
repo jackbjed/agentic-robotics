@@ -1,0 +1,90 @@
+# task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# robot live: robot time limit 1500.0 s, model calls off
+# t=   0.8 set_gripper('left', 80) -> 80 | left tool (-493.5, 89.2, 352.4)
+# t=   9.1 move('left', (-350, 60, 620), (0, 0, -1), (0, -1, 0)) -> done | left tool (-349.7, 60.1, 619.3)
+# t=   9.1 look([left_wrist]) -> left_wrist: Frame | left tool (-349.7, 60.1, 619.3)
+# t=   9.1 segment('ring') -> 1 masks, best score 0.62 | left tool (-349.7, 60.1, 619.3)
+# t=   9.1 segment('cylinder with a hole') -> 4 masks, best score 0.92 | left tool (-349.7, 60.1, 619.3)
+plane [ 0.0051  0.0059 -3.4078] zmax 79.6 camoff [51.2 -2.6] cam up 133.0
+STICKC {'uv': (289, 0), 'xyz': [-75.5, 84.8, 179.5], 'top': 179.5, 'lrise': 136.93, 'eqd': 6.51, 'ped': 42.48, 'score': 4.72}
+RINGC {'sam': 1.55, 'uv': (448, 170), 'xyz': [-221.2, -84.6, 79.2], 'top': 79.2, 'rise': 17.96, 'eqd': 45.13, 'circ': 0.92, 'holey': 0.86, 'score': 3.75}
+RINGC {'sam': 0.27, 'uv': (299, 20), 'xyz': [-85.5, 75.7, 153.5], 'top': 153.49, 'rise': 111.97, 'eqd': 26.41, 'circ': 0.58, 'holey': 1.0, 'score': 2.07}
+RINGC {'sam': 0.0, 'uv': (162, 175), 'xyz': [-220.8, 244.2, 6.8], 'top': 6.75, 'rise': 9.98, 'eqd': 16.27, 'circ': 0.8, 'holey': 0.0, 'score': 1.2}
+cylinder candidates to look at: 7
+# t=  15.7 move('left', (-272.4, -82.02, 326.2), (0, 0, -1), (0, -1, 0)) -> done | left tool (-271.6, -82.3, 325.2)
+# t=  15.7 look([left_wrist]) -> left_wrist: Frame | left tool (-271.6, -82.3, 325.2)
+RING closeup {'xy': [-222.4, -93.1], 'top': 85.19, 'od': 39.82, 'hole_d': 17.73, 'low': 0.92, 'high': 0.0, 'deep': 1.0, 'hd2': 16.88, 'lowc': 0.92, 'lowfin': 0.64, 'sup': 65.16, 'uv': (329.2310003003905, 243.68218684289576), 'cen': 10.86}
+ring candidates [([-222.0, -93.0], 15.5)]
+# t=  19.3 move('left', (-271.6, -82.3, 426.5), (0, 0, -1), (-0, -1, 0)) -> done | left tool (-270.8, -82.3, 427.8)
+# t=  24.9 move('left', (-126.78, 87.38, 426.5), (0, 0, -1), (0, -1, 0)) -> done | left tool (-125.6, 85.5, 426.1)
+# t=  24.9 look([left_wrist]) -> left_wrist: Frame | left tool (-125.6, 85.5, 426.1)
+STICK closeup {'xy': [-70.2, 74.0], 'top': 214.32, 'eqd': 12.34, 'base': 46.04, 'lrise': 168.21, 'plate': 1.0, 'uv': (331.8704663212435, 234.4015544041451), 'cen': 10.84}
+# t=  24.9 move('left', (-121.42, 76.56, 461.33), (0, 0, -1), (0, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-125.6, 85.5, 426.1)
+MOVE [-121.4, 76.6, 461.3]  {'done': False, 'moved': False, 'why': 'the arm cannot reach that pose', 'curved': False}
+# t=  24.9 move('left', (-121.42, 76.56, 521.33), (0, 0, -1), (0, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-125.6, 85.5, 426.1)
+MOVE [-121.4, 76.6, 521.3]  {'done': False, 'moved': False, 'why': 'the arm cannot reach that pose', 'curved': False}
+# t=  24.9 move('left', (-121.42, 76.56, 581.33), (0, 0, -1), (0, -1, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-125.6, 85.5, 426.1)
+MOVE [-121.4, 76.6, 581.3]  {'done': False, 'moved': False, 'why': 'the arm cannot reach that pose', 'curved': False}
+# t=  24.9 look([left_wrist]) -> left_wrist: Frame | left tool (-125.6, 85.5, 426.1)
+STICK closeup {'xy': [-70.1, 73.7], 'top': 214.32, 'eqd': 12.05, 'base': 46.03, 'lrise': 168.23, 'plate': 1.0, 'uv': (332.2907608695652, 234.1875), 'cen': 11.09}
+ring closing angle 30 clearance 4.8 zc 84.2 sup 65.2
+# t=  32.2 move('left', (-222.42, -93.14, 200), (0, 0, -1), (0.87, 0.5, 0)) -> done | left tool (-217.9, -89, 204.3)
+# t=  39.1 move('left', (-222.42, -93.14, 109.19), (0, 0, -1), (0.87, 0.5, 0)) -> done | left tool (-218.7, -91.6, 111.7)
+# t=  41.5 move('left', (-222.42, -93.14, 104.19), (0, 0, -1), (-0.86, -0.5, -0.01)) -> done | left tool (-225.2, -92.5, 99)
+#          (the line ran to its end: the tool 1.2 mm from its goal, no settle)
+# t=  42.0 move('left', (-222.42, -93.14, 84.16), (0, 0, -1), (-0.86, -0.5, 0.01), True) -> done | left tool (-221.7, -92.6, 84.9)
+#          (the gripper's grasp: reported done 0.5 s after the fingers stood still)
+# t=  42.8 set_gripper('left', 0) -> 20.6 | left tool (-221.4, -92.7, 85.4)
+CYL-a w 20.60 push 0.32
+# t=  43.6 set_gripper('left', 41.81) -> 41.7 | left tool (-221.6, -92.7, 84.9)
+# t=  43.8 wait(0.2) ->  | left tool (-221.6, -92.7, 84.9)
+# t=  44.6 set_gripper('left', 63.81) -> 63.8 | left tool (-221.6, -92.8, 84.9)
+# t=  52.5 turn('left', (-221.6, -92.8, 84.9), (0, 0, 1), 90) -> done | left tool (-222.9, -91.9, 82.2)
+#          (the gripper's grasp: reported done 0.3 s after the fingers stood still)
+# t=  53.3 set_gripper('left', 0) -> 19.1 | left tool (-221.8, -91.9, 83.9)
+CYL-b w 19.10 push 1.10
+CYL widths 20.6 19.1 tcp [-221.8  -91.9   83.9]
+# t=  54.0 set_gripper('left', 41.81) -> 41.8 | left tool (-221.1, -88.6, 83.8)
+# t=  54.2 wait(0.2) ->  | left tool (-221.1, -88.6, 83.8)
+# t=  55.0 set_gripper('left', 63.81) -> 63.7 | left tool (-221.1, -88.6, 83.8)
+# t=  58.2 move('left', (-221.8, -91.9, 109.19), (0, 0, -1), (0.51, -0.86, -0)) -> done | left tool (-225.7, -89.6, 104.1)
+# t=  66.0 move('left', (-225.7, -89.6, 332.19), (0, 0, -1), (0.51, -0.86, -0.01)) -> done | left tool (-226.8, -88.9, 330.3)
+# t=  70.0 move('left', (-273.04, -89.33, 332.19), (0, 0, -1), (0, -1, 0)) -> done | left tool (-273.2, -89.7, 332.7)
+# t=  70.0 look([left_wrist]) -> left_wrist: Frame | left tool (-273.1, -89.5, 332.7)
+RING bias look {'xy': [-218.5, -87.1], 'top': 85.03, 'od': 38.94, 'hole_d': 15.3, 'low': 0.91, 'high': 0.0, 'deep': 1.0, 'hd2': 15.25, 'lowc': 0.9, 'lowfin': 0.65, 'sup': 64.41, 'uv': (308.9150554675119, 236.1543581616482), 'cen': 2.41}
+bias [3.31 4.77] stick at [-73.37  68.98] top 214.3
+ring closing angle 30 clearance 4.7 zc 84.2 sup 65.2
+# t=  76.2 move('left', (-221.8, -91.9, 200), (0, 0, -1), (0.87, 0.5, 0)) -> done | left tool (-220, -90.3, 201.8)
+# t=  82.8 move('left', (-221.8, -91.9, 109.19), (0, 0, -1), (0.87, 0.5, 0)) -> done | left tool (-222.3, -92.7, 109.2)
+# t=  83.5 set_gripper('left', 80) -> 79.9 | left tool (-222.3, -92.7, 109.2)
+# t=  86.0 move('left', (-221.8, -91.9, 104.19), (0, 0, -1), (-0.87, -0.5, -0)) -> done | left tool (-223.3, -91, 102.9)
+#          (the line ran to its end: the tool 6.2 mm from its goal, the arm's settle follows)
+# t=  86.5 move('left', (-221.8, -91.9, 84.16), (0, 0, -1), (-0.87, -0.5, 0), True) -> done | left tool (-223, -91.9, 82.5)
+#          (the gripper's grasp: reported done 0.5 s after the fingers stood still)
+# t=  87.3 set_gripper('left', 0) -> 20.4 | left tool (-223.1, -93.4, 83.7)
+CYL-a w 20.40 push 1.50
+#          (the gripper stands at 20.4 mm after the command to open to 42 mm: sent again)
+# t=  88.8 set_gripper('left', 41.81) -> 41.8 | left tool (-223.1, -93.3, 83.4)
+# t=  89.0 wait(0.2) ->  | left tool (-223.1, -93.3, 83.4)
+# t=  89.8 set_gripper('left', 63.81) -> 63.8 | left tool (-223.2, -93.3, 83.3)
+# t=  92.3 move('left', (-223.15, -94.15, 82.5), (0, 0, -1), (-0.87, -0.49, 0)) -> done | left tool (-222.7, -93.6, 82.8)
+#          (the gripper's grasp: reported done 0.0 s after the fingers stood still)
+# t=  93.1 set_gripper('left', 0) -> 20 | left tool (-222.5, -94, 83.5)
+CYL-a w 20.00 push 0.45
+#          (the gripper stands at 20.0 mm after the command to open to 42 mm: sent again)
+# t=  94.6 set_gripper('left', 41.81) -> 41.7 | left tool (-222.5, -94.1, 82.9)
+# t=  94.8 wait(0.2) ->  | left tool (-222.5, -94.1, 82.9)
+# t=  95.6 set_gripper('left', 63.81) -> 63.8 | left tool (-222.5, -94.1, 82.9)
+# t= 103.5 turn('left', (-222.5, -94.1, 82.9), (0, 0, 1), 90) -> done | left tool (-224.4, -95.8, 80.9)
+# t= 104.3 set_gripper('left', 0) -> 0.1 | left tool (-223.8, -100.9, 81.8)
+CYL-b w 0.10 push 5.14
+# t= 105.1 set_gripper('left', 63.81) -> 63.8 | left tool (-222.2, -91.9, 81.4)
+# t= 105.8 set_gripper('left', 80) -> 79.9 | left tool (-222.1, -91.7, 81.4)
+# t= 109.1 move('left', (-222.1, -91.7, 129.19), (0, 0, -1), (0.5, -0.87, -0)) -> done | left tool (-224.1, -90.7, 126.5)
+cylinder re-grasp failed
+# t= 109.1 set_gripper('left', 80) -> 80 | left tool (-224.1, -90.7, 126.5)
+# t= 115.5 move('left', (-224.1, -90.7, 300), (0, 0, -1), (0.5, -0.86, -0)) -> done | left tool (-223.8, -92.3, 300.4)
+# t= 121.2 move('left', (-478, 41, 350), (0, 0, -1), (0, -1, 0)) -> done | left tool (-478.1, 40.3, 352.6)
+# t= 122.6 home('left') -> done | left tool (-491.1, 88, 352.5)
+RESULT False JUDGE None
+# ended: returned

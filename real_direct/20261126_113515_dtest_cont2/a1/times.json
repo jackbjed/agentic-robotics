@@ -1,0 +1,15 @@
+{
+ "started": "2026-11-26T11:35:21",
+ "scene_reset_s": null,
+ "pause_before_s": 1.0,
+ "rig_notes": "real/direct_skill_rig.md",
+ "look_s": 3.1,
+ "write_started": "2026-11-26T11:35:24",
+ "write_s": 0.4,
+ "run_started": "2026-11-26T11:35:24",
+ "run_s": 36.3,
+ "robot_time_s": 124.688,
+ "episode_wall_s": 34.9,
+ "ended": "2026-11-26T11:36:00",
+ "attempt_s": 39.8
+}

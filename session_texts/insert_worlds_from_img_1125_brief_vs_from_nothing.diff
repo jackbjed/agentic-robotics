@@ -1,0 +1,29 @@
+--- from_nothing/instructions.md
++++ worlds_from_img/instructions.md
+@@ -144,6 +144,10 @@
+                               instead, to edit it (read_world takes the same)
+ submit [--version V] [--world K] [--final --summary FILE] [--note "..."]
+                               name the version that is your result
++read_image_depth --image scene|left_wrist [--u0 N] [--v0 N] [--u1 N] [--v1 N]
++                              the depth of one of the two REAL images (below), as numbers: the values (mm along the
++                              camera's axis, as a Frame's depth; 0 = no depth) on a grid over a window of pixels,
++                              and the window's statistics; with the camera's intrinsics
+ 
+ A version is the newest one where --version is left out. Pictures (view_images, and those a result carries) are
+ written as files into pictures/ of the workspace, and the output names them: read them with your file tools.
+@@ -315,6 +319,15 @@
+ task is to hold), and test it both ways: a program that does nothing must FAIL, and the final image of a success
+ must show the task done. Say in the world's note what its task is.
+ 
++Two REAL images. The real table was photographed once by the real robot's two cameras, with real things on it. The
++images are in pictures/real/ of your workspace, for each of scene and left_wrist: NAME.png (colour), NAME_depth.png
++(its depth as a picture: near red, far blue, the scale on top; black = NO depth) and NAME_nodepth.png (the colour
++image with the pixels that had no depth in magenta); read_image_depth gives the depth as numbers. The cameras are the
++real ones that the simulated "scene" and "left_wrist" stand for (640 x 480 pixels; a real D415 gives no depth nearer
++than about 275 mm). The scene camera stands where the simulated one stands.
++The wrist image was taken with the arm's tool at (-349, 62, 618) mm, the hand pointing straight down, its closing direction along (0, -1, 0).
++These two images are all you have of the real things: nothing was measured for you, and you cannot take more.
++
+ No real episode of this task exists yet: nobody has measured the real things for you. So a world here is your best
+ account of a real table: give the bodies the sizes, weights and frictions that such things have, vary with the rng
+ what you cannot know and what the task says can differ, and say in a world's note what it holds, what varies and

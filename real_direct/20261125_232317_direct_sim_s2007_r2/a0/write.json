@@ -1,0 +1,24 @@
+{
+ "writer": "claude",
+ "why": "the session wrote no program.py",
+ "usd": null,
+ "turns": null,
+ "model": "claude-opus-5-5",
+ "tools": [
+  "Edit",
+  "Glob",
+  "Grep",
+  "Read",
+  "Write"
+ ],
+ "mcp_servers": [],
+ "usage": null,
+ "wall_s": 3600.0,
+ "exit": 143,
+ "workspace": "/var/tmp/ar-cc/direct_direct_sim_s2007_r2_232320/a0/workspace",
+ "files_written": [],
+ "ok": false,
+ "attempt": 1,
+ "look": "<WORKSPACE>/agentic-robotics/real/results/20261125_232317_sim_dry_direct_sim_s2007_r2_look0",
+ "program_lines": 0
+}

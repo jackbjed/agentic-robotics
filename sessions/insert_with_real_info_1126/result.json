@@ -1,0 +1,2523 @@
+{
+ "ended": "submitted",
+ "submitted": 39,
+ "result_version": 39,
+ "turns": 223,
+ "versions": [
+  {
+   "note": "probe: frames, wrist cam offset, gripper centering",
+   "lines": 57,
+   "base": null,
+   "runs": {
+    "s1@w0": [
+     false,
+     0.0
+    ],
+    "s2@w0": [
+     false,
+     0.0
+    ],
+    "s1@w1": [
+     false,
+     0.0
+    ],
+    "s2@w1": [
+     false,
+     0.0
+    ],
+    "s1@w2": [
+     false,
+     20.2
+    ],
+    "s2@w2": [
+     false,
+     22.1
+    ]
+   },
+   "at": {
+    "turn": 10,
+    "usd": 1.27,
+    "tokens": 479281,
+    "min": 6.3
+   }
+  },
+  {
+   "note": "probe2: camera-centred top measurement error, gripper centering, truth insertion",
+   "lines": 87,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     true,
+     52.7
+    ],
+    "s2@w3": [
+     true,
+     60.4
+    ],
+    "s3@w3": [
+     true,
+     54.8
+    ],
+    "s4@w3": [
+     true,
+     55.4
+    ],
+    "s5@w3": [
+     true,
+     59.4
+    ],
+    "s6@w3": [
+     true,
+     46.8
+    ]
+   },
+   "at": {
+    "turn": 24,
+    "usd": 2.04,
+    "tokens": 1484140,
+    "min": 9.3
+   }
+  },
+  {
+   "note": "v2: survey+tophat detection, centred looks, centring grasps, camera calib on ring, guarded insertion+spiral",
+   "lines": 472,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     false,
+     85.2
+    ],
+    "s2@w3": [
+     true,
+     148.5
+    ],
+    "s3@w3": [
+     false,
+     206.3
+    ],
+    "s4@w3": [
+     false,
+     7.5
+    ],
+    "s5@w3": [
+     false,
+     102.1
+    ],
+    "s6@w3": [
+     false,
+     194.4
+    ],
+    "s7@w3": [
+     true,
+     93.4
+    ],
+    "s8@w3": [
+     false,
+     7.5
+    ]
+   },
+   "at": {
+    "turn": 28,
+    "usd": 3.3,
+    "tokens": 1963546,
+    "min": 16.1
+   }
+  },
+  {
+   "note": "v3: heightmap survey; stick centred by two closes (stand slides) -> exact stick xy + camera calib; ring single grasp at corrected position; guarded insert + spiral",
+   "lines": 667,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     false,
+     26.4
+    ],
+    "s2@w4": [
+     false,
+     24.8
+    ],
+    "s3@w4": [
+     false,
+     25.3
+    ],
+    "s4@w4": [
+     false,
+     30.1
+    ],
+    "s5@w4": [
+     false,
+     0.0
+    ],
+    "s6@w4": [
+     true,
+     99.5
+    ],
+    "s7@w4": [
+     false,
+     169.6
+    ],
+    "s8@w4": [
+     false,
+     27.4
+    ]
+   },
+   "at": {
+    "turn": 36,
+    "usd": 4.36,
+    "tokens": 3259136,
+    "min": 20.7
+   }
+  },
+  {
+   "note": "v4: survey finger mask, robust stick rise, annulus z_far, lift after contact, A-B-A stick closes",
+   "lines": 683,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     true,
+     82.2
+    ],
+    "s2@w5": [
+     false,
+     48.6
+    ],
+    "s3@w5": [
+     true,
+     78.7
+    ],
+    "s4@w5": [
+     true,
+     98.2
+    ],
+    "s5@w5": [
+     true,
+     159.7
+    ],
+    "s6@w5": [
+     true,
+     91.9
+    ],
+    "s7@w5": [
+     true,
+     82.0
+    ],
+    "s8@w5": [
+     false,
+     162.9
+    ]
+   },
+   "at": {
+    "turn": 42,
+    "usd": 5.01,
+    "tokens": 4410820,
+    "min": 23.2
+   }
+  },
+  {
+   "note": "v5: stick grip fingertips by guarded descent+lift 3, T read while clamped, robust turns, ring grasp lift 3; debug ring cands",
+   "lines": 711,
+   "base": null,
+   "runs": {
+    "s2@w5": [
+     false,
+     49.2
+    ],
+    "s5@w5": [
+     true,
+     91.9
+    ],
+    "s6@w5": [
+     true,
+     95.2
+    ],
+    "s8@w5": [
+     false,
+     164.6
+    ]
+   },
+   "at": {
+    "turn": 51,
+    "usd": 5.81,
+    "tokens": 6329800,
+    "min": 25.9
+   }
+  },
+  {
+   "note": "v6: per-axis stick centring with stall detection (shift by half the excess width), survey at (-400,120,600)",
+   "lines": 751,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     true,
+     81.9
+    ],
+    "s2@w5": [
+     true,
+     109.6
+    ],
+    "s3@w5": [
+     true,
+     74.1
+    ],
+    "s4@w5": [
+     true,
+     93.3
+    ],
+    "s5@w5": [
+     true,
+     87.6
+    ],
+    "s6@w5": [
+     false,
+     76.9
+    ],
+    "s7@w5": [
+     true,
+     81.9
+    ],
+    "s8@w5": [
+     true,
+     104.1
+    ]
+   },
+   "at": {
+    "turn": 57,
+    "usd": 6.61,
+    "tokens": 7754655,
+    "min": 29.3
+   }
+  },
+  {
+   "note": "v7: ring double close + ring-based camera calibration (stick from at-rest vision - e), fixed landed-on-ring check",
+   "lines": 797,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     true,
+     116.7
+    ],
+    "s2@w5": [
+     true,
+     143.5
+    ],
+    "s3@w5": [
+     true,
+     103.1
+    ],
+    "s4@w5": [
+     true,
+     128.1
+    ],
+    "s5@w5": [
+     true,
+     121.2
+    ],
+    "s6@w5": [
+     true,
+     133.1
+    ],
+    "s7@w5": [
+     true,
+     113.5
+    ],
+    "s8@w5": [
+     true,
+     142.0
+    ],
+    "s9@w5": [
+     true,
+     138.6
+    ],
+    "s10@w5": [
+     true,
+     143.4
+    ],
+    "s11@w5": [
+     true,
+     130.7
+    ],
+    "s12@w5": [
+     false,
+     7.4
+    ],
+    "s13@w5": [
+     false,
+     0.0
+    ],
+    "s14@w5": [
+     true,
+     111.6
+    ],
+    "s15@w5": [
+     false,
+     23.0
+    ],
+    "s16@w5": [
+     true,
+     142.2
+    ]
+   },
+   "at": {
+    "turn": 61,
+    "usd": 7.11,
+    "tokens": 8786547,
+    "min": 31.0
+   }
+  },
+  {
+   "note": "v8: wider stick tophat (thick sticks), stick confirm with hole check, ring cand exclusion near confirmed stick",
+   "lines": 799,
+   "base": null,
+   "runs": {
+    "s12@w6": [
+     false,
+     224.3
+    ],
+    "s13@w6": [
+     true,
+     129.9
+    ],
+    "s15@w6": [
+     true,
+     136.9
+    ],
+    "s17@w6": [
+     true,
+     127.7
+    ],
+    "s18@w6": [
+     true,
+     145.5
+    ],
+    "s19@w6": [
+     true,
+     137.7
+    ],
+    "s20@w6": [
+     true,
+     136.5
+    ],
+    "s21@w6": [
+     false,
+     188.9
+    ]
+   },
+   "at": {
+    "turn": 68,
+    "usd": 7.74,
+    "tokens": 10676274,
+    "min": 32.9
+   }
+  },
+  {
+   "note": "v9 debug: images around the ring lift",
+   "lines": 806,
+   "base": null,
+   "runs": {
+    "s12@w6": [
+     false,
+     224.3
+    ],
+    "s21@w6": [
+     false,
+     188.9
+    ]
+   },
+   "at": {
+    "turn": 71,
+    "usd": 8.1,
+    "tokens": 11523538,
+    "min": 34.7
+   }
+  },
+  {
+   "note": "v10: single closing axis A; stick close for e_A estimate; ring close A + look -> e_A exact; B via camera differences (error cancels); no turns",
+   "lines": 939,
+   "base": null,
+   "runs": {
+    "s12@w6": [
+     true,
+     126.7
+    ],
+    "s21@w6": [
+     true,
+     107.4
+    ],
+    "s18@w6": [
+     true,
+     107.6
+    ],
+    "s1@w6": [
+     true,
+     97.3
+    ],
+    "s2@w6": [
+     true,
+     111.6
+    ],
+    "s5@w6": [
+     true,
+     113.8
+    ],
+    "s6@w6": [
+     true,
+     108.3
+    ],
+    "s20@w6": [
+     true,
+     117.2
+    ]
+   },
+   "at": {
+    "turn": 77,
+    "usd": 8.87,
+    "tokens": 13295207,
+    "min": 37.6
+   }
+  },
+  {
+   "note": "v11 debug: ring drift after release",
+   "lines": 944,
+   "base": null,
+   "runs": {
+    "s5@w6": [
+     true,
+     102.8
+    ]
+   },
+   "at": {
+    "turn": 80,
+    "usd": 9.21,
+    "tokens": 14226069,
+    "min": 38.8
+   }
+  },
+  {
+   "note": "v12: v10 + 1 s wait after releasing the ring (drift)",
+   "lines": 942,
+   "base": null,
+   "runs": {
+    "s9@w6": [
+     true,
+     120.3
+    ],
+    "s10@w6": [
+     true,
+     125.0
+    ],
+    "s11@w6": [
+     true,
+     112.3
+    ],
+    "s13@w6": [
+     true,
+     99.3
+    ],
+    "s14@w6": [
+     true,
+     93.3
+    ],
+    "s15@w6": [
+     true,
+     118.5
+    ],
+    "s16@w6": [
+     true,
+     121.8
+    ],
+    "s17@w6": [
+     true,
+     107.4
+    ],
+    "s18@w6": [
+     true,
+     108.6
+    ],
+    "s19@w6": [
+     true,
+     106.5
+    ],
+    "s20@w6": [
+     true,
+     118.2
+    ],
+    "s21@w6": [
+     true,
+     108.4
+    ],
+    "s22@w6": [
+     true,
+     102.5
+    ],
+    "s23@w6": [
+     true,
+     125.8
+    ],
+    "s24@w6": [
+     true,
+     101.2
+    ],
+    "s3@w6": [
+     true,
+     84.6
+    ],
+    "s1@w7": [
+     true,
+     95.5
+    ],
+    "s2@w7": [
+     true,
+     103.5
+    ],
+    "s3@w7": [
+     true,
+     107.2
+    ],
+    "s4@w7": [
+     true,
+     108.6
+    ],
+    "s5@w7": [
+     true,
+     97.8
+    ],
+    "s6@w7": [
+     true,
+     112.3
+    ],
+    "s7@w7": [
+     true,
+     89.7
+    ],
+    "s8@w7": [
+     true,
+     122.6
+    ],
+    "s9@w7": [
+     true,
+     118.4
+    ],
+    "s10@w7": [
+     true,
+     125.0
+    ],
+    "s11@w7": [
+     true,
+     112.4
+    ],
+    "s12@w7": [
+     false,
+     77.9
+    ],
+    "s13@w7": [
+     true,
+     93.2
+    ],
+    "s14@w7": [
+     true,
+     91.9
+    ],
+    "s15@w7": [
+     true,
+     114.6
+    ],
+    "s16@w7": [
+     true,
+     170.4
+    ],
+    "s12@w8": [
+     false,
+     77.9
+    ],
+    "s16@w8": [
+     true,
+     170.4
+    ],
+    "s3@w8": [
+     true,
+     107.2
+    ],
+    "s17@w8": [
+     true,
+     106.5
+    ],
+    "s18@w8": [
+     false,
+     88.4
+    ],
+    "s19@w8": [
+     true,
+     105.8
+    ],
+    "s20@w8": [
+     true,
+     110.8
+    ],
+    "s21@w8": [
+     true,
+     108.7
+    ]
+   },
+   "at": {
+    "turn": 82,
+    "usd": 9.41,
+    "tokens": 14857700,
+    "min": 39.5
+   }
+  },
+  {
+   "note": "v13: stick closes along A and (turned) B -> camera error estimate in both axes, ring grasp centred in B too",
+   "lines": 965,
+   "base": null,
+   "runs": {
+    "s12@w8": [
+     true,
+     140.5
+    ],
+    "s18@w8": [
+     false,
+     206.4
+    ],
+    "s16@w8": [
+     true,
+     170.4
+    ],
+    "s3@w8": [
+     true,
+     92.5
+    ],
+    "s1@w8": [
+     true,
+     105.2
+    ],
+    "s2@w8": [
+     false,
+     64.0
+    ],
+    "s5@w8": [
+     true,
+     106.6
+    ],
+    "s6@w8": [
+     true,
+     127.7
+    ]
+   },
+   "at": {
+    "turn": 101,
+    "usd": 11.35,
+    "tokens": 21213959,
+    "min": 45.3
+   }
+  },
+  {
+   "note": "v14: v13 + guard against 180-deg wrist flips (camera side check before looks and before insertion)",
+   "lines": 984,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     250.0
+    ],
+    "s2@w8": [
+     true,
+     129.3
+    ],
+    "s16@w8": [
+     true,
+     134.7
+    ],
+    "s7@w8": [
+     true,
+     98.5
+    ],
+    "s8@w8": [
+     true,
+     132.3
+    ],
+    "s9@w8": [
+     true,
+     127.9
+    ],
+    "s10@w8": [
+     true,
+     134.7
+    ],
+    "s11@w8": [
+     true,
+     122.2
+    ]
+   },
+   "at": {
+    "turn": 105,
+    "usd": 11.89,
+    "tokens": 22647387,
+    "min": 46.8
+   }
+  },
+  {
+   "note": "probe: do nothing, watch ring drift (stability of the world)",
+   "lines": 11,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     60.0
+    ],
+    "s12@w8": [
+     false,
+     60.0
+    ],
+    "s3@w8": [
+     false,
+     60.0
+    ],
+    "s16@w8": [
+     false,
+     60.0
+    ]
+   },
+   "at": {
+    "turn": 109,
+    "usd": 12.35,
+    "tokens": 24119822,
+    "min": 48.1
+   }
+  },
+  {
+   "note": "v16 debug: scene image after the stick turn",
+   "lines": 986,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     215.1
+    ]
+   },
+   "at": {
+    "turn": 110,
+    "usd": 12.48,
+    "tokens": 24495624,
+    "min": 48.4
+   }
+  },
+  {
+   "note": "v17: fix close_axis shift move keeping the current orientation (was a 90-deg joint move); log curved moves",
+   "lines": 986,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     199.2
+    ],
+    "s12@w8": [
+     true,
+     137.9
+    ],
+    "s16@w8": [
+     true,
+     134.7
+    ],
+    "s3@w8": [
+     true,
+     96.3
+    ],
+    "s4@w8": [
+     true,
+     118.4
+    ],
+    "s13@w8": [
+     true,
+     106.1
+    ],
+    "s14@w8": [
+     true,
+     101.6
+    ],
+    "s15@w8": [
+     true,
+     124.3
+    ]
+   },
+   "at": {
+    "turn": 115,
+    "usd": 12.97,
+    "tokens": 26388837,
+    "min": 49.3
+   }
+  },
+  {
+   "note": "v18: B close on the stick via lift + free (collision-checked) reorientation instead of turn()",
+   "lines": 989,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     141.0
+    ],
+    "s12@w8": [
+     true,
+     149.5
+    ],
+    "s16@w8": [
+     true,
+     134.7
+    ],
+    "s3@w8": [
+     true,
+     107.3
+    ],
+    "s1@w8": [
+     true,
+     122.0
+    ],
+    "s2@w8": [
+     true,
+     128.0
+    ],
+    "s5@w8": [
+     true,
+     112.8
+    ],
+    "s6@w8": [
+     true,
+     129.2
+    ]
+   },
+   "at": {
+    "turn": 118,
+    "usd": 13.3,
+    "tokens": 27545350,
+    "min": 50.2
+   }
+  },
+  {
+   "note": "v19: reorientation in <=60 deg steps (no 180 ties), restore orientation by steps, contact-vs-vision consistency check",
+   "lines": 1015,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     206.3
+    ],
+    "s12@w8": [
+     true,
+     144.9
+    ],
+    "s16@w8": [
+     true,
+     134.7
+    ],
+    "s3@w8": [
+     true,
+     101.2
+    ],
+    "s1@w8": [
+     true,
+     113.0
+    ],
+    "s2@w8": [
+     true,
+     124.3
+    ],
+    "s5@w8": [
+     true,
+     114.2
+    ],
+    "s6@w8": [
+     true,
+     131.3
+    ]
+   },
+   "at": {
+    "turn": 125,
+    "usd": 14.08,
+    "tokens": 30318092,
+    "min": 51.6
+   }
+  },
+  {
+   "note": "v20: second stick close at 45 deg (natural arm posture), stick from two closes",
+   "lines": 1022,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     208.1
+    ],
+    "s12@w8": [
+     true,
+     141.4
+    ],
+    "s16@w8": [
+     true,
+     134.7
+    ],
+    "s3@w8": [
+     true,
+     98.7
+    ],
+    "s4@w8": [
+     true,
+     122.2
+    ],
+    "s6@w8": [
+     true,
+     127.7
+    ],
+    "s13@w8": [
+     true,
+     110.8
+    ],
+    "s20@w8": [
+     true,
+     127.4
+    ]
+   },
+   "at": {
+    "turn": 127,
+    "usd": 14.33,
+    "tokens": 31124744,
+    "min": 52.6
+   }
+  },
+  {
+   "note": "v21 debug: image after the 45-deg descent",
+   "lines": 1024,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     207.9
+    ]
+   },
+   "at": {
+    "turn": 130,
+    "usd": 14.68,
+    "tokens": 32351384,
+    "min": 53.7
+   }
+  },
+  {
+   "note": "probe: arm motions near the stand, watch the ring",
+   "lines": 24,
+   "base": null,
+   "runs": {
+    "s18@w8": [
+     false,
+     24.1
+    ],
+    "s31@w6": [
+     false,
+     22.7
+    ],
+    "s31@w10": [
+     false,
+     22.7
+    ],
+    "s18@w10": [
+     false,
+     24.1
+    ]
+   },
+   "at": {
+    "turn": 133,
+    "usd": 14.99,
+    "tokens": 33587376,
+    "min": 54.4
+   }
+  },
+  {
+   "note": "v23: v20 without debug images (45-deg second stick close, step reorientation, consistency check)",
+   "lines": 1022,
+   "base": null,
+   "runs": {
+    "s1@w9": [
+     true,
+     109.5
+    ],
+    "s2@w9": [
+     true,
+     120.9
+    ],
+    "s3@w9": [
+     true,
+     98.7
+    ],
+    "s4@w9": [
+     true,
+     122.2
+    ],
+    "s5@w9": [
+     true,
+     111.6
+    ],
+    "s6@w9": [
+     true,
+     127.7
+    ],
+    "s7@w9": [
+     true,
+     103.9
+    ],
+    "s8@w9": [
+     true,
+     134.6
+    ],
+    "s9@w9": [
+     true,
+     133.8
+    ],
+    "s10@w9": [
+     true,
+     137.3
+    ],
+    "s11@w9": [
+     false,
+     73.5
+    ],
+    "s12@w9": [
+     true,
+     141.4
+    ],
+    "s13@w9": [
+     true,
+     110.4
+    ],
+    "s14@w9": [
+     true,
+     105.4
+    ],
+    "s15@w9": [
+     true,
+     128.4
+    ],
+    "s16@w9": [
+     true,
+     134.7
+    ]
+   },
+   "at": {
+    "turn": 135,
+    "usd": 15.24,
+    "tokens": 34420679,
+    "min": 54.9
+   }
+  },
+  {
+   "note": "v24: grasp yaw chosen from survey heightmap to avoid obstacles near the ring; generalised calibration axes",
+   "lines": 1072,
+   "base": null,
+   "runs": {
+    "s11@w9": [
+     true,
+     135.3
+    ],
+    "s17@w9": [
+     true,
+     122.8
+    ],
+    "s18@w9": [
+     true,
+     136.7
+    ],
+    "s19@w9": [
+     true,
+     117.0
+    ],
+    "s20@w9": [
+     true,
+     133.2
+    ],
+    "s21@w9": [
+     true,
+     126.8
+    ],
+    "s22@w9": [
+     true,
+     116.9
+    ],
+    "s23@w9": [
+     true,
+     175.2
+    ],
+    "s25@w9": [
+     true,
+     164.7
+    ],
+    "s26@w9": [
+     true,
+     123.1
+    ],
+    "s27@w9": [
+     false,
+     166.1
+    ],
+    "s28@w9": [
+     true,
+     129.3
+    ],
+    "s29@w9": [
+     true,
+     113.6
+    ],
+    "s30@w9": [
+     true,
+     129.9
+    ],
+    "s31@w9": [
+     true,
+     148.2
+    ],
+    "s32@w9": [
+     true,
+     120.6
+    ]
+   },
+   "at": {
+    "turn": 143,
+    "usd": 16.25,
+    "tokens": 37832856,
+    "min": 57.4
+   }
+  },
+  {
+   "note": "v25: stick rest position from two closes + camera-measured displacement (pushes along closing axes), recentred first stick look",
+   "lines": 1084,
+   "base": null,
+   "runs": {
+    "s27@w9": [
+     true,
+     120.2
+    ],
+    "s30@w9": [
+     true,
+     156.0
+    ],
+    "s25@w9": [
+     true,
+     144.0
+    ],
+    "s23@w9": [
+     true,
+     227.2
+    ],
+    "s31@w9": [
+     true,
+     147.6
+    ],
+    "s33@w9": [
+     true,
+     115.7
+    ],
+    "s34@w9": [
+     true,
+     145.3
+    ],
+    "s35@w9": [
+     true,
+     142.9
+    ]
+   },
+   "at": {
+    "turn": 148,
+    "usd": 16.99,
+    "tokens": 40027231,
+    "min": 60.3
+   }
+  },
+  {
+   "note": "v26: v25 without the contact fallback (vision target kept)",
+   "lines": 1083,
+   "base": null,
+   "runs": {
+    "s23@w9": [
+     true,
+     171.8
+    ],
+    "s36@w9": [
+     true,
+     149.3
+    ],
+    "s1@w9": [
+     true,
+     110.5
+    ],
+    "s2@w9": [
+     true,
+     123.0
+    ],
+    "s3@w9": [
+     true,
+     99.5
+    ],
+    "s4@w9": [
+     true,
+     127.2
+    ],
+    "s5@w9": [
+     true,
+     115.4
+    ],
+    "s6@w9": [
+     true,
+     127.8
+    ],
+    "s25@w6": [
+     true,
+     136.3
+    ],
+    "s26@w6": [
+     true,
+     117.5
+    ],
+    "s27@w6": [
+     true,
+     140.6
+    ],
+    "s28@w6": [
+     true,
+     130.3
+    ],
+    "s29@w6": [
+     true,
+     115.9
+    ],
+    "s30@w6": [
+     true,
+     129.5
+    ],
+    "s31@w6": [
+     false,
+     216.8
+    ],
+    "s32@w6": [
+     true,
+     121.5
+    ],
+    "s1@w11": [
+     true,
+     123.0
+    ],
+    "s2@w11": [
+     true,
+     123.0
+    ],
+    "s3@w11": [
+     true,
+     95.7
+    ],
+    "s4@w11": [
+     true,
+     127.1
+    ],
+    "s5@w11": [
+     true,
+     111.7
+    ],
+    "s6@w11": [
+     true,
+     127.7
+    ],
+    "s7@w11": [
+     true,
+     108.9
+    ],
+    "s8@w11": [
+     true,
+     138.6
+    ],
+    "s9@w11": [
+     true,
+     139.5
+    ],
+    "s10@w11": [
+     true,
+     155.3
+    ],
+    "s11@w11": [
+     true,
+     140.0
+    ],
+    "s12@w11": [
+     true,
+     147.8
+    ],
+    "s13@w11": [
+     true,
+     112.2
+    ],
+    "s14@w11": [
+     true,
+     106.3
+    ],
+    "s15@w11": [
+     true,
+     142.9
+    ],
+    "s16@w11": [
+     true,
+     169.1
+    ],
+    "s17@w11": [
+     true,
+     124.4
+    ],
+    "s18@w11": [
+     true,
+     135.3
+    ],
+    "s19@w11": [
+     true,
+     129.8
+    ],
+    "s20@w11": [
+     true,
+     134.1
+    ],
+    "s21@w11": [
+     true,
+     127.7
+    ],
+    "s22@w11": [
+     true,
+     115.9
+    ],
+    "s23@w11": [
+     true,
+     171.8
+    ],
+    "s24@w11": [
+     true,
+     108.2
+    ],
+    "s25@w11": [
+     true,
+     149.1
+    ],
+    "s26@w11": [
+     true,
+     124.0
+    ],
+    "s27@w11": [
+     true,
+     120.2
+    ],
+    "s28@w11": [
+     true,
+     129.3
+    ],
+    "s29@w11": [
+     true,
+     114.6
+    ],
+    "s30@w11": [
+     true,
+     121.5
+    ],
+    "s31@w11": [
+     true,
+     147.6
+    ],
+    "s32@w11": [
+     true,
+     121.7
+    ],
+    "s1@w12": [
+     true,
+     110.3
+    ],
+    "s2@w12": [
+     true,
+     117.0
+    ],
+    "s3@w12": [
+     true,
+     120.3
+    ],
+    "s4@w12": [
+     true,
+     128.0
+    ],
+    "s5@w12": [
+     true,
+     115.8
+    ],
+    "s6@w12": [
+     true,
+     126.9
+    ],
+    "s7@w12": [
+     true,
+     107.0
+    ],
+    "s8@w12": [
+     false,
+     186.1
+    ]
+   },
+   "at": {
+    "turn": 149,
+    "usd": 17.13,
+    "tokens": 40475968,
+    "min": 61.5
+   }
+  },
+  {
+   "note": "v27: closed-loop xy positioning above the stick for each insertion try; look recentre threshold 8 px",
+   "lines": 1099,
+   "base": null,
+   "runs": {
+    "s1@w12": [
+     true,
+     112.3
+    ],
+    "s2@w12": [
+     true,
+     141.4
+    ],
+    "s3@w12": [
+     true,
+     114.3
+    ],
+    "s4@w12": [
+     true,
+     127.6
+    ],
+    "s5@w12": [
+     true,
+     113.6
+    ],
+    "s6@w12": [
+     true,
+     151.9
+    ],
+    "s7@w12": [
+     true,
+     109.9
+    ],
+    "s8@w12": [
+     true,
+     143.1
+    ]
+   },
+   "at": {
+    "turn": 166,
+    "usd": 19.29,
+    "tokens": 48360317,
+    "min": 67.5
+   }
+  },
+  {
+   "note": "v28: v27 + height-based landed-on-ring check",
+   "lines": 1099,
+   "base": null,
+   "runs": {
+    "s9@w12": [
+     true,
+     143.0
+    ],
+    "s10@w12": [
+     true,
+     147.2
+    ],
+    "s11@w12": [
+     true,
+     142.0
+    ],
+    "s12@w12": [
+     true,
+     171.9
+    ],
+    "s13@w12": [
+     true,
+     113.7
+    ],
+    "s14@w12": [
+     true,
+     108.3
+    ],
+    "s15@w12": [
+     true,
+     156.1
+    ],
+    "s16@w12": [
+     true,
+     168.6
+    ]
+   },
+   "at": {
+    "turn": 168,
+    "usd": 19.56,
+    "tokens": 49322775,
+    "min": 68.8
+   }
+  },
+  {
+   "note": "v29 TEST: forced fallback (closer two-view survey)",
+   "lines": 1113,
+   "base": null,
+   "runs": {
+    "s1@w12": [
+     true,
+     123.2
+    ],
+    "s2@w12": [
+     true,
+     150.6
+    ],
+    "s3@w12": [
+     true,
+     106.2
+    ],
+    "s4@w12": [
+     true,
+     139.1
+    ],
+    "s5@w12": [
+     true,
+     117.2
+    ],
+    "s6@w12": [
+     false,
+     240.8
+    ],
+    "s7@w12": [
+     true,
+     109.4
+    ],
+    "s8@w12": [
+     true,
+     146.5
+    ]
+   },
+   "at": {
+    "turn": 175,
+    "usd": 20.43,
+    "tokens": 52738980,
+    "min": 70.1
+   }
+  },
+  {
+   "note": "v30 TEST (forced fallback) + second ring calibration cycle when ring/stick estimates disagree",
+   "lines": 1140,
+   "base": null,
+   "runs": {
+    "s6@w12": [
+     false,
+     271.2
+    ],
+    "s2@w12": [
+     true,
+     150.6
+    ],
+    "s12@w12": [
+     true,
+     164.2
+    ],
+    "s15@w12": [
+     true,
+     154.2
+    ]
+   },
+   "at": {
+    "turn": 178,
+    "usd": 20.87,
+    "tokens": 54228597,
+    "min": 71.4
+   }
+  },
+  {
+   "note": "v31 TEST (forced fallback): fingertips 5 mm above ring support, mean of ring/stick calibration when they disagree 1-4 mm",
+   "lines": 1119,
+   "base": null,
+   "runs": {
+    "s6@w12": [
+     true,
+     144.5
+    ],
+    "s2@w12": [
+     true,
+     146.8
+    ],
+    "s3@w12": [
+     true,
+     107.0
+    ],
+    "s28@w12": [
+     true,
+     168.2
+    ]
+   },
+   "at": {
+    "turn": 180,
+    "usd": 21.2,
+    "tokens": 55235469,
+    "min": 72.9
+   }
+  },
+  {
+   "note": "v32: survey fallback (closer 2 views), fingertips 5 mm above ring support, mean calibration on disagreement, closed-loop insertion positioning",
+   "lines": 1119,
+   "base": null,
+   "runs": {
+    "s1@w12": [
+     true,
+     112.2
+    ],
+    "s4@w12": [
+     true,
+     127.4
+    ],
+    "s5@w12": [
+     true,
+     113.4
+    ],
+    "s7@w12": [
+     true,
+     107.8
+    ],
+    "s8@w12": [
+     true,
+     143.0
+    ],
+    "s9@w12": [
+     true,
+     142.9
+    ],
+    "s10@w12": [
+     true,
+     147.6
+    ],
+    "s11@w12": [
+     true,
+     142.0
+    ],
+    "s17@w12": [
+     true,
+     120.2
+    ],
+    "s18@w12": [
+     true,
+     138.6
+    ],
+    "s19@w12": [
+     true,
+     132.6
+    ],
+    "s20@w12": [
+     true,
+     139.6
+    ],
+    "s21@w12": [
+     true,
+     131.9
+    ],
+    "s22@w12": [
+     true,
+     118.9
+    ],
+    "s23@w12": [
+     true,
+     173.6
+    ],
+    "s24@w12": [
+     true,
+     109.1
+    ],
+    "s25@w12": [
+     true,
+     169.4
+    ],
+    "s26@w12": [
+     true,
+     135.9
+    ],
+    "s27@w12": [
+     true,
+     121.1
+    ],
+    "s29@w12": [
+     true,
+     134.6
+    ],
+    "s30@w12": [
+     true,
+     122.8
+    ],
+    "s31@w12": [
+     true,
+     129.6
+    ],
+    "s32@w12": [
+     true,
+     124.1
+    ],
+    "s33@w12": [
+     true,
+     131.1
+    ],
+    "s1@w13": [
+     true,
+     124.7
+    ],
+    "s2@w13": [
+     true,
+     135.4
+    ],
+    "s3@w13": [
+     true,
+     111.8
+    ],
+    "s4@w13": [
+     true,
+     133.3
+    ],
+    "s5@w13": [
+     true,
+     118.9
+    ],
+    "s6@w13": [
+     true,
+     133.1
+    ],
+    "s7@w13": [
+     true,
+     104.7
+    ],
+    "s8@w13": [
+     true,
+     135.3
+    ],
+    "s9@w13": [
+     true,
+     183.8
+    ],
+    "s10@w13": [
+     true,
+     150.2
+    ],
+    "s11@w13": [
+     false,
+     108.5
+    ],
+    "s12@w13": [
+     true,
+     147.4
+    ],
+    "s13@w13": [
+     true,
+     113.8
+    ],
+    "s14@w13": [
+     true,
+     109.0
+    ],
+    "s15@w13": [
+     true,
+     155.9
+    ],
+    "s16@w13": [
+     true,
+     171.2
+    ]
+   },
+   "at": {
+    "turn": 181,
+    "usd": 21.35,
+    "tokens": 55743217,
+    "min": 73.4
+   }
+  },
+  {
+   "note": "v33: ring candidates ranked by roundness x height, up to 6 visited, rise > 13 mm",
+   "lines": 1119,
+   "base": null,
+   "runs": {
+    "s11@w13": [
+     true,
+     178.5
+    ],
+    "s17@w13": [
+     false,
+     56.3
+    ],
+    "s18@w13": [
+     true,
+     139.5
+    ],
+    "s19@w13": [
+     true,
+     118.5
+    ],
+    "s20@w13": [
+     true,
+     142.1
+    ],
+    "s21@w13": [
+     true,
+     146.9
+    ],
+    "s22@w13": [
+     true,
+     116.1
+    ],
+    "s23@w13": [
+     true,
+     170.3
+    ]
+   },
+   "at": {
+    "turn": 193,
+    "usd": 22.97,
+    "tokens": 61949640,
+    "min": 77.2
+   }
+  },
+  {
+   "note": "v34: grasp yaw candidates tried in order when the approach is refused (keep-out/reach); 6 ring candidates",
+   "lines": 1124,
+   "base": null,
+   "runs": {
+    "s17@w13": [
+     false,
+     79.1
+    ],
+    "s5@w13": [
+     true,
+     118.9
+    ],
+    "s6@w13": [
+     true,
+     155.1
+    ],
+    "s24@w13": [
+     true,
+     117.9
+    ],
+    "s25@w13": [
+     true,
+     147.9
+    ],
+    "s26@w13": [
+     true,
+     144.4
+    ],
+    "s27@w13": [
+     true,
+     134.5
+    ],
+    "s28@w13": [
+     true,
+     192.8
+    ]
+   },
+   "at": {
+    "turn": 196,
+    "usd": 23.4,
+    "tokens": 63542277,
+    "min": 78.1
+   }
+  },
+  {
+   "note": "v35: calibration-look fallback (stick-based), absolute yaw changes via rot_ref",
+   "lines": 1135,
+   "base": null,
+   "runs": {
+    "s17@w13": [
+     true,
+     104.7
+    ],
+    "s25@w13": [
+     true,
+     150.5
+    ],
+    "s26@w13": [
+     true,
+     144.3
+    ],
+    "s27@w13": [
+     true,
+     134.0
+    ],
+    "s29@w13": [
+     false,
+     19.2
+    ],
+    "s30@w13": [
+     true,
+     126.5
+    ],
+    "s31@w13": [
+     true,
+     123.2
+    ],
+    "s32@w13": [
+     false,
+     316.5
+    ]
+   },
+   "at": {
+    "turn": 199,
+    "usd": 23.85,
+    "tokens": 65154139,
+    "min": 79.2
+   }
+  },
+  {
+   "note": "v36: switch the reference orientation by 180 deg when the stick look pose is refused (keep-out/reach)",
+   "lines": 1164,
+   "base": null,
+   "runs": {
+    "s29@w13": [
+     true,
+     152.7
+    ],
+    "s32@w13": [
+     false,
+     316.5
+    ],
+    "s17@w13": [
+     true,
+     104.7
+    ],
+    "s1@w13": [
+     true,
+     124.7
+    ],
+    "s2@w13": [
+     true,
+     123.4
+    ],
+    "s3@w13": [
+     true,
+     111.8
+    ],
+    "s33@w13": [
+     true,
+     122.4
+    ],
+    "s34@w13": [
+     true,
+     136.1
+    ]
+   },
+   "at": {
+    "turn": 206,
+    "usd": 24.77,
+    "tokens": 68953880,
+    "min": 80.8
+   }
+  },
+  {
+   "note": "v37: large ring/stick calibration disagreement -> stick-based",
+   "lines": 1168,
+   "base": null,
+   "runs": {
+    "s32@w13": [
+     true,
+     135.8
+    ],
+    "s35@w13": [
+     true,
+     153.6
+    ],
+    "s36@w13": [
+     true,
+     140.6
+    ],
+    "s4@w13": [
+     true,
+     132.1
+    ],
+    "s5@w13": [
+     true,
+     118.0
+    ],
+    "s6@w13": [
+     true,
+     155.1
+    ],
+    "s7@w13": [
+     true,
+     104.7
+    ],
+    "s8@w13": [
+     true,
+     135.2
+    ],
+    "s9@w13": [
+     true,
+     147.2
+    ],
+    "s10@w13": [
+     true,
+     149.7
+    ],
+    "s11@w13": [
+     true,
+     178.4
+    ],
+    "s12@w13": [
+     true,
+     147.9
+    ],
+    "s13@w13": [
+     true,
+     113.8
+    ],
+    "s14@w13": [
+     true,
+     109.0
+    ],
+    "s15@w13": [
+     true,
+     155.6
+    ],
+    "s16@w13": [
+     true,
+     138.8
+    ],
+    "s17@w13": [
+     true,
+     104.7
+    ],
+    "s18@w13": [
+     true,
+     139.3
+    ],
+    "s19@w13": [
+     true,
+     118.4
+    ],
+    "s20@w13": [
+     true,
+     146.0
+    ],
+    "s21@w13": [
+     true,
+     145.6
+    ],
+    "s22@w13": [
+     true,
+     116.1
+    ],
+    "s23@w13": [
+     true,
+     169.6
+    ],
+    "s24@w13": [
+     true,
+     117.9
+    ],
+    "s25@w13": [
+     true,
+     150.5
+    ],
+    "s26@w13": [
+     true,
+     144.3
+    ],
+    "s27@w13": [
+     true,
+     134.0
+    ],
+    "s28@w13": [
+     true,
+     232.4
+    ],
+    "s29@w13": [
+     true,
+     152.7
+    ],
+    "s30@w13": [
+     true,
+     126.5
+    ],
+    "s31@w13": [
+     true,
+     123.2
+    ],
+    "s1@w13": [
+     true,
+     124.7
+    ]
+   },
+   "at": {
+    "turn": 208,
+    "usd": 25.08,
+    "tokens": 70053742,
+    "min": 82.3
+   }
+  },
+  {
+   "note": "v38: reuse the learned xy correction in closed-loop moves (fewer moves in the search)",
+   "lines": 1172,
+   "base": null,
+   "runs": {
+    "s28@w13": [
+     true,
+     208.4
+    ],
+    "s20@w13": [
+     true,
+     144.3
+    ],
+    "s25@w13": [
+     true,
+     148.3
+    ],
+    "s32@w13": [
+     true,
+     135.8
+    ],
+    "s2@w13": [
+     true,
+     123.4
+    ],
+    "s3@w13": [
+     true,
+     109.8
+    ],
+    "s6@w13": [
+     true,
+     149.7
+    ],
+    "s17@w13": [
+     true,
+     104.7
+    ]
+   },
+   "at": {
+    "turn": 212,
+    "usd": 25.68,
+    "tokens": 72279372,
+    "min": 84.8
+   }
+  },
+  {
+   "note": "v39: stick close accepted when two closes from different positions give the same opening (thick/rounded sticks)",
+   "lines": 1176,
+   "base": null,
+   "runs": {
+    "s28@w13": [
+     true,
+     207.4
+    ],
+    "s20@w13": [
+     true,
+     144.3
+    ],
+    "s9@w13": [
+     true,
+     147.2
+    ],
+    "s10@w13": [
+     true,
+     149.7
+    ],
+    "s11@w13": [
+     true,
+     178.4
+    ],
+    "s12@w13": [
+     true,
+     147.9
+    ],
+    "s13@w13": [
+     true,
+     113.8
+    ],
+    "s14@w13": [
+     true,
+     109.0
+    ],
+    "s1@w13": [
+     true,
+     120.7
+    ],
+    "s4@w13": [
+     true,
+     132.1
+    ],
+    "s5@w13": [
+     true,
+     118.0
+    ],
+    "s7@w13": [
+     true,
+     104.7
+    ],
+    "s8@w13": [
+     true,
+     135.2
+    ],
+    "s15@w13": [
+     true,
+     155.6
+    ],
+    "s16@w13": [
+     true,
+     138.8
+    ],
+    "s18@w13": [
+     true,
+     139.3
+    ],
+    "s19@w13": [
+     true,
+     118.4
+    ],
+    "s21@w13": [
+     true,
+     145.6
+    ],
+    "s22@w13": [
+     true,
+     116.1
+    ],
+    "s23@w13": [
+     true,
+     169.6
+    ],
+    "s24@w13": [
+     true,
+     117.9
+    ],
+    "s26@w13": [
+     true,
+     144.3
+    ],
+    "s27@w13": [
+     true,
+     134.0
+    ],
+    "s29@w13": [
+     true,
+     151.3
+    ]
+   },
+   "at": {
+    "turn": 214,
+    "usd": 25.99,
+    "tokens": 73404860,
+    "min": 85.7
+   }
+  }
+ ],
+ "task": "insert_varied",
+ "env": "sim_bimanual_grippers",
+ "sensors": "d415",
+ "budget_usd": 50.0,
+ "spent_usd": 31.7151,
+ "compactions": 0,
+ "wall_s": 5299.5,
+ "effort": "xhigh",
+ "task_world": 13,
+ "agent": {
+  "kind": "claude_code",
+  "cli_version": "2.1.331 (Claude Code)",
+  "account": null,
+  "organisation": null,
+  "plan": null,
+  "usage_limits": {
+   "first": {
+    "five_hour": {
+     "first": 0.26,
+     "n": 61,
+     "last": 1,
+     "status": "rejected",
+     "resets_at": 1795722600
+    },
+    "seven_day": {
+     "first": 0.17,
+     "n": 61,
+     "last": 0.21,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "rejected",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   },
+   "last": {
+    "five_hour": {
+     "first": 0,
+     "n": 3,
+     "last": 0.05,
+     "status": "allowed",
+     "resets_at": 1795740600
+    },
+    "seven_day": {
+     "first": 0.21,
+     "n": 3,
+     "last": 0.22,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   }
+  },
+  "cli_turns": 337,
+  "plan_tier": null,
+  "auth": "oauth_token",
+  "model": "opus",
+  "model_resolved": "claude-opus-5-5",
+  "effort": "xhigh",
+  "cost_usd": 31.71509,
+  "cost_is": "the CLI's total_cost_usd (API-equivalent), summed over the invocations",
+  "tokens": {
+   "input": 78206301,
+   "cached": 77068433,
+   "cache_write": 1137422,
+   "output": 360012
+  },
+  "replies": 223,
+  "invocations": [
+   {
+    "k": 0,
+    "exit": 1,
+    "stopped": null,
+    "wall_s": 5240.0,
+    "usd": 26.54602,
+    "estimated": false,
+    "cli_total_usd": 26.54601539999999,
+    "subtype": "success",
+    "is_error": true,
+    "num_turns": 332,
+    "replies": 218,
+    "tokens": {
+     "input": 75320153,
+     "cached": 74755857,
+     "cache_write": 563860,
+     "output": 354111
+    },
+    "compactions": 0,
+    "session_id": "7f7d8b3c-f62c-4b9e-bbe6-bd240d4ca6d6",
+    "resumed": null,
+    "estimate_usd": 26.54602,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0.26,
+      "n": 61,
+      "last": 1,
+      "status": "rejected",
+      "resets_at": 1795722600
+     },
+     "seven_day": {
+      "first": 0.17,
+      "n": 61,
+      "last": 0.21,
+      "status": "allowed",
+      "resets_at": 1795806000
+     },
+     "_status": {
+      "status": "rejected",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    },
+    "resumable": true
+   },
+   {
+    "k": 1,
+    "exit": 0,
+    "stopped": null,
+    "wall_s": 59.5,
+    "usd": 5.16907,
+    "estimated": false,
+    "cli_total_usd": 31.71508659999999,
+    "subtype": "success",
+    "is_error": false,
+    "num_turns": 5,
+    "replies": 5,
+    "tokens": {
+     "input": 2886148,
+     "cached": 2312576,
+     "cache_write": 573562,
+     "output": 5901
+    },
+    "compactions": 0,
+    "session_id": "7f7d8b3c-f62c-4b9e-bbe6-bd240d4ca6d6",
+    "resumed": "7f7d8b3c-f62c-4b9e-bbe6-bd240d4ca6d6",
+    "estimate_usd": 5.16907,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0,
+      "n": 3,
+      "last": 0.05,
+      "status": "allowed",
+      "resets_at": 1795740600
+     },
+     "seven_day": {
+      "first": 0.21,
+      "n": 3,
+      "last": 0.22,
+      "status": "allowed",
+      "resets_at": 1795806000
+     },
+     "_status": {
+      "status": "allowed",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    }
+   }
+  ],
+  "model_usage": [
+   {
+    "claude-opus-5-5": {
+     "inputTokens": 436,
+     "outputTokens": 354111,
+     "cacheReadInputTokens": 74755857,
+     "cacheCreationInputTokens": 563860,
+     "webSearchRequests": 0,
+     "costUSD": 26.54601539999999,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 223004,
+     "cacheCreationEphemeral5mInputTokens": 0,
+     "cacheCreationEphemeral1hInputTokens": 563860,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   {
+    "claude-opus-5-5": {
+     "inputTokens": 446,
+     "outputTokens": 360012,
+     "thinkingTokens": 223902,
+     "cacheReadInputTokens": 77068433,
+     "cacheCreationInputTokens": 1137422,
+     "cacheCreationEphemeral5mInputTokens": 0,
+     "cacheCreationEphemeral1hInputTokens": 1137422,
+     "webSearchRequests": 0,
+     "costUSD": 31.71508659999999,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   }
+  ],
+  "tools": [
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "Read",
+   "Write"
+  ],
+  "mcp_servers": [],
+  "workspace": "/var/tmp/ar-cc/insert_with_real_info_1126/workspace"
+ },
+ "kind": "with_real_info"
+}

@@ -1,0 +1,1707 @@
+{
+ "ended": "submitted",
+ "submitted": 38,
+ "result_version": 38,
+ "turns": 218,
+ "versions": [
+  {
+   "note": "probe interface",
+   "lines": 44,
+   "base": null,
+   "runs": {
+    "s1@w0": [
+     false,
+     0.0
+    ],
+    "s2@w0": [
+     false,
+     0.0
+    ],
+    "s1@w1": [
+     false,
+     0.0
+    ],
+    "s2@w1": [
+     false,
+     0.0
+    ],
+    "s1@w2": [
+     false,
+     32.6
+    ],
+    "s2@w2": [
+     false,
+     32.5
+    ]
+   },
+   "at": {
+    "turn": 7,
+    "usd": 1.74,
+    "tokens": 399078,
+    "min": 9.3
+   }
+  },
+  {
+   "note": "probe reach of overview poses",
+   "lines": 40,
+   "base": null,
+   "runs": {
+    "s1@w2": [
+     false,
+     30.8
+    ],
+    "s2@w2": [
+     false,
+     30.7
+    ]
+   },
+   "at": {
+    "turn": 17,
+    "usd": 2.68,
+    "tokens": 1258961,
+    "min": 15.3
+   }
+  },
+  {
+   "note": "first full skill: overview, rack/mug fit, plan, hang hover, grasp hover, grasp, thread, release",
+   "lines": 898,
+   "base": null,
+   "runs": {
+    "s1@w2": [
+     false,
+     12.8
+    ],
+    "s2@w2": [
+     false,
+     11.4
+    ],
+    "s3@w2": [
+     false,
+     14.3
+    ],
+    "s4@w2": [
+     false,
+     11.4
+    ]
+   },
+   "at": {
+    "turn": 23,
+    "usd": 4.21,
+    "tokens": 2085980,
+    "min": 21.5
+   }
+  },
+  {
+   "note": "fix xy vectorization, dedupe branches",
+   "lines": 909,
+   "base": null,
+   "runs": {
+    "s1@w2": [
+     false,
+     62.1
+    ],
+    "s2@w2": [
+     false,
+     153.2
+    ],
+    "s3@w2": [
+     false,
+     117.0
+    ],
+    "s4@w2": [
+     false,
+     123.7
+    ]
+   },
+   "at": {
+    "turn": 25,
+    "usd": 4.4,
+    "tokens": 2420843,
+    "min": 22.1
+   }
+  },
+  {
+   "note": "deep grasp (pinch 48mm above bottom), CLEAR 11, overview at x=-390, replan after refine, contact-guarded threading",
+   "lines": 945,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     false,
+     151.9
+    ],
+    "s2@w3": [
+     true,
+     152.7
+    ],
+    "s3@w3": [
+     false,
+     121.5
+    ],
+    "s4@w3": [
+     false,
+     113.3
+    ],
+    "s5@w3": [
+     false,
+     135.7
+    ],
+    "s6@w3": [
+     false,
+     227.7
+    ],
+    "s7@w3": [
+     false,
+     11.0
+    ],
+    "s8@w3": [
+     false,
+     11.0
+    ]
+   },
+   "at": {
+    "turn": 34,
+    "usd": 5.67,
+    "tokens": 4241088,
+    "min": 27.5
+   }
+  },
+  {
+   "note": "hover relative to rim (min depth), branch extraction 2-pass with axis from line intersection + geometric dedupe, turn fallbacks, threading retries, put back",
+   "lines": 1040,
+   "base": null,
+   "runs": {
+    "s1@w3": [
+     true,
+     144.1
+    ],
+    "s2@w3": [
+     false,
+     412.5
+    ],
+    "s3@w3": [
+     true,
+     121.0
+    ],
+    "s4@w3": [
+     true,
+     143.8
+    ],
+    "s5@w3": [
+     false,
+     234.0
+    ],
+    "s6@w3": [
+     false,
+     105.2
+    ],
+    "s7@w3": [
+     false,
+     475.2
+    ],
+    "s8@w3": [
+     false,
+     149.5
+    ]
+   },
+   "at": {
+    "turn": 48,
+    "usd": 6.87,
+    "tokens": 7492401,
+    "min": 31.2
+   }
+  },
+  {
+   "note": "v5 + test_grasp routine (TEST=None)",
+   "lines": 1094,
+   "base": null,
+   "runs": {},
+   "at": {
+    "turn": 54,
+    "usd": 7.45,
+    "tokens": 9012175,
+    "min": 34.9
+   }
+  },
+  {
+   "note": "EXPERIMENT: grasp test (lift in steps, truth offsets)",
+   "lines": 1094,
+   "base": null,
+   "runs": {
+    "s6@w3": [
+     false,
+     95.2
+    ],
+    "s5@w3": [
+     false,
+     103.2
+    ]
+   },
+   "at": {
+    "turn": 55,
+    "usd": 7.54,
+    "tokens": 9276352,
+    "min": 35.0
+   }
+  },
+  {
+   "note": "v5 + wrist-flip split moves, pre-grasp 35 above rim",
+   "lines": 1101,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     true,
+     143.9
+    ],
+    "s2@w4": [
+     false,
+     411.0
+    ],
+    "s3@w4": [
+     true,
+     120.9
+    ],
+    "s4@w4": [
+     false,
+     143.5
+    ],
+    "s5@w4": [
+     true,
+     237.5
+    ],
+    "s6@w4": [
+     false,
+     102.5
+    ],
+    "s7@w4": [
+     false,
+     694.9
+    ],
+    "s8@w4": [
+     true,
+     325.7
+    ]
+   },
+   "at": {
+    "turn": 58,
+    "usd": 7.94,
+    "tokens": 10093514,
+    "min": 36.8
+   }
+  },
+  {
+   "note": "force-guided threading retries (lateral/vertical), lower heights for yaw turns, time guard",
+   "lines": 1126,
+   "base": null,
+   "runs": {
+    "s2@w4": [
+     false,
+     428.6
+    ],
+    "s4@w4": [
+     true,
+     148.0
+    ],
+    "s6@w4": [
+     true,
+     126.7
+    ],
+    "s7@w4": [
+     false,
+     695.7
+    ],
+    "s8@w4": [
+     true,
+     149.3
+    ]
+   },
+   "at": {
+    "turn": 63,
+    "usd": 8.48,
+    "tokens": 11519706,
+    "min": 40.6
+   }
+  },
+  {
+   "note": "rack top incl. branch tips, collision-checked transport (higher / detour), put back via transport",
+   "lines": 1174,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     true,
+     163.9
+    ],
+    "s2@w5": [
+     false,
+     0.0
+    ],
+    "s3@w5": [
+     true,
+     120.1
+    ],
+    "s4@w5": [
+     false,
+     94.9
+    ],
+    "s5@w5": [
+     false,
+     371.4
+    ],
+    "s6@w5": [
+     false,
+     60.9
+    ],
+    "s7@w5": [
+     false,
+     73.7
+    ],
+    "s8@w5": [
+     false,
+     0.0
+    ]
+   },
+   "at": {
+    "turn": 73,
+    "usd": 9.52,
+    "tokens": 14639485,
+    "min": 45.2
+   }
+  },
+  {
+   "note": "multi-rim blob splitting, support level by ring mode, handle pts r>R+9, inspect maybes, GD clamp for low tables, robust rack top",
+   "lines": 1229,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     162.8
+    ],
+    "s2@w6": [
+     false,
+     123.5
+    ],
+    "s3@w6": [
+     false,
+     270.1
+    ],
+    "s4@w6": [
+     false,
+     156.3
+    ],
+    "s5@w6": [
+     true,
+     123.2
+    ],
+    "s6@w6": [
+     false,
+     175.0
+    ],
+    "s7@w6": [
+     true,
+     142.9
+    ],
+    "s8@w6": [
+     true,
+     278.6
+    ]
+   },
+   "at": {
+    "turn": 78,
+    "usd": 10.31,
+    "tokens": 16325590,
+    "min": 48.0
+   }
+  },
+  {
+   "note": "stricter handle test, dedupe candidates, r_out p99, refine with r_hint + plausibility, flip wrist on grasp reach refusal",
+   "lines": 1246,
+   "base": null,
+   "runs": {
+    "s2@w6": [
+     false,
+     95.4
+    ],
+    "s3@w6": [
+     false,
+     79.1
+    ],
+    "s4@w6": [
+     false,
+     153.4
+    ],
+    "s6@w6": [
+     false,
+     107.2
+    ]
+   },
+   "at": {
+    "turn": 85,
+    "usd": 11.16,
+    "tokens": 18846516,
+    "min": 53.5
+   }
+  },
+  {
+   "note": "closed-loop moves while holding (payload sag), handle r_out grazing correction, lateral-first threading search, hang-here if contact past tip, inspection reach offsets",
+   "lines": 1288,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     188.1
+    ],
+    "s2@w6": [
+     false,
+     182.0
+    ],
+    "s3@w6": [
+     false,
+     294.7
+    ],
+    "s4@w6": [
+     false,
+     96.9
+    ],
+    "s5@w6": [
+     true,
+     125.9
+    ],
+    "s6@w6": [
+     false,
+     104.6
+    ],
+    "s7@w6": [
+     true,
+     146.4
+    ],
+    "s8@w6": [
+     true,
+     176.6
+    ]
+   },
+   "at": {
+    "turn": 95,
+    "usd": 12.52,
+    "tokens": 22762830,
+    "min": 56.8
+   }
+  },
+  {
+   "note": "handle detection: outer part only (beyond wall fattening), up to 3 peaks, attachment test; transport height variants",
+   "lines": 1307,
+   "base": null,
+   "runs": {
+    "s2@w6": [
+     false,
+     105.7
+    ],
+    "s3@w6": [
+     false,
+     289.1
+    ],
+    "s4@w6": [
+     false,
+     95.1
+    ],
+    "s6@w6": [
+     false,
+     104.5
+    ]
+   },
+   "at": {
+    "turn": 101,
+    "usd": 13.33,
+    "tokens": 25240637,
+    "min": 62.5
+   }
+  },
+  {
+   "note": "lift fallback (lower lift + move inward), branch filter slope<1.2 / tip below pole top+100 (rack top fix)",
+   "lines": 1330,
+   "base": null,
+   "runs": {
+    "s3@w6": [
+     false,
+     418.9
+    ],
+    "s4@w6": [
+     false,
+     95.1
+    ],
+    "s9@w6": [
+     true,
+     168.7
+    ],
+    "s10@w6": [
+     true,
+     202.6
+    ],
+    "s11@w6": [
+     true,
+     162.0
+    ],
+    "s12@w6": [
+     true,
+     141.3
+    ],
+    "s13@w6": [
+     true,
+     130.6
+    ],
+    "s14@w6": [
+     false,
+     92.1
+    ]
+   },
+   "at": {
+    "turn": 104,
+    "usd": 13.79,
+    "tokens": 26534944,
+    "min": 69.5
+   }
+  },
+  {
+   "note": "HOVER 155, up to 8 candidates, no grasp without a refined mug model",
+   "lines": 1330,
+   "base": null,
+   "runs": {
+    "s3@w6": [
+     false,
+     499.6
+    ],
+    "s4@w6": [
+     true,
+     375.5
+    ],
+    "s14@w6": [
+     false,
+     97.6
+    ],
+    "s15@w6": [
+     true,
+     131.9
+    ],
+    "s16@w6": [
+     true,
+     128.2
+    ],
+    "s17@w6": [
+     true,
+     190.9
+    ],
+    "s18@w6": [
+     false,
+     207.5
+    ],
+    "s19@w6": [
+     false,
+     88.9
+    ]
+   },
+   "at": {
+    "turn": 109,
+    "usd": 14.39,
+    "tokens": 28740352,
+    "min": 73.8
+   }
+  },
+  {
+   "note": "hover poses put the wrist camera above the mug axis (grasp) / its hang position (hang), matched in gripper frame; HOVER 160; threading by 4mm free steps with load-relative force test",
+   "lines": 1353,
+   "base": null,
+   "runs": {
+    "s3@w6": [
+     true,
+     163.3
+    ],
+    "s14@w6": [
+     true,
+     142.7
+    ],
+    "s18@w6": [
+     false,
+     229.5
+    ],
+    "s19@w6": [
+     false,
+     84.7
+    ],
+    "s20@w6": [
+     true,
+     137.0
+    ],
+    "s1@w6": [
+     true,
+     172.7
+    ],
+    "s2@w6": [
+     false,
+     242.9
+    ],
+    "s6@w6": [
+     false,
+     112.1
+    ]
+   },
+   "at": {
+    "turn": 118,
+    "usd": 15.59,
+    "tokens": 32870006,
+    "min": 80.0
+   }
+  },
+  {
+   "note": "handle = radially contiguous cluster (neighbours excluded), wider refine search radius, s_d range from collision check (short branches)",
+   "lines": 1369,
+   "base": null,
+   "runs": {
+    "s2@w6": [
+     false,
+     223.8
+    ],
+    "s6@w6": [
+     false,
+     111.6
+    ],
+    "s18@w6": [
+     false,
+     234.8
+    ],
+    "s19@w6": [
+     false,
+     103.2
+    ],
+    "s5@w6": [
+     true,
+     139.4
+    ],
+    "s7@w6": [
+     true,
+     169.5
+    ],
+    "s8@w6": [
+     false,
+     185.8
+    ],
+    "s10@w6": [
+     true,
+     167.4
+    ]
+   },
+   "at": {
+    "turn": 125,
+    "usd": 16.46,
+    "tokens": 36190975,
+    "min": 82.8
+   }
+  },
+  {
+   "note": "release only after the rack is felt to carry the mug (lower in 2mm steps until load drops); back out and retry otherwise",
+   "lines": 1395,
+   "base": null,
+   "runs": {
+    "s8@w6": [
+     false,
+     187.3
+    ],
+    "s18@w6": [
+     false,
+     235.9
+    ],
+    "s2@w6": [
+     false,
+     225.2
+    ],
+    "s1@w6": [
+     true,
+     178.9
+    ],
+    "s3@w6": [
+     false,
+     542.7
+    ],
+    "s9@w6": [
+     true,
+     188.4
+    ],
+    "s11@w6": [
+     true,
+     265.0
+    ],
+    "s12@w6": [
+     true,
+     157.2
+    ]
+   },
+   "at": {
+    "turn": 132,
+    "usd": 17.37,
+    "tokens": 39609657,
+    "min": 86.0
+   }
+  },
+  {
+   "note": "support test: dFz > max(1.6, .45 W) confirmed over 2 steps; debug grasp hover framing",
+   "lines": 1410,
+   "base": null,
+   "runs": {
+    "s18@w6": [
+     false,
+     236.4
+    ],
+    "s8@w6": [
+     false,
+     191.8
+    ],
+    "s3@w6": [
+     true,
+     172.0
+    ]
+   },
+   "at": {
+    "turn": 138,
+    "usd": 18.12,
+    "tokens": 42595475,
+    "min": 91.7
+   }
+  },
+  {
+   "note": "obstacle-aware low lift-out, transport 180 above table, hang-here only past 70% of the thread",
+   "lines": 1428,
+   "base": null,
+   "runs": {
+    "s21@w6": [
+     true,
+     138.3
+    ],
+    "s22@w6": [
+     false,
+     130.0
+    ],
+    "s23@w6": [
+     true,
+     302.7
+    ],
+    "s24@w6": [
+     false,
+     462.9
+    ],
+    "s25@w6": [
+     true,
+     123.2
+    ],
+    "s26@w6": [
+     true,
+     209.1
+    ],
+    "s27@w6": [
+     false,
+     645.9
+    ],
+    "s28@w6": [
+     false,
+     333.3
+    ]
+   },
+   "at": {
+    "turn": 141,
+    "usd": 18.63,
+    "tokens": 44127904,
+    "min": 94.4
+   }
+  },
+  {
+   "note": "handle points only in upper part of the mug height (drops platforms), 5 peaks",
+   "lines": 1429,
+   "base": null,
+   "runs": {
+    "s22@w6": [
+     true,
+     160.9
+    ],
+    "s24@w6": [
+     false,
+     598.9
+    ],
+    "s27@w6": [
+     false,
+     644.2
+    ],
+    "s28@w6": [
+     true,
+     180.4
+    ],
+    "s2@w6": [
+     false,
+     698.2
+    ],
+    "s6@w6": [
+     false,
+     112.0
+    ],
+    "s18@w6": [
+     false,
+     374.3
+    ],
+    "s19@w6": [
+     false,
+     104.8
+    ]
+   },
+   "at": {
+    "turn": 147,
+    "usd": 19.39,
+    "tokens": 47241546,
+    "min": 98.8
+   }
+  },
+  {
+   "note": "accept larger handle-angle corrections at grasp hover and re-look from the matched hover; final settle wait",
+   "lines": 1446,
+   "base": null,
+   "runs": {
+    "s18@w7": [
+     true,
+     592.0
+    ],
+    "s24@w7": [
+     false,
+     667.5
+    ],
+    "s27@w7": [
+     false,
+     425.3
+    ],
+    "s2@w7": [
+     false,
+     448.7
+    ],
+    "s6@w7": [
+     false,
+     115.0
+    ],
+    "s19@w7": [
+     false,
+     103.8
+    ],
+    "s21@w7": [
+     true,
+     138.6
+    ],
+    "s23@w7": [
+     true,
+     431.0
+    ]
+   },
+   "at": {
+    "turn": 152,
+    "usd": 20.11,
+    "tokens": 49889741,
+    "min": 103.4
+   }
+  },
+  {
+   "note": "threading search over absolute lateral/vertical offsets (8 tries, time-guarded), far point 6mm further, turn closer to robot when far out",
+   "lines": 1458,
+   "base": null,
+   "runs": {
+    "s27@w7": [
+     false,
+     459.2
+    ],
+    "s24@w7": [
+     false,
+     731.8
+    ],
+    "s19@w7": [
+     false,
+     140.0
+    ],
+    "s1@w7": [
+     true,
+     185.9
+    ],
+    "s4@w7": [
+     true,
+     139.3
+    ],
+    "s5@w7": [
+     false,
+     80.9
+    ],
+    "s9@w7": [
+     true,
+     192.3
+    ],
+    "s14@w7": [
+     true,
+     158.4
+    ]
+   },
+   "at": {
+    "turn": 157,
+    "usd": 20.81,
+    "tokens": 52586538,
+    "min": 108.5
+   }
+  },
+  {
+   "note": "contact test = step-to-step force jump (load estimate drifts), far point +13",
+   "lines": 1461,
+   "base": null,
+   "runs": {
+    "s24@w7": [
+     false,
+     648.6
+    ],
+    "s5@w7": [
+     false,
+     80.4
+    ],
+    "s27@w7": [
+     false,
+     650.8
+    ],
+    "s22@w7": [
+     true,
+     163.1
+    ],
+    "s25@w7": [
+     true,
+     419.4
+    ],
+    "s26@w7": [
+     false,
+     213.8
+    ],
+    "s28@w7": [
+     true,
+     186.2
+    ],
+    "s10@w7": [
+     true,
+     173.8
+    ]
+   },
+   "at": {
+    "turn": 160,
+    "usd": 21.23,
+    "tokens": 54229166,
+    "min": 112.7
+   }
+  },
+  {
+   "note": "smaller keep-out around a hung mug",
+   "lines": 1461,
+   "base": null,
+   "runs": {
+    "s5@w7": [
+     false,
+     80.4
+    ],
+    "s26@w7": [
+     false,
+     213.8
+    ],
+    "s3@w7": [
+     true,
+     173.7
+    ],
+    "s7@w7": [
+     true,
+     262.1
+    ],
+    "s8@w7": [
+     true,
+     248.2
+    ],
+    "s11@w7": [
+     true,
+     157.2
+    ],
+    "s12@w7": [
+     true,
+     209.8
+    ],
+    "s13@w7": [
+     true,
+     159.3
+    ]
+   },
+   "at": {
+    "turn": 166,
+    "usd": 22.08,
+    "tokens": 57574333,
+    "min": 116.7
+   }
+  },
+  {
+   "note": "merge near-duplicate branch lines (az<12deg, dz<20)",
+   "lines": 1463,
+   "base": null,
+   "runs": {
+    "s29@w7": [
+     true,
+     242.9
+    ],
+    "s30@w7": [
+     true,
+     191.3
+    ],
+    "s31@w7": [
+     true,
+     151.4
+    ],
+    "s32@w7": [
+     true,
+     137.2
+    ],
+    "s33@w7": [
+     false,
+     110.3
+    ],
+    "s34@w7": [
+     true,
+     154.7
+    ],
+    "s35@w7": [
+     true,
+     227.1
+    ],
+    "s36@w7": [
+     true,
+     142.4
+    ]
+   },
+   "at": {
+    "turn": 169,
+    "usd": 22.47,
+    "tokens": 59269452,
+    "min": 119.7
+   }
+  },
+  {
+   "note": "hover fallbacks: shifted toward robot / lower when the matched hover is out of reach",
+   "lines": 1476,
+   "base": null,
+   "runs": {},
+   "at": {
+    "turn": 173,
+    "usd": 23.08,
+    "tokens": 61558530,
+    "min": 122.0
+   }
+  },
+  {
+   "note": "hover fallbacks: shifted toward robot / lower when the matched hover is out of reach (also for the yaw turn)",
+   "lines": 1477,
+   "base": null,
+   "runs": {
+    "s33@w7": [
+     false,
+     749.8
+    ],
+    "s19@w7": [
+     true,
+     221.2
+    ],
+    "s5@w7": [
+     true,
+     145.0
+    ],
+    "s26@w7": [
+     false,
+     213.8
+    ],
+    "s24@w7": [
+     false,
+     648.6
+    ],
+    "s27@w7": [
+     false,
+     650.8
+    ],
+    "s6@w7": [
+     false,
+     114.0
+    ],
+    "s2@w7": [
+     false,
+     809.3
+    ]
+   },
+   "at": {
+    "turn": 174,
+    "usd": 23.24,
+    "tokens": 62136946,
+    "min": 122.1
+   }
+  },
+  {
+   "note": "round-robin over mugs: a mug that failed after grasping waits for the others",
+   "lines": 1489,
+   "base": null,
+   "runs": {
+    "s33@w7": [
+     false,
+     749.8
+    ],
+    "s2@w7": [
+     false,
+     664.3
+    ],
+    "s24@w7": [
+     false,
+     413.4
+    ],
+    "s27@w7": [
+     false,
+     439.2
+    ],
+    "s29@w7": [
+     true,
+     247.3
+    ],
+    "s30@w7": [
+     true,
+     191.3
+    ],
+    "s31@w7": [
+     true,
+     151.4
+    ],
+    "s32@w7": [
+     true,
+     137.2
+    ]
+   },
+   "at": {
+    "turn": 180,
+    "usd": 24.07,
+    "tokens": 65634729,
+    "min": 127.0
+   }
+  },
+  {
+   "note": "reject support felt too early (handle's lower bar / something under the mug)",
+   "lines": 1493,
+   "base": null,
+   "runs": {
+    "s37@w7": [
+     true,
+     176.4
+    ],
+    "s38@w7": [
+     false,
+     176.7
+    ],
+    "s39@w7": [
+     false,
+     184.0
+    ],
+    "s40@w7": [
+     true,
+     204.9
+    ],
+    "s41@w7": [
+     true,
+     145.7
+    ],
+    "s42@w7": [
+     true,
+     159.0
+    ],
+    "s43@w7": [
+     true,
+     204.9
+    ],
+    "s44@w7": [
+     false,
+     13.0
+    ]
+   },
+   "at": {
+    "turn": 183,
+    "usd": 24.47,
+    "tokens": 67400046,
+    "min": 131.1
+   }
+  },
+  {
+   "note": "weigh the held mug after lift; far point must be free (raise if supported); support test needs >50% of the weight and starts unsupported",
+   "lines": 1510,
+   "base": null,
+   "runs": {},
+   "at": {
+    "turn": 188,
+    "usd": 25.3,
+    "tokens": 70393037,
+    "min": 133.0
+   }
+  },
+  {
+   "note": "v32 with looser free-hanging thresholds (force estimate drift)",
+   "lines": 1510,
+   "base": null,
+   "runs": {
+    "s38@w7": [
+     false,
+     193.4
+    ],
+    "s39@w7": [
+     false,
+     673.5
+    ],
+    "s37@w7": [
+     true,
+     177.5
+    ],
+    "s40@w7": [
+     true,
+     205.0
+    ],
+    "s41@w7": [
+     true,
+     146.3
+    ],
+    "s29@w7": [
+     true,
+     277.2
+    ],
+    "s30@w7": [
+     true,
+     193.2
+    ],
+    "s34@w7": [
+     true,
+     177.3
+    ]
+   },
+   "at": {
+    "turn": 189,
+    "usd": 25.44,
+    "tokens": 70997783,
+    "min": 133.1
+   }
+  },
+  {
+   "note": "support only within CLEAR+13 mm; give a plan up when the far point stays blocked",
+   "lines": 1522,
+   "base": null,
+   "runs": {
+    "s45@w7": [
+     true,
+     436.9
+    ],
+    "s46@w7": [
+     false,
+     114.3
+    ],
+    "s47@w7": [
+     false,
+     173.1
+    ],
+    "s48@w7": [
+     true,
+     320.2
+    ],
+    "s49@w7": [
+     true,
+     306.3
+    ],
+    "s50@w7": [
+     true,
+     223.5
+    ],
+    "s51@w7": [
+     true,
+     162.9
+    ],
+    "s52@w7": [
+     true,
+     168.6
+    ]
+   },
+   "at": {
+    "turn": 192,
+    "usd": 25.89,
+    "tokens": 72820521,
+    "min": 135.8
+   }
+  },
+  {
+   "note": "gentler support test (1.5 mm steps, half-step confirm, back off if pressing hard) so light racks do not tip",
+   "lines": 1525,
+   "base": null,
+   "runs": {
+    "s47@w7": [
+     false,
+     175.4
+    ],
+    "s46@w7": [
+     false,
+     116.4
+    ],
+    "s38@w7": [
+     false,
+     188.3
+    ],
+    "s39@w7": [
+     false,
+     630.5
+    ],
+    "s31@w7": [
+     true,
+     153.0
+    ],
+    "s32@w7": [
+     true,
+     151.2
+    ],
+    "s36@w7": [
+     true,
+     176.2
+    ],
+    "s42@w7": [
+     true,
+     161.1
+    ]
+   },
+   "at": {
+    "turn": 196,
+    "usd": 26.46,
+    "tokens": 75272949,
+    "min": 139.3
+   }
+  },
+  {
+   "note": "support confirmation: >55% of the weight and not decreasing",
+   "lines": 1525,
+   "base": null,
+   "runs": {
+    "s45@w8": [
+     true,
+     540.5
+    ],
+    "s46@w8": [
+     false,
+     115.5
+    ],
+    "s47@w8": [
+     true,
+     139.1
+    ],
+    "s48@w8": [
+     true,
+     300.1
+    ],
+    "s49@w8": [
+     true,
+     305.6
+    ],
+    "s50@w8": [
+     true,
+     270.6
+    ],
+    "s51@w8": [
+     true,
+     151.5
+    ],
+    "s52@w8": [
+     true,
+     142.4
+    ],
+    "s53@w8": [
+     true,
+     224.2
+    ],
+    "s54@w8": [
+     false,
+     503.1
+    ],
+    "s55@w8": [
+     true,
+     211.3
+    ],
+    "s56@w8": [
+     false,
+     700.5
+    ],
+    "s57@w8": [
+     false,
+     725.5
+    ],
+    "s58@w8": [
+     true,
+     172.2
+    ],
+    "s59@w8": [
+     true,
+     161.7
+    ],
+    "s60@w8": [
+     true,
+     609.7
+    ]
+   },
+   "at": {
+    "turn": 199,
+    "usd": 26.93,
+    "tokens": 77131138,
+    "min": 141.9
+   }
+  },
+  {
+   "note": "check the mug is still held after the lift (opening)",
+   "lines": 1530,
+   "base": null,
+   "runs": {},
+   "at": {
+    "turn": 207,
+    "usd": 28.14,
+    "tokens": 82168782,
+    "min": 151.2
+   }
+  },
+  {
+   "note": "v37 + exceptions caught -> open gripper, go home",
+   "lines": 1527,
+   "base": null,
+   "runs": {
+    "s54@w8": [
+     false,
+     503.1
+    ],
+    "s56@w8": [
+     false,
+     700.5
+    ],
+    "s57@w8": [
+     false,
+     725.5
+    ],
+    "s53@w8": [
+     true,
+     224.2
+    ],
+    "s55@w8": [
+     true,
+     211.3
+    ],
+    "s58@w8": [
+     true,
+     172.2
+    ],
+    "s59@w8": [
+     true,
+     161.7
+    ],
+    "s47@w8": [
+     true,
+     139.1
+    ]
+   },
+   "at": {
+    "turn": 208,
+    "usd": 28.3,
+    "tokens": 82807610,
+    "min": 151.3
+   }
+  },
+  {
+   "note": "try to hang where a contact stops the thread once the handle is 10 mm past the tip (support test decides)",
+   "lines": 1527,
+   "base": null,
+   "runs": {
+    "s56@w8": [
+     false,
+     663.6
+    ],
+    "s57@w8": [
+     false,
+     725.5
+    ],
+    "s54@w8": [
+     false,
+     503.1
+    ],
+    "s46@w8": [
+     false,
+     115.5
+    ],
+    "s45@w8": [
+     true,
+     540.5
+    ],
+    "s48@w8": [
+     false,
+     125.2
+    ],
+    "s49@w8": [
+     true,
+     305.6
+    ],
+    "s50@w8": [
+     true,
+     229.0
+    ]
+   },
+   "at": {
+    "turn": 213,
+    "usd": 29.09,
+    "tokens": 86025411,
+    "min": 157.9
+   }
+  }
+ ],
+ "task": "insert_varied",
+ "env": "sim_bimanual_grippers",
+ "sensors": "d415",
+ "budget_usd": 50.0,
+ "spent_usd": 29.9138,
+ "compactions": 0,
+ "wall_s": 9857.5,
+ "effort": "xhigh",
+ "task_world": 8,
+ "agent": {
+  "kind": "claude_code",
+  "cli_version": "2.1.331 (Claude Code)",
+  "account": "the user's other Claude account (Pro on 2026-11-25, being upgraded to Max; token login: the CLI reports no email or plan)",
+  "organisation": null,
+  "plan": null,
+  "usage_limits": {
+   "first": {
+    "five_hour": {
+     "first": 0.05,
+     "n": 50,
+     "last": 0.64,
+     "status": "allowed",
+     "resets_at": 1795650600
+    },
+    "seven_day": {
+     "first": 0,
+     "n": 50,
+     "last": 0.05,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   },
+   "last": {
+    "five_hour": {
+     "first": 0.05,
+     "n": 50,
+     "last": 0.64,
+     "status": "allowed",
+     "resets_at": 1795650600
+    },
+    "seven_day": {
+     "first": 0,
+     "n": 50,
+     "last": 0.05,
+     "status": "allowed",
+     "resets_at": 1795806000
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   }
+  },
+  "cli_turns": 359,
+  "plan_tier": null,
+  "auth": "oauth_token",
+  "model": "opus",
+  "model_resolved": "claude-opus-5-5",
+  "effort": "xhigh",
+  "cost_usd": 29.91379,
+  "cost_is": "the CLI's total_cost_usd (API-equivalent), summed over the invocations",
+  "tokens": {
+   "input": 88940016,
+   "cached": 88288710,
+   "cache_write": 650870,
+   "output": 352367
+  },
+  "replies": 218,
+  "invocations": [
+   {
+    "k": 0,
+    "exit": 0,
+    "stopped": null,
+    "wall_s": 9857.5,
+    "usd": 29.91379,
+    "estimated": false,
+    "cli_total_usd": 29.913785999999995,
+    "subtype": "success",
+    "is_error": false,
+    "num_turns": 359,
+    "replies": 218,
+    "tokens": {
+     "input": 88940016,
+     "cached": 88288710,
+     "cache_write": 650870,
+     "output": 352367
+    },
+    "compactions": 0,
+    "session_id": "001ff196-b743-4f00-936d-070a7b02a8ce",
+    "resumed": null,
+    "estimate_usd": 29.91379,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0.05,
+      "n": 50,
+      "last": 0.64,
+      "status": "allowed",
+      "resets_at": 1795650600
+     },
+     "seven_day": {
+      "first": 0,
+      "n": 50,
+      "last": 0.05,
+      "status": "allowed",
+      "resets_at": 1795806000
+     },
+     "_status": {
+      "status": "allowed",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    }
+   }
+  ],
+  "model_usage": [
+   {
+    "claude-opus-5-5": {
+     "inputTokens": 436,
+     "outputTokens": 352367,
+     "cacheReadInputTokens": 88288710,
+     "cacheCreationInputTokens": 650870,
+     "webSearchRequests": 0,
+     "costUSD": 29.913785999999995,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 216865,
+     "cacheCreationEphemeral5mInputTokens": 0,
+     "cacheCreationEphemeral1hInputTokens": 650870,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   }
+  ],
+  "tools": [
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "Read",
+   "Write"
+  ],
+  "mcp_servers": [],
+  "workspace": "/var/tmp/ar-cc/hang_mugs_own_cc_xhigh_1125/workspace"
+ }
+}

@@ -1,0 +1,5 @@
+# task: Task: put the cylinder on the stick. A cylinder with a hole and a stand with one vertical stick are on the table in front of the robot. Thread the cylinder onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright on the table. The task requires mm level precision.
+# sim live: robot time limit 1500.0 s, model calls off
+# t=   0.0 look([left_wrist]) -> left_wrist: Frame | left tool (-477.8, 41, 349.5)
+attempt 0: looked and did nothing
+# ended: returned

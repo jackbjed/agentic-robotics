@@ -1,0 +1,20 @@
+hang all the mugs on the mug rack.
+
+On the table there are two mugs, standing upright, and one mug rack. Pick up each mug and hang it on the rack
+by its handle: a branch of the rack must pass through the handle so that the rack bears the mug's weight; a mug
+that leans against the rack or is still held does not count. Each mug must stay hanging after it is released,
+and hanging one mug must not knock another off. At the end all mugs hang on the rack, the gripper is open and
+back at its initial pose. The check should also report how many of the mugs hang.
+
+The program should be robust to:
+- different mugs and mug racks, with different physical properties: visual appearances, shapes, sizes,
+  colours, frictions, densities and other physical parameters;
+- different spatial locations and configurations, and different spatial arrangements of the objects;
+- the height at which the mugs and the rack are;
+- the presence of distractors;
+- different table heights.
+
+You receive no external test cases and no assets: no mugs and no racks, only the robot, its cameras and the
+table. With worlds of your own you create your own test cases and assets to make the skill.
+
+Versions of this skill have now been run on the real robot; the episodes are yours to study. Specialize the skill to this real table, this mug rack and these mugs, the ones in the episodes: it no longer has to handle other racks. Make it reliable on the real robot first, then as fast as you can in the rig's time.

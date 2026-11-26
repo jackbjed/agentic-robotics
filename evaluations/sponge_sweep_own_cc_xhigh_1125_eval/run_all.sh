@@ -1,0 +1,3 @@
+#!/bin/sh
+# v31 of the Claude Code sweeping session in its own task world (w21), 16 new scenes, cameras only (no simulator truth).
+cd <WORKSPACE>/agentic-robotics/../agentic-robotics-own1125 && PYTHONPATH=<WORKSPACE>/agentic-robotics/../agentic-robotics-own1125/src PYTHONNOUSERSITE=1 MUJOCO_GL=egl EVAL_PRACTICE=0 EVAL_WORKERS=8 <WORKSPACE>/agentic-robotics/.venv/bin/python <WORKSPACE>/agentic-robotics/runs/bimanual/sponge_sweep_own_cc_xhigh_1125_eval/eval_own.py <WORKSPACE>/agentic-robotics/runs/bimanual/sponge_sweep_own_cc_xhigh_1125 <WORKSPACE>/agentic-robotics/runs/bimanual/sponge_sweep_own_cc_xhigh_1125_eval/fresh 21 2001-2016 31 600

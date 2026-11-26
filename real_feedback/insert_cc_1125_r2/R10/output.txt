@@ -1,0 +1,31 @@
+# task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# robot live: robot time limit 1500.0 s, model calls off
+# t=   0.8 set_gripper('left', 80) -> 80 | left tool (-492.1, 92.5, 355.6)
+# t=   9.7 move('left', (-350, 60, 620), (0, 0, -1), (0, -1, 0)) -> done | left tool (-350.3, 59.8, 620.2)
+# t=   9.7 look([left_wrist]) -> left_wrist: Frame | left tool (-350.3, 59.8, 620.1)
+# t=   9.7 segment('ring') -> 0 masks | left tool (-350.3, 59.8, 620.1)
+# t=   9.7 segment('cylinder with a hole') -> 6 masks, best score 0.83 | left tool (-350.3, 59.8, 620.1)
+plane [ 0.0048  0.01   -3.6436] zmax 80.1 camoff [50.8 -3.7] cam up 133.4
+STICKC {'uv': (282, 98), 'xyz': [-167.7, 93.6, 186.5], 'top': 186.52, 'lrise': 170.7, 'eqd': 16.45, 'ped': 15.68, 'score': 5.3}
+RINGC {'sam': 0.6, 'uv': (461, 180), 'xyz': [-232.2, -95.3, 76.2], 'top': 76.24, 'rise': 79.26, 'eqd': 44.96, 'circ': 0.9, 'holey': 1.0, 'score': 2.8}
+RINGC {'sam': 0.0, 'uv': (342, 274), 'xyz': [-338.1, 32.6, 27.8], 'top': 27.78, 'rise': 32.03, 'eqd': 42.59, 'circ': 0.89, 'holey': 0.0, 'score': 1.2}
+RINGC {'sam': 0.83, 'uv': (290, 115), 'xyz': [-183.3, 86.0, 183.5], 'top': 183.46, 'rise': 169.04, 'eqd': 24.6, 'circ': 0.57, 'holey': 1.0, 'score': -0.67}
+cylinder candidates to look at: 3
+# t=  16.3 move('left', (-283.05, -91.58, 322.8), (0, 0, -1), (0, -1, 0)) -> done | left tool (-282.9, -92.1, 324.4)
+# t=  16.3 look([left_wrist]) -> left_wrist: Frame | left tool (-282.9, -92.1, 324.4)
+RING closeup {'xy': [-236.4, -101.2], 'top': 90.35, 'od': 38.26, 'hole_d': 18.03, 'low': 1.0, 'high': 0.0, 'deep': 1.0, 'hd2': 17.95, 'lowc': 1.0, 'lowfin': 0.44, 'sup': -0.03, 'uv': (328.8444297956493, 250.5550428477258), 'cen': 12.85}
+ring candidates [([-236.0, -101.0], 14.8)]
+# t=  20.1 move('left', (-282.9, -92.1, 433.08), (0, 0, -1), (-0, -1, -0)) -> done | left tool (-283.7, -94, 429.6)
+# t=  24.2 move('left', (-218.56, 97.24, 433.08), (0, 0, -1), (0, -1, 0)) -> done | left tool (-218.2, 95.8, 429.9)
+# t=  24.2 look([left_wrist]) -> left_wrist: Frame | left tool (-218.2, 95.8, 430)
+STICK closeup {'xy': [-170.2, 84.6], 'top': 190.76, 'eqd': 12.1, 'base': 21.77, 'lrise': 168.16, 'plate': 1.0, 'uv': (330.13166144200625, 244.32601880877743), 'cen': 11.3}
+ring closing angle 60 clearance -51.7 zc 20.0 sup 0.0
+# t=  34.1 move('left', (-236.35, -101.21, 200), (0, 0, -1), (0.5, 0.87, 0)) -> done | left tool (-236.1, -103.6, 198.4)
+# t=  39.8 move('left', (-236.35, -101.21, 114.35), (0, 0, -1), (0.5, 0.87, 0)) -> done | left tool (-235.8, -101.6, 115.2)
+# t=  40.6 move('left', (-236.35, -101.21, 109.35), (0, 0, -1), (-0.5, -0.86, -0)) -> done | left tool (-236.4, -101.8, 108.9)
+#          (the line ran to its end: the tool 3.7 mm from its goal, the arm's settle follows)
+# t=  41.0 move('left', (-236.35, -101.21, 96.35), (0, 0, -1), (-0.5, -0.86, 0), True) -> done | left tool (-240.9, -100.5, 92)
+# t=  47.0 move('left', (-236.35, -101.21, 20), (0, 0, -1), (-0.5, -0.86, 0)) -> done | left tool (-237.4, -104.1, 18.9)
+# t=  47.8 set_gripper('left', 0) -> 0.2 | left tool (-237.4, -104, 18.9)
+CYL-a w 0.20 push 0.10
+# t=  48.5 set_gripper('left', 62.08) -> 62 | left tool (-237.4, -104, 18.9)

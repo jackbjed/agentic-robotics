@@ -1,0 +1,843 @@
+{
+ "ended": "submitted",
+ "submitted": 9,
+ "result_version": 9,
+ "turns": 72,
+ "versions": [
+  {
+   "note": "v0 probe: cameras, plane fit, components, SAM, limit test",
+   "lines": 106,
+   "base": null,
+   "runs": {
+    "s1@w0": [
+     false,
+     0.0
+    ],
+    "s2@w0": [
+     false,
+     0.0
+    ],
+    "s3@w0": [
+     false,
+     0.0
+    ],
+    "s1@w1": [
+     false,
+     0.0
+    ],
+    "s2@w1": [
+     false,
+     0.0
+    ],
+    "s3@w1": [
+     false,
+     0.0
+    ],
+    "s1@w2": [
+     false,
+     0.0
+    ],
+    "s2@w2": [
+     false,
+     0.0
+    ],
+    "s3@w2": [
+     false,
+     0.0
+    ],
+    "s1@w3": [
+     false,
+     21.7
+    ],
+    "s2@w3": [
+     false,
+     11.2
+    ],
+    "s3@w3": [
+     false,
+     29.4
+    ]
+   },
+   "at": {
+    "turn": 7,
+    "usd": 0.83,
+    "tokens": 247517,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v1: scene SAM rough -> wrist look tray & block (depth) -> top grasp -> place with contact stop -> release, home",
+   "lines": 421,
+   "base": null,
+   "runs": {
+    "s1@w4": [
+     true,
+     42.3
+    ],
+    "s2@w4": [
+     true,
+     46.4
+    ],
+    "s3@w4": [
+     true,
+     44.4
+    ],
+    "s4@w4": [
+     true,
+     49.3
+    ],
+    "s5@w4": [
+     true,
+     46.0
+    ],
+    "s6@w4": [
+     true,
+     47.7
+    ],
+    "s7@w4": [
+     true,
+     44.9
+    ],
+    "s8@w4": [
+     true,
+     43.9
+    ]
+   },
+   "at": {
+    "turn": 23,
+    "usd": 2.13,
+    "tokens": 1218672,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v2: v1 + place target clamped to the TCP limit, retreat in two steps, re-try contact descent",
+   "lines": 429,
+   "base": null,
+   "runs": {
+    "s1@w5": [
+     true,
+     41.8
+    ],
+    "s2@w5": [
+     true,
+     48.7
+    ],
+    "s3@w5": [
+     true,
+     46.3
+    ],
+    "s4@w5": [
+     true,
+     51.0
+    ],
+    "s5@w5": [
+     true,
+     47.9
+    ],
+    "s6@w5": [
+     true,
+     50.2
+    ],
+    "s7@w5": [
+     true,
+     45.0
+    ],
+    "s8@w5": [
+     true,
+     46.2
+    ],
+    "s9@w5": [
+     true,
+     46.7
+    ],
+    "s10@w5": [
+     true,
+     46.8
+    ],
+    "s11@w5": [
+     true,
+     44.9
+    ],
+    "s12@w5": [
+     true,
+     42.7
+    ],
+    "s13@w5": [
+     true,
+     46.5
+    ],
+    "s14@w5": [
+     true,
+     45.2
+    ],
+    "s15@w5": [
+     true,
+     40.2
+    ],
+    "s16@w5": [
+     true,
+     46.8
+    ],
+    "s1@w6": [
+     false,
+     2.1
+    ],
+    "s2@w6": [
+     true,
+     48.7
+    ],
+    "s3@w6": [
+     true,
+     45.4
+    ],
+    "s4@w6": [
+     true,
+     51.1
+    ],
+    "s5@w6": [
+     true,
+     46.5
+    ],
+    "s6@w6": [
+     true,
+     50.1
+    ],
+    "s7@w6": [
+     true,
+     48.1
+    ],
+    "s8@w6": [
+     true,
+     45.3
+    ]
+   },
+   "at": {
+    "turn": 28,
+    "usd": 2.49,
+    "tokens": 1753511,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v3: v2 + depth fallback splits objects in a top-down XY grid (not image components)",
+   "lines": 450,
+   "base": null,
+   "runs": {
+    "s1@w6": [
+     true,
+     40.8
+    ],
+    "s9@w6": [
+     true,
+     46.8
+    ],
+    "s10@w6": [
+     true,
+     46.8
+    ],
+    "s11@w6": [
+     false,
+     10.7
+    ],
+    "s12@w6": [
+     true,
+     42.6
+    ],
+    "s13@w6": [
+     false,
+     10.0
+    ],
+    "s14@w6": [
+     true,
+     45.1
+    ],
+    "s15@w6": [
+     true,
+     40.1
+    ]
+   },
+   "at": {
+    "turn": 38,
+    "usd": 3.17,
+    "tokens": 3048834,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v4: tray measured first (wrist, higher look); block candidates (SAM + depth grid comps outside the tray) each confirmed by a wrist look; wrist blobs inside the tray rejected",
+   "lines": 546,
+   "base": null,
+   "runs": {
+    "s11@w6": [
+     true,
+     49.3
+    ],
+    "s13@w6": [
+     true,
+     45.6
+    ],
+    "s16@w6": [
+     true,
+     46.1
+    ],
+    "s17@w6": [
+     true,
+     45.4
+    ],
+    "s18@w6": [
+     true,
+     46.0
+    ],
+    "s19@w6": [
+     true,
+     40.4
+    ],
+    "s20@w6": [
+     true,
+     47.4
+    ],
+    "s2@w6": [
+     true,
+     47.0
+    ],
+    "s1@w5": [
+     true,
+     42.2
+    ],
+    "s3@w5": [
+     true,
+     46.4
+    ],
+    "s4@w5": [
+     false,
+     32.4
+    ],
+    "s5@w5": [
+     true,
+     48.0
+    ],
+    "s9@w5": [
+     true,
+     46.9
+    ],
+    "s12@w5": [
+     true,
+     42.2
+    ],
+    "s17@w5": [
+     true,
+     45.4
+    ],
+    "s18@w5": [
+     true,
+     46.0
+    ]
+   },
+   "at": {
+    "turn": 41,
+    "usd": 3.65,
+    "tokens": 3536672,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v5: v4 + placement tries several points inside the tray (towards easy reach), 2 orientations, 2 heights; puts the block back if the tray is unreachable",
+   "lines": 617,
+   "base": null,
+   "runs": {
+    "s4@w5": [
+     true,
+     51.4
+    ],
+    "s21@w5": [
+     true,
+     49.1
+    ],
+    "s22@w5": [
+     true,
+     45.3
+    ],
+    "s23@w5": [
+     true,
+     44.2
+    ],
+    "s24@w5": [
+     true,
+     51.6
+    ],
+    "s25@w5": [
+     false,
+     14.9
+    ],
+    "s26@w5": [
+     true,
+     44.4
+    ],
+    "s27@w5": [
+     true,
+     43.4
+    ],
+    "s25@w7": [
+     true,
+     41.9
+    ],
+    "s28@w7": [
+     true,
+     46.2
+    ],
+    "s29@w7": [
+     true,
+     46.1
+    ],
+    "s30@w7": [
+     true,
+     49.2
+    ],
+    "s31@w7": [
+     true,
+     43.5
+    ],
+    "s32@w7": [
+     true,
+     47.3
+    ],
+    "s6@w7": [
+     true,
+     49.1
+    ],
+    "s7@w7": [
+     true,
+     44.3
+    ]
+   },
+   "at": {
+    "turn": 44,
+    "usd": 4.05,
+    "tokens": 4083276,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v6: v5 + placement margins from the measured floor extent (flared trays)",
+   "lines": 626,
+   "base": null,
+   "runs": {
+    "s1@w8": [
+     true,
+     42.6
+    ],
+    "s2@w8": [
+     true,
+     56.3
+    ],
+    "s3@w8": [
+     true,
+     45.1
+    ],
+    "s4@w8": [
+     true,
+     45.3
+    ],
+    "s5@w8": [
+     true,
+     45.5
+    ],
+    "s6@w8": [
+     true,
+     51.4
+    ],
+    "s7@w8": [
+     true,
+     48.2
+    ],
+    "s8@w8": [
+     true,
+     43.8
+    ],
+    "s9@w8": [
+     true,
+     47.4
+    ],
+    "s10@w8": [
+     true,
+     45.6
+    ],
+    "s11@w8": [
+     true,
+     52.2
+    ],
+    "s12@w8": [
+     true,
+     45.7
+    ],
+    "s13@w8": [
+     true,
+     48.9
+    ],
+    "s14@w8": [
+     true,
+     43.3
+    ],
+    "s15@w8": [
+     true,
+     40.2
+    ],
+    "s16@w8": [
+     true,
+     44.4
+    ]
+   },
+   "at": {
+    "turn": 53,
+    "usd": 5.06,
+    "tokens": 6069971,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v7: v6 + gentle place: contact-guarded lower to 28 mm above, measure the arm's sag, release with the block ~4 mm above the floor (no pressing)",
+   "lines": 632,
+   "base": null,
+   "runs": {
+    "s9@w8": [
+     true,
+     47.3
+    ],
+    "s10@w8": [
+     true,
+     45.4
+    ],
+    "s11@w8": [
+     true,
+     51.9
+    ],
+    "s13@w8": [
+     true,
+     48.5
+    ],
+    "s5@w8": [
+     true,
+     45.2
+    ],
+    "s2@w8": [
+     true,
+     56.3
+    ],
+    "s1@w8": [
+     true,
+     42.5
+    ],
+    "s12@w8": [
+     true,
+     45.6
+    ],
+    "s17@w8": [
+     true,
+     44.7
+    ],
+    "s18@w8": [
+     true,
+     45.5
+    ],
+    "s19@w8": [
+     true,
+     42.9
+    ],
+    "s20@w8": [
+     true,
+     48.3
+    ],
+    "s21@w8": [
+     true,
+     48.6
+    ],
+    "s22@w8": [
+     true,
+     44.4
+    ],
+    "s23@w8": [
+     true,
+     44.6
+    ],
+    "s24@w8": [
+     true,
+     47.2
+    ],
+    "s3@w6": [
+     true,
+     45.5
+    ],
+    "s4@w6": [
+     true,
+     51.2
+    ],
+    "s5@w6": [
+     true,
+     47.9
+    ],
+    "s6@w6": [
+     true,
+     51.0
+    ],
+    "s7@w6": [
+     true,
+     47.1
+    ],
+    "s8@w6": [
+     true,
+     45.4
+    ],
+    "s9@w6": [
+     true,
+     46.6
+    ],
+    "s10@w6": [
+     true,
+     45.0
+    ]
+   },
+   "at": {
+    "turn": 58,
+    "usd": 5.69,
+    "tokens": 7317164,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v8: v7 without the dead code (scene_detect_old, place_old) + header comment; same behaviour",
+   "lines": 536,
+   "base": null,
+   "runs": {
+    "s25@w8": [
+     true,
+     42.0
+    ],
+    "s26@w8": [
+     false,
+     64.7
+    ],
+    "s27@w8": [
+     true,
+     45.1
+    ],
+    "s28@w8": [
+     true,
+     47.3
+    ],
+    "s29@w8": [
+     true,
+     44.9
+    ],
+    "s30@w8": [
+     true,
+     41.5
+    ],
+    "s31@w8": [
+     true,
+     47.6
+    ],
+    "s32@w8": [
+     true,
+     47.1
+    ]
+   },
+   "at": {
+    "turn": 65,
+    "usd": 6.54,
+    "tokens": 9324512,
+    "min": 0.0
+   }
+  },
+  {
+   "note": "v9: v8 + grasp tries 2 pre-grasp heights per orientation, descends in steps if the direct descent is refused, never closes unless at the grasp height",
+   "lines": 547,
+   "base": null,
+   "runs": {
+    "s26@w8": [
+     true,
+     50.6
+    ],
+    "s3@w8": [
+     true,
+     45.0
+    ],
+    "s4@w8": [
+     true,
+     45.2
+    ],
+    "s17@w8": [
+     true,
+     44.7
+    ],
+    "s31@w8": [
+     true,
+     47.6
+    ],
+    "s6@w8": [
+     true,
+     51.6
+    ],
+    "s14@w8": [
+     true,
+     43.6
+    ],
+    "s20@w8": [
+     true,
+     48.3
+    ],
+    "s1@w8": [
+     true,
+     42.5
+    ],
+    "s2@w8": [
+     true,
+     56.3
+    ],
+    "s5@w8": [
+     true,
+     45.2
+    ],
+    "s7@w8": [
+     true,
+     48.1
+    ],
+    "s8@w8": [
+     true,
+     43.6
+    ],
+    "s9@w8": [
+     true,
+     47.3
+    ],
+    "s11@w8": [
+     true,
+     51.9
+    ],
+    "s12@w8": [
+     true,
+     45.6
+    ]
+   },
+   "at": {
+    "turn": 67,
+    "usd": 6.84,
+    "tokens": 9941117,
+    "min": 0.0
+   }
+  }
+ ],
+ "task": "insert_varied",
+ "env": "sim_bimanual_grippers",
+ "sensors": "d415",
+ "budget_usd": 10.0,
+ "spent_usd": 7.4991,
+ "compactions": 0,
+ "wall_s": 1455.5,
+ "effort": "max",
+ "task_world": 8,
+ "agent": {
+  "kind": "claude_code",
+  "cli_version": "2.1.331 (Claude Code)",
+  "account": "the user's second Claude account (token login: the CLI reports no email or plan)",
+  "organisation": null,
+  "plan": null,
+  "usage_limits": {
+   "first": {
+    "five_hour": {
+     "first": 0.03,
+     "n": 16,
+     "last": 0.19,
+     "status": "allowed",
+     "resets_at": 1795648800
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   },
+   "last": {
+    "five_hour": {
+     "first": 0.03,
+     "n": 16,
+     "last": 0.19,
+     "status": "allowed",
+     "resets_at": 1795648800
+    },
+    "_status": {
+     "status": "allowed",
+     "overage": "rejected",
+     "using_overage": false
+    }
+   }
+  },
+  "cli_turns": 0,
+  "plan_tier": null,
+  "auth": "oauth_token",
+  "model": "opus",
+  "model_resolved": "claude-opus-5-5",
+  "effort": "max",
+  "cost_usd": 7.4991,
+  "cost_is": "the CLI's total_cost_usd (API-equivalent), summed over the invocations",
+  "tokens": {
+   "input": 11476067,
+   "cached": 11140528,
+   "cache_write": 335395,
+   "output": 129363
+  },
+  "replies": 72,
+  "invocations": [
+   {
+    "k": 0,
+    "exit": 143,
+    "stopped": "submitted",
+    "wall_s": 1455.5,
+    "usd": 7.4991,
+    "estimated": true,
+    "cli_total_usd": null,
+    "subtype": null,
+    "is_error": false,
+    "num_turns": null,
+    "replies": 72,
+    "tokens": {
+     "input": 11476067,
+     "cached": 11140528,
+     "cache_write": 335395,
+     "output": 129363
+    },
+    "compactions": 0,
+    "session_id": "9f72463a-b0b1-48c9-b1c2-0cd6e6e9650e",
+    "resumed": null,
+    "estimate_usd": 7.4991,
+    "rate_limits": {
+     "five_hour": {
+      "first": 0.03,
+      "n": 16,
+      "last": 0.19,
+      "status": "allowed",
+      "resets_at": 1795648800
+     },
+     "_status": {
+      "status": "allowed",
+      "overage": "rejected",
+      "using_overage": false
+     }
+    }
+   }
+  ],
+  "model_usage": [
+   null
+  ],
+  "tools": [
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "Read",
+   "Write"
+  ],
+  "mcp_servers": [],
+  "workspace": "/var/tmp/ar-cc/cc_pilot_tray_1125/workspace"
+ }
+}

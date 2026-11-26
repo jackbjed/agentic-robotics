@@ -1,0 +1,88 @@
+# task: Hang all the mugs on the mug rack. On the table there are two mugs, standing upright, and one mug rack (a mug tree: a post on a base, with branches sticking out of the post). Pick up each mug and hang it on the rack by its handle: a branch of the rack must pass through the handle so that the rack bears the mug's weight once the gripper lets go of it. Each mug must stay hanging after it is released, and hanging one mug must not knock the other off. Other things on the table are not to be used. At the end all mugs hang on the rack, the gripper is open and the arm is back at its start pose.
+# robot live: robot time limit 2250.0 s, model calls off
+# t=   0.0 set_gripper('left', 80) -> 80.4 | left tool (-492, 92, 356.5)
+# t=   7.1 move('left', (-390, -60, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-390.8, -60.4, 600)
+# t=   7.1 look([left_wrist]) -> left_wrist: Frame | left tool (-390.8, -60.4, 600)
+# t=  13.7 move('left', (-390, 290, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-388.9, 288.3, 600.6)
+# t=  13.7 look([left_wrist]) -> left_wrist: Frame | left tool (-388.9, 288.3, 600.6)
+[13.7] table z -5.2, 491809 points
+[13.7] blob at [-283.0, 24.0] top 350 area 18304
+[13.7] blob at [-231.0, -187.0] top 90 area 1632
+[13.7] blob at [-182.0, 188.0] top 89 area 6736
+[13.7]   cand: C [-187.9, 189.5] r 38.5 H 87 sup 3 hollow True handle True n_h 453 frac 1.00 w 14
+[13.7] rack A [-300.8, 42.5] base_top 13 pole_r 17.3 pole_top 348 top 354 base_r 101, 1 branches
+[13.7]    branch az -104 elev 21 s_tip 117 rb 3.0 ztop(root) 306
+[13.7] 1 mugs found
+[13.7] mug 0: 6 candidates
+[13.7] mug 0 -> branch 0 sigma -1 s_d 59 delta 13 cost 0.06 clear {'descend': (49.5, 83.5, 12.1, 121.2), 'thread': (27.5, 12.8, 8.1, 41.7)}
+# t=  20.0 move('left', (-399.94, 6.78, 560), (0, 0, -1), (0, -1, 0)) -> done | left tool (-398.5, 8.2, 559.7)
+# t=  23.4 move('left', (-398.5, 8.2, 559.7), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-398.5, 6.8, 560.2)
+# t=  26.7 move('left', (-399.94, 6.78, 516.06), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-400.7, 6.1, 512.8)
+# t=  26.7 look([left_wrist]) -> left_wrist: Frame | left tool (-400.7, 6.1, 512.8)
+[26.7] branch refined: d_xy 1.7 dz -0.6 daz -0.8
+# t=  30.5 move('left', (-400.7, 6.1, 560), (0, 0, -1), (-0.25, -0.97, 0)) -> done | left tool (-402.5, 5.5, 557.9)
+# t=  30.5 move('left', (-232.25, 212.54, 560), (0, 0, -1), (-0.25, -0.97, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-402.5, 5.5, 557.9)
+  move [-232.2, 212.5, 560.0] -> moved=False why=the arm cannot reach that pose
+# t=  36.5 move('left', (-232.25, 212.54, 490), (0, 0, -1), (-0.25, -0.97, 0)) -> done | left tool (-233.1, 210.2, 491.7)
+# t=  39.8 move('left', (-233.1, 210.2, 491.7), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-233.4, 207.8, 490.9)
+# t=  48.2 move('left', (-232.25, 212.54, 244.22), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-233.1, 208.1, 240.7)
+# t=  48.2 look([left_wrist]) -> left_wrist: Frame | left tool (-233.1, 208.1, 240.7)
+[48.2] mug refined: dC [-3.8, -4.1] dth 0.4 r 42.1 H 92 rim 98 hole_rc 53.9 r_out 77.0 rh 6.9 hole_top-rim -29.0
+# t=  49.0 set_gripper('left', 34) -> 34.1 | left tool (-233.1, 208.1, 240.7)
+# t=  58.0 move('left', (-210.76, 147.9, 127.65), (0, 0, -1), (-0.45, -0.89, 0)) -> done | left tool (-210.2, 143.4, 125.5)
+#          (the line ran to its end: the tool 8.7 mm from its goal, the arm's settle follows)
+# t=  60.0 move('left', (-210.76, 147.9, 48.28), (0, 0, -1), (-0.45, -0.89, 0), True) -> done | left tool (-211.8, 145.9, 45.1)
+# t=  60.8 set_gripper('left', 0) -> 0.1 | left tool (-211.7, 146, 45.1)
+[60.8] grasp width 0.1
+# t=  61.6 set_gripper('left', 80) -> 80 | left tool (-211.8, 146, 45)
+# t=  65.4 move('left', (-211.8, 146, 105), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-214.2, 146.6, 102.1)
+[65.4] mug 0 -> branch 0 sigma -1 s_d 73 delta 13 cost 0.06 clear {'descend': (49.5, 83.5, 12.1, 121.2), 'thread': (27.6, 23.8, 8.1, 55.7)}
+# t=  65.4 move('left', (-214.2, 146.5, 560), (0, 0, -1), (-0.46, -0.89, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-214.2, 146.5, 102.1)
+  move [-214.2, 146.5, 560.0] -> moved=False why=the arm cannot reach that pose
+# t=  80.7 move('left', (-403.33, -6.81, 560), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-403.2, -8.5, 560)
+# t=  84.0 move('left', (-403.2, -8.5, 560), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-403.1, -9.5, 559.8)
+# t=  87.2 move('left', (-403.33, -6.81, 521.3), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-403.1, -8.2, 520.7)
+# t=  87.2 look([left_wrist]) -> left_wrist: Frame | left tool (-403.1, -8.2, 520.7)
+[87.2] branch refined: d_xy 0.5 dz 1.9 daz 2.8
+# t=  90.4 move('left', (-403.1, -8.2, 560), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-404.5, -8.5, 559.7)
+# t=  90.4 move('left', (-232.25, 212.54, 560), (0, 0, -1), (-0.24, -0.97, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-404.5, -8.5, 559.7)
+  move [-232.2, 212.5, 560.0] -> moved=False why=the arm cannot reach that pose
+# t=  95.9 move('left', (-232.25, 212.54, 490), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-231.9, 211.5, 488.9)
+# t=  99.3 move('left', (-231.9, 211.5, 488.9), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-230.9, 211.6, 489.2)
+# t= 107.6 move('left', (-232.25, 212.54, 244.22), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-234.5, 212.6, 241.5)
+# t= 107.6 look([left_wrist]) -> left_wrist: Frame | left tool (-234.5, 212.6, 241.5)
+[107.6] mug refined: dC [-3.4, -5.0] dth 0.8 r 42.8 H 94 rim 100 hole_rc 53.9 r_out 76.4 rh 7.0 hole_top-rim -31.0
+# t= 108.4 set_gripper('left', 34) -> 34 | left tool (-234.5, 212.7, 241.5)
+# t= 117.3 move('left', (-210.45, 146.31, 129.58), (0, 0, -1), (-0.45, -0.89, 0)) -> done | left tool (-210.8, 144.7, 129.1)
+#          (the line ran to its end: the tool 7.8 mm from its goal, the arm's settle follows)
+# t= 119.3 move('left', (-210.45, 146.31, 48.29), (0, 0, -1), (-0.45, -0.89, 0), True) -> done | left tool (-210.9, 145.2, 47.1)
+# t= 120.1 set_gripper('left', 0) -> 0.1 | left tool (-210.9, 145.3, 47.1)
+[120.1] grasp width 0.1
+# t= 120.9 set_gripper('left', 80) -> 79.9 | left tool (-210.9, 145.3, 47)
+# t= 124.7 move('left', (-210.9, 145.3, 107), (0, 0, -1), (-0.45, -0.89, 0)) -> done | left tool (-212.7, 147.8, 104.6)
+[124.7] mug 0 -> branch 0 sigma -1 s_d 87 delta 13 cost 0.06 clear {'descend': (49.5, 83.5, 12.1, 121.2), 'thread': (29.1, 36.2, 8.1, 69.6)}
+# t= 124.7 move('left', (-212.7, 147.8, 560), (0, 0, -1), (-0.45, -0.89, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-212.7, 147.8, 104.6)
+  move [-212.7, 147.8, 560.0] -> moved=False why=the arm cannot reach that pose
+# t= 140.0 move('left', (-406.73, -20.39, 560), (0, 0, -1), (-0.45, -0.89, 0)) -> done | left tool (-406.5, -21, 558.7)
+# t= 143.3 move('left', (-406.5, -21, 558.7), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-405.9, -22, 559.4)
+# t= 146.4 move('left', (-406.73, -20.39, 526.55), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-405.8, -21.5, 528.2)
+# t= 146.4 look([left_wrist]) -> left_wrist: Frame | left tool (-405.8, -21.5, 528.2)
+[146.4] branch refined: d_xy 0.1 dz 1.9 daz 2.8
+# t= 149.5 move('left', (-405.8, -21.5, 560), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-406.1, -21.8, 561.6)
+# t= 149.5 move('left', (-232.25, 212.54, 560), (0, 0, -1), (-0.24, -0.97, 0)) -> REFUSED: the arm cannot reach that pose | left tool (-406.1, -21.8, 561.6)
+  move [-232.2, 212.5, 560.0] -> moved=False why=the arm cannot reach that pose
+# t= 155.2 move('left', (-232.25, 212.54, 490), (0, 0, -1), (-0.24, -0.97, 0)) -> done | left tool (-231.1, 212.7, 487.4)
+# t= 158.6 move('left', (-231.1, 212.7, 487.4), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-230.9, 212.2, 490.6)
+# t= 166.8 move('left', (-232.25, 212.54, 244.22), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-234.1, 211.6, 243.6)
+# t= 166.8 look([left_wrist]) -> left_wrist: Frame | left tool (-234.1, 211.6, 243.5)
+[166.8] mug refined: dC [-3.9, -4.7] dth 0.5 r 42.3 H 94 rim 100 hole_rc 53.6 r_out 76.5 rh 7.1 hole_top-rim -30.9
+# t= 167.6 set_gripper('left', 34) -> 34 | left tool (-234.1, 211.6, 243.1)
+# t= 176.4 move('left', (-210.88, 147.08, 129.52), (0, 0, -1), (-0.45, -0.89, 0)) -> done | left tool (-210.3, 145.4, 129.9)
+#          (the line ran to its end: the tool 6.8 mm from its goal, the arm's settle follows)
+# t= 178.5 move('left', (-210.88, 147.08, 48.29), (0, 0, -1), (-0.45, -0.89, 0), True) -> done | left tool (-211.2, 145.6, 46.8)
+# t= 179.3 set_gripper('left', 0) -> 0.2 | left tool (-211.3, 145.7, 46.7)
+[179.3] grasp width 0.2
+# t= 180.1 set_gripper('left', 80) -> 79.8 | left tool (-211.5, 145.6, 46.5)
+# t= 183.9 move('left', (-211.5, 145.6, 106.5), (0, 0, -1), (-0.46, -0.89, 0)) -> done | left tool (-214.8, 148, 103)
+[183.9] mug 0 not hung
+# t= 183.9 set_gripper('left', 80) -> 80 | left tool (-214.8, 148, 103)

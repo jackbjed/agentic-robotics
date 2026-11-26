@@ -1,0 +1,460 @@
+{
+ "name": "R9",
+ "run": "20261125_202414_robot_live_insert_cc_v63",
+ "when": "20261125_202414",
+ "setup": "set out by the operator; the images show it.",
+ "contact": "the arm's guarded line at 5 mm/s with 10 mm of lag; stops of the arm's server with less than 3.9 N not passed on (the rig text: move(..., stop_on_contact=True))",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": false,
+ "knocked_off": false,
+ "robot_time_s": 47.546,
+ "program_ended": "returned",
+ "moves_until_contact": [],
+ "server_guarded_lines": [],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 9.935,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.185,
+   "depth_mm": {
+    "nearest": 280,
+    "p5": 607,
+    "median": 740,
+    "p95": 753
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 17.49,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.23,
+   "depth_mm": {
+    "nearest": 295,
+    "p5": 375,
+    "median": 434,
+    "p95": 444
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 23.716,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.175,
+   "depth_mm": {
+    "nearest": 295,
+    "p5": 585,
+    "median": 651,
+    "p95": 665
+   }
+  },
+  {
+   "image": "look_03_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 29.122,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.201,
+   "depth_mm": {
+    "nearest": 552,
+    "p5": 643,
+    "median": 716,
+    "p95": 1085
+   }
+  },
+  {
+   "image": "look_04_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 34.303,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.174,
+   "depth_mm": {
+    "nearest": 296,
+    "p5": 609,
+    "median": 671,
+    "p95": 686
+   }
+  },
+  {
+   "image": "video_scene_000.0s",
+   "camera": "scene",
+   "robot_time_s": 0.0,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.251,
+   "depth_mm": {
+    "nearest": 807,
+    "p5": 853,
+    "median": 1555,
+    "p95": 7592
+   }
+  },
+  {
+   "image": "video_scene_007.7s",
+   "camera": "scene",
+   "robot_time_s": 7.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.266,
+   "depth_mm": {
+    "nearest": 806,
+    "p5": 851,
+    "median": 1588,
+    "p95": 7806
+   }
+  },
+  {
+   "image": "video_scene_014.7s",
+   "camera": "scene",
+   "robot_time_s": 14.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.229,
+   "depth_mm": {
+    "nearest": 804,
+    "p5": 852,
+    "median": 1570,
+    "p95": 7806
+   }
+  },
+  {
+   "image": "video_scene_022.7s",
+   "camera": "scene",
+   "robot_time_s": 22.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.266,
+   "depth_mm": {
+    "nearest": 807,
+    "p5": 853,
+    "median": 1339,
+    "p95": 7862
+   }
+  },
+  {
+   "image": "video_scene_030.7s",
+   "camera": "scene",
+   "robot_time_s": 30.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.253,
+   "depth_mm": {
+    "nearest": 795,
+    "p5": 853,
+    "median": 1588,
+    "p95": 7806
+   }
+  },
+  {
+   "image": "video_scene_038.7s",
+   "camera": "scene",
+   "robot_time_s": 38.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.256,
+   "depth_mm": {
+    "nearest": 809,
+    "p5": 852,
+    "median": 1577,
+    "p95": 7806
+   }
+  },
+  {
+   "image": "video_scene_045.7s",
+   "camera": "scene",
+   "robot_time_s": 45.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.249,
+   "depth_mm": {
+    "nearest": 804,
+    "p5": 849,
+    "median": 1581,
+    "p95": 7918
+   }
+  },
+  {
+   "image": "video_scene_053.7s",
+   "camera": "scene",
+   "robot_time_s": 53.7,
+   "K": [
+    640.0,
+    480.0,
+    615.2572021484375,
+    615.3887329101562,
+    307.34124755859375,
+    237.158935546875
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.262,
+   "depth_mm": {
+    "nearest": 805,
+    "p5": 857,
+    "median": 1548,
+    "p95": 7862
+   }
+  },
+  {
+   "image": "video_wrist_000.0s",
+   "camera": "left_wrist",
+   "robot_time_s": 0.0,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.221,
+   "depth_mm": {
+    "nearest": 341,
+    "p5": 432,
+    "median": 468,
+    "p95": 1351
+   }
+  },
+  {
+   "image": "video_wrist_007.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 7.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.205,
+   "depth_mm": {
+    "nearest": 465,
+    "p5": 535,
+    "median": 608,
+    "p95": 728
+   }
+  },
+  {
+   "image": "video_wrist_014.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 14.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.185,
+   "depth_mm": {
+    "nearest": 280,
+    "p5": 602,
+    "median": 736,
+    "p95": 750
+   }
+  },
+  {
+   "image": "video_wrist_022.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 22.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.231,
+   "depth_mm": {
+    "nearest": 275,
+    "p5": 376,
+    "median": 437,
+    "p95": 451
+   }
+  },
+  {
+   "image": "video_wrist_030.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 30.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.197,
+   "depth_mm": {
+    "nearest": 309,
+    "p5": 551,
+    "median": 682,
+    "p95": 702
+   }
+  },
+  {
+   "image": "video_wrist_038.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 38.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.171,
+   "depth_mm": {
+    "nearest": 531,
+    "p5": 595,
+    "median": 659,
+    "p95": 680
+   }
+  },
+  {
+   "image": "video_wrist_045.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 45.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.182,
+   "depth_mm": {
+    "nearest": 303,
+    "p5": 582,
+    "median": 647,
+    "p95": 664
+   }
+  },
+  {
+   "image": "video_wrist_053.7s",
+   "camera": "left_wrist",
+   "robot_time_s": 53.7,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "recording": true,
+   "pixels_without_depth": 0.215,
+   "depth_mm": {
+    "nearest": 278,
+    "p5": 442,
+    "median": 476,
+    "p95": 563
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_survey",
+  "shown_01_ring_closeup"
+ ],
+ "video_frames": {},
+ "output_lines": 46,
+ "version": 63
+}

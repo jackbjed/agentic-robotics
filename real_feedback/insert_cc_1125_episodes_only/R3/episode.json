@@ -1,0 +1,117 @@
+{
+ "name": "R3",
+ "run": "20261125_155029_robot_live_insert_cc1",
+ "when": "20261125_155029",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": false,
+ "knocked_off": false,
+ "robot_time_s": 403.661,
+ "program_ended": "returned",
+ "moves_until_contact": [
+  {
+   "t": 50.3,
+   "goal_mm": [
+    -202.06,
+    87.3,
+    45.42
+   ],
+   "result": "done",
+   "tool_after_mm": [
+    -195.9,
+    89.8,
+    56.4
+   ]
+  }
+ ],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.259,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.192,
+   "depth_mm": {
+    "nearest": 286,
+    "p5": 713,
+    "median": 733,
+    "p95": 745
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 23.011,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.223,
+   "depth_mm": {
+    "nearest": 356,
+    "p5": 390,
+    "median": 393,
+    "p95": 395
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 35.886,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.19,
+   "depth_mm": {
+    "nearest": 316,
+    "p5": 485,
+    "median": 507,
+    "p95": 510
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_survey",
+  "shown_01_ring_closeup"
+ ],
+ "video_frames": {
+  "scene": [
+   "video_scene_000.0s",
+   "video_scene_064.4s",
+   "video_scene_128.8s",
+   "video_scene_193.2s",
+   "video_scene_257.5s",
+   "video_scene_321.9s",
+   "video_scene_386.3s",
+   "video_scene_450.7s"
+  ],
+  "wrist": [
+   "video_wrist_000.0s",
+   "video_wrist_056.9s",
+   "video_wrist_113.9s",
+   "video_wrist_170.8s",
+   "video_wrist_227.8s",
+   "video_wrist_284.7s",
+   "video_wrist_341.7s",
+   "video_wrist_398.6s"
+  ]
+ },
+ "output_lines": 113,
+ "version": 38
+}

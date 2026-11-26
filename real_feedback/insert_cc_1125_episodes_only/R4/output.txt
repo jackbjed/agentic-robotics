@@ -1,0 +1,136 @@
+# task: Task: put the cylinder on the stick. On the table there are a cylinder with a hole through it (standing on one of its flat ends, the hole vertical) and a stand with one vertical stick. Pick up the cylinder and thread it onto the stick, so that the stick passes through its hole, and let go of it: at the end the cylinder must be on the stick, the robot not touching it, and the stand upright. Then open the gripper and return it to its initial pose. The hole can be as little as 1.5 mm wider than the stick. The cylinder and the stand may stand on the table or on something on it; other objects may be on the table.
+# robot live: robot time limit 1500.0 s, model calls off
+# t=   0.7 set_gripper('left', 80) -> 80 | left tool (-492.2, 90.4, 356.7)
+# t=   7.9 move('left', (-420, 60, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-419.4, 64, 598.8)
+# t=   7.9 look([left_wrist]) -> left_wrist: Frame | left tool (-419.4, 63.9, 598.8)
+# t=   7.9 segment('stick') -> 0 masks | left tool (-419.4, 63.9, 598.8)
+# t=   7.9 segment('ring') -> 1 masks, best score 0.16 | left tool (-419.4, 63.9, 598.8)
+# t=   7.9 segment('cylinder with a hole') -> 6 masks, best score 0.88 | left tool (-419.4, 63.9, 598.8)
+# t=   7.9 segment('washer') -> 1 masks, best score 0.29 | left tool (-419.4, 63.9, 598.8)
+plane [ 7.7000e-03 -1.0000e-03 -1.5426e+00] zmax 114.8 camoff [51.3 -3.2]
+STICKC {'uv': (287, 33), 'xyz': [-187.2, 94.3, 190.5], 'top': 190.48, 'lrise': 187.73, 'eqd': 15.76, 'ped': 0.65, 'sam': 0.0, 'ringv': 0.74, 'score': 3.8}
+STICKC {'uv': (302, 447), 'xyz': [-613.3, 83.2, -1.5], 'top': -1.54, 'lrise': 126.75, 'eqd': 29.32, 'ped': -137.29, 'sam': 0.0, 'ringv': 0.0, 'score': 3.8}
+STICKC {'uv': (430, 471), 'xyz': [-639.0, -67.9, -1.5], 'top': -1.54, 'lrise': 288.32, 'eqd': 17.28, 'ped': -289.91, 'sam': 0.0, 'ringv': 0.0, 'score': 3.8}
+RINGC {'sam': 1.33, 'uv': (473, 33), 'xyz': [-129.0, -108.9, 18.5], 'top': 18.52, 'rise': 19.58, 'eqd': 47.58, 'circ': 0.84, 'score': 2.53}
+RINGC {'sam': 0.0, 'uv': (118, 291), 'xyz': [-430.7, 299.1, 10.2], 'top': 10.19, 'rise': 11.4, 'eqd': 17.98, 'circ': 0.72, 'score': 1.2}
+RINGC {'sam': 0.39, 'uv': (148, 23), 'xyz': [-119.9, 265.8, 18.3], 'top': 18.33, 'rise': -0.59, 'eqd': 14.5, 'circ': 0.96, 'score': -0.71}
+# t=  21.3 move('left', (-180.37, -105.68, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-182, -107.1, 256)
+# t=  24.2 move('left', (-180.37, -105.68, 260), (0, 0, -1), (0, -1, 0)) -> done | left tool (-178.2, -107.8, 262.3)
+# t=  24.2 look([left_wrist]) -> left_wrist: Frame | left tool (-178.2, -107.8, 262.3)
+RING closeup {'xy': [-135.4, -113.6], 'top': 30.35, 'od': 41.62, 'hole_d': 14.09, 'low': 0.99, 'high': 0.0, 'deep': 1.0, 'hd2': 13.96, 'lowc': 0.99, 'sup': -0.52, 'uv': (321.8426354478628, 257.72120882112716)}
+ring candidates [([-135.0, -114.0], 4.53)]
+# t=  28.7 move('left', (-178.2, -107.8, 375.48), (0, 0, -1), (-0, -1, 0)) -> done | left tool (-178.8, -109.2, 375.3)
+# t=  33.3 move('left', (-238.49, 97.46, 375.48), (0, 0, -1), (0, -1, 0)) -> done | left tool (-235.9, 97.3, 379)
+# t=  35.6 move('left', (-238.49, 97.46, 375.48), (0, 0, -1), (0, -1, 0)) -> done | left tool (-240.1, 98, 370.4)
+# t=  35.6 look([left_wrist]) -> left_wrist: Frame | left tool (-240.1, 98, 370.4)
+STICK closeup {'xy': [-189.8, 90.2], 'top': 190.87, 'eqd': 11.81, 'base': 21.79, 'lrise': 169.11, 'plate': 1.0, 'uv': (328.1461716937355, 239.24593967517401)}
+  pedestal 24.9 plate 1.00
+stick closing angle 30 clearance 8.4
+# t=  41.4 move('left', (-189.83, 90.21, 240.87), (0, 0, -1), (0, -1, -0)) -> done | left tool (-190.6, 89.9, 240.4)
+# t=  43.8 move('left', (-189.83, 90.21, 240.87), (0, 0, -1), (0, -1, 0)) -> done | left tool (-190.7, 89.8, 238.8)
+# t=  50.1 move('left', (-189.83, 90.21, 240.87), (0, 0, -1), (0.87, 0.5, 0)) -> done | left tool (-190.2, 89.3, 239.7)
+#          (the arm's server stopped the line at z 237.6 mm, +3.3 mm on: the hand 13.02 mm behind, force change 1.57 N: not taken as a contact)
+#          (the arm's server stopped the line at z 234.5 mm, +3.0 mm on: the hand 10.06 mm behind, force change 0.92 N: not taken as a contact)
+#          (the arm's server stopped the line at z 232.5 mm, +2.1 mm on: the hand 10.01 mm behind, force change 0.49 N: not taken as a contact)
+#          (the tool stood 21.1 mm beside its line: an ordinary move back onto it, now 1.2 mm beside, z 232.2 mm)
+#          (the arm's server stopped the line at z 217.5 mm, +14.2 mm on: the hand 10.4 mm behind, force change 0.55 N: not taken as a contact)
+#          (the arm's server stopped the line at z 216.2 mm, +1.3 mm on: the hand 10.06 mm behind, force change 0.18 N: not taken as a contact)
+#          (the arm's server stopped the line at z 214.7 mm, +1.5 mm on: the hand 10.01 mm behind, force change 0.41 N: not taken as a contact)
+#          (the arm's server stopped the line at z 210.6 mm, +4.1 mm on: the hand 10.02 mm behind, force change 0.73 N: not taken as a contact)
+#          (the arm's server stopped the line at z 208.9 mm, +1.7 mm on: the hand 10.03 mm behind, force change 0.33 N: not taken as a contact)
+#          (the arm's server stopped the line at z 207.1 mm, +1.8 mm on: the hand 10.05 mm behind, force change 0.21 N: not taken as a contact)
+#          (the arm's server stopped the line at z 206.3 mm, +0.8 mm on: the hand 10.12 mm behind, force change 0.38 N: not taken as a contact)
+#          (the arm's server stopped the line at z 204.9 mm, +1.4 mm on: the hand 10.08 mm behind, force change 0.18 N: not taken as a contact)
+#          (the arm's server stopped the line at z 204.8 mm, +0.2 mm on: the hand 10.02 mm behind, force change 0.27 N: not taken as a contact)
+#          (an ordinary step of 4.0 mm: +4.5 mm on, to z 200.2 mm, force change 3.13 N)
+#          (the arm's server stopped the line at z 185.0 mm, +15.3 mm on: the hand 12.31 mm behind, force change 0.81 N: not taken as a contact)
+#          (the arm's server stopped the line at z 175.0 mm, +10.0 mm on: the hand 10.05 mm behind, force change 0.51 N: not taken as a contact)
+#          (the arm's server stopped the line at z 171.8 mm, +3.2 mm on: the hand 10.06 mm behind, force change 0.21 N: not taken as a contact)
+#          (the arm's server stopped the line at z 164.7 mm, +7.1 mm on: the hand 10.09 mm behind, force change 0.75 N: not taken as a contact)
+#          (the arm's server stopped the line at z 161.3 mm, +5.8 mm on: the hand 10.33 mm behind, force change 1.37 N: not taken as a contact)
+#          (the tool stood 20.6 mm beside its line: an ordinary move back onto it, now 3.8 mm beside, z 162.0 mm)
+#          (the arm's server stopped the line at z 157.6 mm, +5.1 mm on: the hand 10.16 mm behind, force change 1.25 N: not taken as a contact)
+#          (the arm's server stopped the line at z 148.3 mm, +9.3 mm on: the hand 10.03 mm behind, force change 1.13 N: not taken as a contact)
+#          (the arm's server stopped the line at z 146.6 mm, +1.2 mm on: the hand 10.93 mm behind, force change 1.35 N: not taken as a contact)
+#          (the tool stood 22.6 mm beside its line: an ordinary move back onto it, now 1.5 mm beside, z 147.5 mm)
+#          (the arm's server stopped the line at z 125.6 mm, +21.5 mm on: the hand 13.38 mm behind, force change 1.57 N: not taken as a contact)
+#          (the arm's server stopped the line at z 121.4 mm, +2.3 mm on: the hand 11.89 mm behind, force change 1.36 N: not taken as a contact)
+#          (the arm's server stopped the line at z 117.7 mm, +3.2 mm on: the hand 14.21 mm behind, force change 1.44 N: not taken as a contact)
+#          (the tool stood 23.7 mm beside its line: an ordinary move back onto it, now 1.4 mm beside, z 117.2 mm)
+#          (the arm's server stopped the line at z 112.9 mm, +4.9 mm on: the hand 10.67 mm behind, force change 0.94 N: not taken as a contact)
+#          (the arm's server stopped the line at z 106.4 mm, +6.5 mm on: the hand 10.06 mm behind, force change 0.6 N: not taken as a contact)
+#          (the tool stood 14.3 mm beside its line: an ordinary move back onto it, now 1.0 mm beside, z 106.7 mm)
+#          (the arm's server stopped the line at z 89.5 mm, +17.3 mm on: the hand 14.02 mm behind, force change 1.31 N: not taken as a contact)
+#          (the tool stood 9.0 mm beside its line: an ordinary move back onto it, now 8.3 mm beside, z 89.3 mm)
+#          (the arm's server stopped the line at z 72.3 mm, +17.0 mm on: the hand 11.88 mm behind, force change 1.34 N: not taken as a contact)
+#          (the tool stood 5.1 mm beside its line: an ordinary move back onto it, now 2.1 mm beside, z 71.0 mm)
+#          (the arm's server stopped the line at z 64.2 mm, +6.8 mm on: the hand 10.14 mm behind, force change 1.08 N: not taken as a contact)
+#          (the tool stood 5.1 mm beside its line: an ordinary move back onto it, now 0.5 mm beside, z 63.7 mm)
+#          (the arm's server stopped the line at z 59.8 mm, +3.9 mm on: the hand 12.51 mm behind, force change 1.4 N: not taken as a contact)
+#          (the tool stood 5.8 mm beside its line: an ordinary move back onto it, now 0.5 mm beside, z 59.9 mm)
+#          (the line ran to its end: the tool 14.2 mm from its goal, the arm's settle follows)
+# t=  54.7 move('left', (-189.83, 90.21, 46.79), (0, 0, -1), (-0.87, -0.5, 0), True) -> done | left tool (-184.1, 90.4, 56.6)
+#          (the gripper's grasp: reported done 0.5 s after the fingers stood still)
+# t=  55.5 set_gripper('left', 0) -> 9.5 | left tool (-184.1, 90.5, 57.3)
+STICK-a w 9.50 push 0.10
+# t=  56.2 set_gripper('left', 34.5) -> 34.4 | left tool (-183.8, 90.6, 57.4)
+# t=  64.1 turn('left', (-183.8, 90.6, 57.4), (0, 0, 1), 90) -> done | left tool (-184.3, 90.5, 57.6)
+#          (the gripper's grasp: reported done 0.4 s after the fingers stood still)
+# t=  64.8 set_gripper('left', 0) -> 9.6 | left tool (-184.3, 90.9, 57.6)
+STICK-b w 9.60 push 0.40
+# t=  65.6 set_gripper('left', 29.6) -> 29.5 | left tool (-184.3, 90.8, 57.6)
+# t=  67.4 move('left', (-184.3, 91.22, 57.6), (0, 0, -1), (0.5, -0.87, -0)) -> done | left tool (-184.5, 90.3, 57.6)
+#          (the gripper's grasp: reported done 0.1 s after the fingers stood still)
+# t=  68.2 set_gripper('left', 0) -> 9.5 | left tool (-184.5, 90.4, 57.6)
+STICK-b w 9.50 push 0.10
+#          (the gripper stands at 9.6 mm after the command to open to 34 mm: sent again)
+# t=  69.7 set_gripper('left', 34.5) -> 34.5 | left tool (-184.4, 90.3, 57.6)
+# t=  77.5 turn('left', (-184.4, 90.3, 57.6), (0, 0, 1), -90) -> done | left tool (-183.3, 89.3, 58.1)
+#          (the gripper's grasp: reported done 0.3 s after the fingers stood still)
+# t=  78.3 set_gripper('left', 0) -> 9.4 | left tool (-183, 89.5, 58.1)
+STICK-c w 9.40 push 0.36
+# t=  79.1 set_gripper('left', 29.4) -> 29.3 | left tool (-183, 89.5, 58.1)
+# t=  81.5 move('left', (-182.76, 89.66, 58.1), (0, 0, -1), (-0.86, -0.5, -0)) -> done | left tool (-182.7, 91.2, 58.1)
+#          (the gripper's grasp: reported done 0.4 s after the fingers stood still)
+# t=  82.2 set_gripper('left', 0) -> 9.4 | left tool (-182.8, 91.2, 58.1)
+STICK-c w 9.40 push 0.10
+STICK widths [9.5 9.5 9.4] tcp [-182.8   91.2   58.1]
+STICK widths [9.5 9.5 9.4] at [-182.8   91.2]
+# t=  83.0 set_gripper('left', 80) -> 80 | left tool (-182.8, 91.2, 58)
+# t=  89.6 move('left', (-182.8, 91.3, 235.87), (0, 0, -1), (-0.86, -0.5, -0)) -> done | left tool (-182.2, 90.7, 237.4)
+# t=  95.3 move('left', (-182.2, 90.7, 375.87), (0, 0, -1), (-0.87, -0.5, -0)) -> done | left tool (-181.5, 90.1, 376.3)
+# t= 101.5 move('left', (-234.14, 94.4, 375.87), (0, 0, -1), (0, -1, 0)) -> done | left tool (-233.9, 93.2, 374.3)
+# t= 103.9 move('left', (-234.14, 94.4, 375.87), (0, 0, -1), (0, -1, 0)) -> done | left tool (-234.6, 94.2, 378.4)
+# t= 103.9 look([left_wrist]) -> left_wrist: Frame | left tool (-234.6, 94.2, 378.4)
+first look - squeeze [-7.03 -0.99]
+closeup bias [0.62 4.8 ]
+ring closing angle 60 clearance -0.4
+# t= 113.5 move('left', (-136, -118.37, 200), (0, 0, -1), (0, -1, -0)) -> done | left tool (-134.6, -115.5, 199.7)
+# t= 122.2 move('left', (-136, -118.37, 70.35), (0, 0, -1), (0.01, -1, 0)) -> done | left tool (-137.9, -119.4, 67.4)
+# t= 126.5 move('left', (-136, -118.37, 70.35), (0, 0, -1), (0.5, 0.87, 0)) -> done | left tool (-137.8, -120.1, 69.6)
+#          (the line ran to its end: the tool 6.1 mm from its goal, the arm's settle follows)
+# t= 127.7 move('left', (-136, -118.37, 23.48), (0, 0, -1), (-0.5, -0.86, -0), True) -> done | left tool (-134.8, -115.5, 22.2)
+#          (the gripper's grasp: reported done 0.1 s after the fingers stood still)
+# t= 128.5 set_gripper('left', 0) -> 17.8 | left tool (-134.3, -115.6, 23.4)
+CYL-a w 17.80 push 0.51
+#          (the gripper stands at 17.8 mm after the command to open to 38 mm: sent again)
+# t= 130.0 set_gripper('left', 37.8) -> 37.7 | left tool (-134.5, -115.5, 23.1)
+# t= 132.4 move('left', (-133.9, -115.68, 22.2), (0, 0, -1), (-0.5, -0.86, -0)) -> done | left tool (-136.2, -115.3, 18.8)
+#          (the gripper's grasp: reported done 0.0 s after the fingers stood still)
+# t= 133.2 set_gripper('left', 0) -> 17.1 | left tool (-134.8, -115.6, 20.3)
+CYL-a w 17.10 push 1.43
+# t= 134.0 set_gripper('left', 37.1) -> 37 | left tool (-135, -115.5, 19.6)
+# t= 134.8 move('left', (-133.68, -115.84, 18.8), (0, 0, -1), (-0.5, -0.87, 0)) -> done | left tool (-134.2, -115.9, 18.6)
+#          (the gripper's grasp: reported done 0.0 s after the fingers stood still)
+# t= 135.5 set_gripper('left', 0) -> 16.8 | left tool (-132.8, -116.6, 20.1)
+CYL-a w 16.80 push 1.57
+# t= 136.3 set_gripper('left', 36.8) -> 36.8 | left tool (-133.3, -115.8, 18.6)
+# t= 138.7 move('left', (-131.68, -117.16, 18.6), (0, 0, -1), (-0.5, -0.87, 0)) -> done | left tool (-131.9, -117.4, 18.2)
+#          (the gripper's grasp: reported done 0.3 s after the fingers stood still)
+# t= 139.5 set_gripper('left', 0) -> 16.6 | left tool (-130.2, -118.9, 20)
+CYL-a w 16.60 push 2.27
+# t= 140.3 set_gripper('left', 36.6) -> 36.6 | left tool (-130.8, -118.7, 18.3)
+# t= 142.7 move('left', (-128.84, -120.1, 18.2), (0, 0, -1), (-0.5, -0.87, -0)) -> done | left tool (-127.6, -120.7, 18.5)
+# t= 143.5 set_gripper('left', 0) -> 0.1 | left tool (-127.8, -121, 18.5)
+CYL-a w 0.10 push 0.36
+# t= 144.2 set_gripper('left', 80) -> 79.9 | left tool (-127.6, -120.4, 18.5)

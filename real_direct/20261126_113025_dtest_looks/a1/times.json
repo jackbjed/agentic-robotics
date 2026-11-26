@@ -1,0 +1,14 @@
+{
+ "started": "2026-11-26T11:30:31",
+ "scene_reset_s": null,
+ "rig_notes": "",
+ "look_s": 2.7,
+ "write_started": "2026-11-26T11:30:33",
+ "write_s": 0.2,
+ "run_started": "2026-11-26T11:30:34",
+ "run_s": 35.5,
+ "robot_time_s": 124.688,
+ "episode_wall_s": 34.1,
+ "ended": "2026-11-26T11:31:09",
+ "attempt_s": 38.4
+}

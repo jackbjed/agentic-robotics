@@ -1,0 +1,232 @@
+{
+ "name": "R2",
+ "run": "20261125_154607_robot_live_insert_cc1",
+ "when": "20261125_154607",
+ "setup": "The same objects as R1, set out anew.",
+ "contact": "the arm's guarded line at 5 mm/s with 10 mm of lag; stops of the arm's server with less than 3.9 N not passed on (the rig text: move(..., stop_on_contact=True))",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": true,
+ "knocked_off": false,
+ "robot_time_s": 242.2,
+ "program_ended": null,
+ "moves_until_contact": [],
+ "server_guarded_lines": [
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 4.92,
+   "hand_behind_mm": 10.11,
+   "came_down_mm": 12.11,
+   "force_change_n": 1.47
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 16.52,
+   "hand_behind_mm": 10.03,
+   "came_down_mm": 14.94,
+   "force_change_n": 1.0
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 4.5,
+   "hand_behind_mm": 14.12,
+   "came_down_mm": 6.01,
+   "force_change_n": 2.14
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 11.9,
+   "hand_behind_mm": 11.95,
+   "came_down_mm": 1.01,
+   "force_change_n": 1.25
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 5.48,
+   "hand_behind_mm": 10.21,
+   "came_down_mm": 14.68,
+   "force_change_n": 1.94
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 9.94,
+   "hand_behind_mm": 10.06,
+   "came_down_mm": 4.97,
+   "force_change_n": 0.86
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 3.48,
+   "hand_behind_mm": 14.09,
+   "came_down_mm": 0.67,
+   "force_change_n": 1.72
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 3.0,
+   "hand_behind_mm": 11.49,
+   "came_down_mm": 1.06,
+   "force_change_n": 1.39
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 4.37,
+   "hand_behind_mm": 10.11,
+   "came_down_mm": 9.45,
+   "force_change_n": 0.84
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 15.9,
+   "hand_behind_mm": 10.02,
+   "came_down_mm": 14.73,
+   "force_change_n": 0.95
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 13.2,
+   "hand_behind_mm": 10.06,
+   "came_down_mm": 11.24,
+   "force_change_n": 0.94
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 4.28,
+   "hand_behind_mm": 11.12,
+   "came_down_mm": 7.49,
+   "force_change_n": 1.49
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 3.45,
+   "hand_behind_mm": 10.78,
+   "came_down_mm": 4.12,
+   "force_change_n": 1.56
+  },
+  {
+   "lag_allowed_mm": 10.0,
+   "force_limit_n": 4.0,
+   "ended": "stopped by the server",
+   "seconds": 14.31,
+   "hand_behind_mm": 10.04,
+   "came_down_mm": 11.42,
+   "force_change_n": 1.17
+  }
+ ],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.355,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.191,
+   "depth_mm": {
+    "nearest": 318,
+    "p5": 714,
+    "median": 737,
+    "p95": 750
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 23.191,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.234,
+   "depth_mm": {
+    "nearest": 356,
+    "p5": 372,
+    "median": 392,
+    "p95": 395
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 34.503,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.188,
+   "depth_mm": {
+    "nearest": 288,
+    "p5": 483,
+    "median": 506,
+    "p95": 510
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_survey",
+  "shown_01_ring_closeup"
+ ],
+ "video_frames": {
+  "scene": [
+   "video_scene_000.0s",
+   "video_scene_031.0s",
+   "video_scene_062.0s",
+   "video_scene_093.0s",
+   "video_scene_123.9s",
+   "video_scene_154.9s",
+   "video_scene_185.9s",
+   "video_scene_216.9s"
+  ],
+  "wrist": [
+   "video_wrist_000.0s",
+   "video_wrist_031.0s",
+   "video_wrist_062.0s",
+   "video_wrist_093.0s",
+   "video_wrist_123.9s",
+   "video_wrist_154.9s",
+   "video_wrist_185.9s",
+   "video_wrist_216.9s"
+  ]
+ },
+ "output_lines": 49,
+ "version": 38
+}

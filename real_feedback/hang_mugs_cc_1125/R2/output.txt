@@ -1,0 +1,20 @@
+# task: Hang all the mugs on the mug rack. On the table there are two mugs, standing upright, and one mug rack (a mug tree: a post on a base, with branches sticking out of the post). Pick up each mug and hang it on the rack by its handle: a branch of the rack must pass through the handle so that the rack bears the mug's weight once the gripper lets go of it. Each mug must stay hanging after it is released, and hanging one mug must not knock the other off. Other things on the table are not to be used. At the end all mugs hang on the rack, the gripper is open and the arm is back at its start pose.
+# robot live: robot time limit 2250.0 s, model calls off
+# t=   0.0 set_gripper('left', 80) -> 80.4 | left tool (-493.1, 92.1, 354.4)
+# t=   7.7 move('left', (-390, -60, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-389.5, -56.3, 598.2)
+# t=   7.7 look([left_wrist]) -> left_wrist: Frame | left tool (-389.4, -56.2, 598.2)
+# t=  14.7 move('left', (-390, 290, 600), (0, 0, -1), (0, -1, 0)) -> done | left tool (-392.3, 292.9, 598.8)
+# t=  14.7 look([left_wrist]) -> left_wrist: Frame | left tool (-392.3, 292.9, 598.8)
+[14.7] table z -4.8, 486313 points
+[14.7] blob at [-177.0, 70.0] top 323 area 27232
+[14.7] blob at [-328.0, -105.0] top 75 area 1168
+[14.7] blob at [-347.0, -18.0] top 33 area 2736
+[14.7] rack A [-152.7, 34.1] base_top 15 pole_r 16.9 pole_top 278 top 358 base_r 140, 2 branches
+[14.7]    branch az -163 elev 21 s_tip 100 rb 3.0 ztop(root) 129
+[14.7]    branch az -160 elev 24 s_tip 101 rb 4.1 ztop(root) 310
+[14.7] 0 mugs found
+# t=  14.7 set_gripper('left', 80) -> 80.4 | left tool (-392.3, 293.1, 598.8)
+# t=  16.7 wait(2) ->  | left tool (-392.3, 293.1, 598.8)
+# t=  23.2 home('left') -> done | left tool (-488.5, 97, 361.1)
+[23.2] judge None
+# ended: returned

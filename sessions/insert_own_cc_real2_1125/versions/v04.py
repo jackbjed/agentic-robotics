@@ -1,0 +1,500 @@
+import math
+import numpy as np
+import cv2
+
+ARM = "left"
+DOWN = (0.0, 0.0, -1.0)
+C0 = (0.0, -1.0, 0.0)
+SURVEY = (-330.0, 60.0, 560.0)
+
+
+# ------------------------------------------------------------------ robot helpers
+def st(robot):
+    return robot.state(ARM)
+
+
+def tcp(robot):
+    return np.array(st(robot)["tcp_mm"], float)
+
+
+def cdir(robot):
+    return tuple(float(x) for x in st(robot)["closing_dir"])
+
+
+def mv(robot, xyz, stop=False, closing=None):
+    c = closing if closing is not None else cdir(robot)
+    r = robot.move(ARM, [float(v) for v in xyz], DOWN, c, stop)
+    if not r.get("moved", True) or (not r.get("done") and r.get("why") != "contact"):
+        print("MOVE", [round(float(v), 1) for v in xyz], "stop" if stop else "", r)
+    return r
+
+
+def turn(robot, ang):
+    p = tcp(robot)
+    r = robot.turn(ARM, p.tolist(), (0, 0, 1), ang)
+    if r.get("moved"):
+        return ang
+    r = robot.turn(ARM, p.tolist(), (0, 0, 1), -ang)
+    if r.get("moved"):
+        return -ang
+    print("TURN refused", r.get("why"))
+    return 0
+
+
+def truth(robot):
+    try:
+        return robot.truth()
+    except Exception:
+        return None
+
+
+# ------------------------------------------------------------------ image helpers
+def disc(px):
+    px = max(3, int(round(px))) | 1
+    return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (px, px))
+
+
+def fill_nan(a, iters=8, default=0.0):
+    w = np.where(np.isfinite(a), a, -1e4).astype(np.float32)
+    k = np.ones((3, 3), np.uint8)
+    for _ in range(iters):
+        m = w < -1e3
+        if not m.any():
+            break
+        d = cv2.dilate(w, k)
+        w[m] = d[m]
+    w[w < -1e3] = default
+    return w
+
+
+def table_plane(P):
+    z = P[..., 2]
+    v = np.isfinite(z)
+    zs = z[v]
+    hist, edges = np.histogram(zs, bins=np.arange(-100, 400, 2.0))
+    z0 = edges[int(np.argmax(hist))] + 1.0
+    X = P[v & (np.abs(z - z0) < 8)]
+    if len(X) > 40000:
+        X = X[:: len(X) // 40000 + 1]
+    coef = np.array([0.0, 0.0, z0])
+    for _ in range(3):
+        A = np.c_[X[:, 0], X[:, 1], np.ones(len(X))]
+        coef = np.linalg.lstsq(A, X[:, 2], rcond=None)[0]
+        r = X[:, 2] - A @ coef
+        X = X[np.abs(r) < 4]
+    return coef
+
+
+def ray_point(f, u, v, z):
+    d = f.R @ np.array([(u - f.cx) / f.fx, (v - f.cy) / f.fy, 1.0])
+    t = (z - f.eye[2]) / d[2]
+    return np.asarray(f.eye, float) + t * d
+
+
+def mask_iou(a, b):
+    i = np.logical_and(a, b).sum()
+    u = np.logical_or(a, b).sum()
+    return i / max(u, 1)
+
+
+def annulus(shape, u, v, r0, r1):
+    """boolean mask of pixels with r0 <= distance to (u, v) < r1 (pixels), plus the window slices"""
+    H, W = shape
+    R = int(math.ceil(r1)) + 1
+    v0, v1, u0, u1 = max(0, int(v) - R), min(H, int(v) + R + 1), max(0, int(u) - R), min(W, int(u) + R + 1)
+    yy, xx = np.mgrid[v0:v1, u0:u1]
+    rr = np.hypot(xx - u, yy - v)
+    return (slice(v0, v1), slice(u0, u1)), (rr >= r0) & (rr < r1)
+
+
+# ------------------------------------------------------------------ survey
+def survey(robot):
+    mv(robot, SURVEY, closing=C0)
+    f = robot.look(["left_wrist"])["left_wrist"]
+    P = f.points().copy()
+    dep = f.depth
+    Hh, Ww = dep.shape
+    bad = ~np.isfinite(dep) | (dep < 330)
+    bad[int(Hh * 0.78):, :int(Ww * 0.3)] = True      # the fingertips
+    bad[int(Hh * 0.78):, int(Ww * 0.7):] = True
+    P[bad] = np.nan
+    coef = table_plane(P)
+    zp = coef[0] * P[..., 0] + coef[1] * P[..., 1] + coef[2]
+    h = P[..., 2] - zp
+    h[h > 330] = np.nan
+    valid = np.isfinite(h)
+    hf = fill_nan(h)
+    rng_mm = float(np.nanmedian(dep[valid]))
+    pxt = f.fx / rng_mm                                  # px per mm on the table
+    op = cv2.morphologyEx(hf, cv2.MORPH_OPEN, disc(28 * pxt))
+    res = hf - op
+    sam = {}
+    for ph in ("stick", "ring", "cylinder with a hole", "washer"):
+        try:
+            sam[ph] = [(m.astype(bool), float(s)) for m, s in robot.segment(f, ph)]
+        except Exception as e:
+            print("segment fail", ph, e)
+            sam[ph] = []
+    # ---- stick candidates: thin things much higher than their close surroundings
+    sticks = []
+    n, lab, stats, _ = cv2.connectedComponentsWithStats((res > 15).astype(np.uint8), 8)
+    for i in range(1, n):
+        if stats[i, cv2.CC_STAT_AREA] < 3:
+            continue
+        x0, y0, w0, h0 = stats[i, 0], stats[i, 1], stats[i, 2], stats[i, 3]
+        sl = (slice(y0, y0 + h0), slice(x0, x0 + w0))
+        comp = lab[sl] == i
+        hv = np.where(comp, hf[sl], -1e9)
+        vv, uu = np.unravel_index(int(np.argmax(hv)), hv.shape)
+        v, u = vv + y0, uu + x0
+        top = float(hf[v, u])
+        pxmm = f.fx / max(150.0, rng_mm - top)
+        win, ann = annulus(hf.shape, u, v, 10 * pxmm, 22 * pxmm)
+        hv_ann = h[win][ann]
+        hv_ann = hv_ann[np.isfinite(hv_ann)]
+        if len(hv_ann) < 10:
+            continue
+        a75 = float(np.percentile(hv_ann, 75))
+        ped = float(np.median(hv_ann))
+        lrise = top - a75
+        if lrise < 15:
+            continue
+        patch = comp & (hf[sl] > top - 6)
+        eqd = 2 * math.sqrt(patch.sum() / math.pi) / pxmm
+        zabs = top + float(coef[2] + coef[0] * -300)
+        p = ray_point(f, u, v, top + coef[2])
+        samv = max([s for m, s in sam["stick"] if m[max(0, v - 4):v + 5, max(0, u - 4):u + 5].any()] + [0.0])
+        ringv = max([s for ph in ("ring", "cylinder with a hole", "washer") for m, s in sam[ph][:3] if m[v, u]] + [0.0])
+        score = min(1.5, lrise / 30.0) + (0.8 if eqd < 28 else 0.0) + (0.4 if ped > 4 else 0.0) + 1.2 * samv \
+            - 0.5 * ringv
+        sticks.append(dict(uv=(int(u), int(v)), xyz=p, top=float(p[2]), lrise=lrise, eqd=eqd, ped=ped + coef[2],
+                           sam=samv, ringv=ringv, score=score))
+    sticks.sort(key=lambda s: -s["score"])
+    # ---- ring candidates: SAM masks and compact objects
+    cands = []
+    for ph in ("ring", "cylinder with a hole", "washer"):
+        for m, s in sam[ph][:4]:
+            if m.sum() < 20:
+                continue
+            for r in cands:
+                if mask_iou(r["mask"], m) > 0.5:
+                    r["sam"] += s
+                    break
+            else:
+                cands.append(dict(mask=m, sam=s))
+    objm = ((hf > 8) & valid).astype(np.uint8)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(objm, 8)
+    for i in range(1, n):
+        a = stats[i, cv2.CC_STAT_AREA]
+        eqd = 2 * math.sqrt(a / math.pi) / pxt
+        if 15 < eqd < 85:
+            m = lab == i
+            if not any(mask_iou(r["mask"], m) > 0.3 for r in cands):
+                cands.append(dict(mask=m, sam=0.0))
+    rings = []
+    for r in cands:
+        m = r["mask"]
+        hm = h[m]
+        hm = hm[np.isfinite(hm)]
+        if len(hm) < 10:
+            continue
+        top = float(np.percentile(hm, 80))
+        m8 = m.astype(np.uint8)
+        out = cv2.dilate(m8, disc(50 * pxt)).astype(bool) & ~cv2.dilate(m8, disc(12 * pxt)).astype(bool) & valid
+        sup = float(np.percentile(h[out], 25)) if out.sum() > 10 else 0.0
+        vs, us = np.nonzero(m)
+        u, v = float(us.mean()), float(vs.mean())
+        pxmm = f.fx / max(150.0, rng_mm - top)
+        p = ray_point(f, u, v, top + coef[2])
+        eqd = 2 * math.sqrt(m.sum() / math.pi) / pxmm
+        cnts, _ = cv2.findContours(m8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        per = max(cv2.arcLength(max(cnts, key=len), True), 1.0)
+        circ = 4 * math.pi * m.sum() / per ** 2
+        rise = top - sup
+        plaus = (10 < rise < 75) and (16 < eqd < 85)
+        r.update(uv=(int(u), int(v)), xyz=p, top=float(p[2]), rise=rise, eqd=eqd, circ=circ,
+                 score=r["sam"] + (0.8 if plaus else -1.5) + (0.4 if circ > 0.7 else 0.0))
+        rings.append(r)
+    rings.sort(key=lambda r: -r["score"])
+    zmax = float(np.nanpercentile(P[..., 2], 99.8))
+    return dict(f=f, coef=coef, sticks=sticks, rings=rings, zmax=zmax)
+
+
+def cam_offset(f, robot):
+    t = tcp(robot)
+    return np.asarray(f.eye[:2], float) - t[:2]
+
+
+# ------------------------------------------------------------------ close-ups
+def closeup(robot, xy, top_z, camoff, rise=185.0):
+    z = min(780.0, max(top_z + rise, 260.0))
+    tx, ty = xy[0] - camoff[0], xy[1] - camoff[1]
+    tx = min(90.0, max(-700.0, tx))
+    mv(robot, (tx, ty, z), closing=C0)
+    f = robot.look(["left_wrist"])["left_wrist"]
+    return f
+
+
+def stick_closeup(f, guess_xy, guess_top):
+    P = f.points()
+    z = P[..., 2]
+    if not np.isfinite(z).any():
+        return None
+    zf = fill_nan(z, default=float(np.nanmin(z)))
+    (uv,), _ = f.project(np.array([[guess_xy[0], guess_xy[1], guess_top]]))
+    u0, v0 = float(uv[0]), float(uv[1])
+    pxmm = f.fx / max(150.0, float(f.eye[2] - guess_top))
+    op = cv2.morphologyEx(zf, cv2.MORPH_OPEN, disc(26 * pxmm))
+    res = zf - op
+    n, lab, stats, cents = cv2.connectedComponentsWithStats((res > 12).astype(np.uint8), 8)
+    best = None
+    for i in range(1, n):
+        if stats[i, cv2.CC_STAT_AREA] < 4:
+            continue
+        comp = lab == i
+        zv = np.where(comp, zf, -1e9)
+        v, u = np.unravel_index(int(np.argmax(zv)), zv.shape)
+        dpx = math.hypot(u - u0, v - v0)
+        if dpx > 40 * pxmm:
+            continue
+        sc = zv[v, u] - 0.5 * dpx / pxmm
+        if best is None or sc > best[0]:
+            best = (sc, i)
+    if best is None:
+        return None
+    comp = lab == best[1]
+    zc = np.where(comp & np.isfinite(z), z, np.nan)
+    if not np.isfinite(zc).any():
+        return None
+    top = float(np.nanpercentile(zc, 97))
+    patch = comp & np.isfinite(z) & (z > top - 4)
+    if patch.sum() < 3:
+        patch = comp & np.isfinite(z) & (z > top - 8)
+    xy = P[patch][:, :2].mean(axis=0)
+    eqd = 2 * math.sqrt(patch.sum() / math.pi) / pxmm
+    vs, us = np.nonzero(patch)
+    uc, vc = float(us.mean()), float(vs.mean())
+    rp = eqd / 2
+    win, ann = annulus(z.shape, uc, vc, (rp + 3) * pxmm, (rp + 14) * pxmm)
+    zz = z[win][ann & (res[win] < 4)]
+    zz = zz[np.isfinite(zz)]
+    base = float(np.percentile(zz, 70)) if len(zz) > 15 else None
+    win2, ann2 = annulus(z.shape, uc, vc, (rp + 5) * pxmm, (rp + 16) * pxmm)
+    zz2 = z[win2][ann2]
+    zz2 = zz2[np.isfinite(zz2)]
+    lrise = top - float(np.percentile(zz2, 75)) if len(zz2) > 10 else 0.0
+    return dict(xy=xy, top=top, eqd=eqd, base=base, lrise=lrise, uv=(uc, vc))
+
+
+def ring_closeup(f, guess_xy, guess_top, guess_d):
+    P = f.points()
+    z = P[..., 2]
+    (uv,), _ = f.project(np.array([[guess_xy[0], guess_xy[1], guess_top]]))
+    u0, v0 = float(uv[0]), float(uv[1])
+    pxmm = f.fx / max(150.0, float(f.eye[2] - guess_top))
+    gd = min(max(guess_d, 20.0), 75.0)
+    yy, xx = np.mgrid[0:z.shape[0], 0:z.shape[1]]
+    rr = np.hypot(xx - u0, yy - v0) / pxmm
+    win = (rr < gd / 2 + 12) & np.isfinite(z)
+    if win.sum() < 30:
+        return None
+    ztop = float(np.percentile(z[win], 92))
+    patch = (np.abs(np.nan_to_num(z, nan=-1e4) - ztop) < 4) & (rr < gd / 2 + 35)
+    n, lab, stats, cents = cv2.connectedComponentsWithStats(patch.astype(np.uint8), 8)
+    if n < 2:
+        return None
+    best = max(range(1, n), key=lambda i: stats[i, cv2.CC_STAT_AREA] - 3 * pxmm * math.hypot(cents[i][0] - u0,
+                                                                                             cents[i][1] - v0))
+    pm = (lab == best).astype(np.uint8)
+    cnts, _ = cv2.findContours(pm, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    filled = np.zeros_like(pm)
+    cv2.drawContours(filled, cnts, -1, 1, -1)
+    fm = filled.astype(bool)
+    hole = fm & ~pm.astype(bool)
+    vs, us = np.nonzero(fm)
+    uc, vc = float(us.mean()), float(vs.mean())
+    c3 = ray_point(f, uc, vc, ztop)
+    od = 2 * math.sqrt(fm.sum() / math.pi) / pxmm
+    hole_d = 2 * math.sqrt(hole.sum() / math.pi) / pxmm
+    zh = z[hole]
+    low = float(np.mean(~np.isfinite(zh) | (np.nan_to_num(zh, nan=-1e4) < ztop - 6))) if hole.any() else 0.0
+    high = float(np.mean(np.nan_to_num(zh, nan=-1e4) > ztop + 6)) if hole.any() else 0.0
+    rc = np.hypot(xx - uc, yy - vc) / pxmm
+    ann = (rc > od / 2 + 6) & (rc < od / 2 + 22) & np.isfinite(z) & (z < ztop - 6)
+    sup = float(np.percentile(z[ann], 30)) if ann.sum() > 20 else None
+    return dict(xy=c3[:2], top=ztop, od=od, hole_d=hole_d, low=low, high=high, sup=sup, uv=(uc, vc))
+
+
+# ------------------------------------------------------------------ squeeze
+def squeeze_center(robot, label, min_w, max_w=80.0):
+    w1 = robot.set_gripper(ARM, 0)
+    print(label, "squeeze1 w=%.2f" % w1)
+    if w1 < min_w:
+        robot.set_gripper(ARM, 80)
+        a = turn(robot, 90)
+        w = robot.set_gripper(ARM, 0)
+        print(label, "retry rotated w=%.2f" % w)
+        if w < min_w or w > max_w:
+            robot.set_gripper(ARM, 80)
+            return None
+        robot.set_gripper(ARM, 80)
+        turn(robot, -a)
+        w1 = robot.set_gripper(ARM, 0)
+        print(label, "squeeze1b w=%.2f" % w1)
+        if w1 < min_w:
+            robot.set_gripper(ARM, 80)
+            return None
+    if w1 > max_w:
+        robot.set_gripper(ARM, 80)
+        return None
+    robot.set_gripper(ARM, min(80, w1 + 25))
+    turn(robot, 90)
+    w2 = robot.set_gripper(ARM, 0)
+    print(label, "squeeze2 w=%.2f" % w2, "tcp", np.round(tcp(robot), 2))
+    if w2 < min_w or w2 > max_w:
+        robot.set_gripper(ARM, 80)
+        return None
+    return w1, w2
+
+
+def fmt(d):
+    return {k: (np.round(v, 1).tolist() if isinstance(v, np.ndarray) else (round(v, 2) if isinstance(v, float) else v))
+            for k, v in d.items() if k not in ("mask",)}
+
+
+# ------------------------------------------------------------------ main
+def run(robot, task):
+    T0 = truth(robot)
+    if T0:
+        print("TRUTH", {k: [round(float(x), 1) for x in v] for k, v in T0.items()})
+    robot.set_gripper(ARM, 80)
+    S = survey(robot)
+    f = S["f"]
+    camoff = cam_offset(f, robot)
+    print("plane", np.round(S["coef"], 4), "zmax", round(S["zmax"], 1), "camoff", np.round(camoff, 1))
+    for s in S["sticks"][:5]:
+        print("STICKC", fmt(s))
+    for r in S["rings"][:5]:
+        print("RINGC", fmt(r))
+    ann = f.rgb.copy()
+    for s in S["sticks"][:4]:
+        cv2.circle(ann, s["uv"], 6, (255, 0, 0), 1)
+    for r in S["rings"][:4]:
+        cv2.circle(ann, r["uv"], 10, (0, 255, 0), 1)
+    robot.show("survey", ann)
+    # ---------------- find the ring (a hole that is lower than its top)
+    ring = None
+    for rc in S["rings"][:5]:
+        fc = closeup(robot, rc["xyz"][:2], rc["top"], camoff)
+        cy = ring_closeup(fc, rc["xyz"][:2], rc["top"], rc["eqd"])
+        print("RING closeup", None if cy is None else fmt(cy))
+        if cy and cy["hole_d"] >= 3.5 and cy["low"] > 0.5 and 16 <= cy["od"] <= 72 and \
+                (cy["sup"] is None or cy["top"] - cy["sup"] >= 8):
+            ring = cy
+            break
+    if ring is None:
+        print("no ring found")
+        robot.home(ARM)
+        return
+    # ---------------- find the stick
+    stick = None
+    for sc in S["sticks"][:6]:
+        if np.linalg.norm(sc["xyz"][:2] - ring["xy"]) < ring["od"] / 2 + 10:
+            continue
+        fs = closeup(robot, sc["xyz"][:2], sc["top"], camoff)
+        sk = stick_closeup(fs, sc["xyz"][:2], sc["top"])
+        print("STICK closeup", None if sk is None else fmt(sk))
+        if sk and sk["eqd"] <= 28 and sk["lrise"] >= 18 and np.linalg.norm(sk["xy"] - ring["xy"]) > ring["od"] / 2 + 8:
+            if sk["base"] is None:
+                sk["base"] = sc["ped"]
+            sk["base"] = max(sk["base"], sc["ped"])
+            stick = sk
+            break
+    if stick is None:
+        print("no stick found")
+        robot.home(ARM)
+        return
+    base_top, stick_top = stick["base"], stick["top"]
+    mv(robot, (stick["xy"][0], stick["xy"][1], stick_top + 50), closing=C0)
+    zg = max(base_top + 16 + 9, stick_top - 24, 14.0)
+    zg = min(zg, stick_top - 10)
+    r = mv(robot, (stick["xy"][0], stick["xy"][1], zg), stop=True)
+    if r.get("why"):
+        print("stick descent stopped", r.get("why"), np.round(tcp(robot), 1))
+        p = tcp(robot)
+        mv(robot, (p[0], p[1], p[2] + 3))
+    sq = squeeze_center(robot, "STICK", 2.0, 30.0)
+    Sxy = tcp(robot)[:2].copy()
+    robot.set_gripper(ARM, 80)
+    t = truth(robot)
+    print("STICK at", np.round(Sxy, 2), "sq", sq)
+    p = tcp(robot)
+    mv(robot, (p[0], p[1], max(stick_top + 45, p[2])))
+    if sq is None:
+        print("stick squeeze failed")
+        robot.home(ARM)
+        return
+    bias = stick["xy"] - Sxy
+    print("closeup bias", np.round(bias, 2))
+    if np.linalg.norm(bias) > 15:
+        bias = np.zeros(2)
+    # ---------------- grasp the cylinder
+    cxy = ring["xy"] - bias
+    sup = ring["sup"] if ring["sup"] is not None else ring["top"] - 30
+    ctop = ring["top"]
+    mv(robot, (cxy[0], cxy[1], ctop + 40), closing=C0)
+    zc = max(sup + 19, min(ctop - 10, sup + 40), 13.0)
+    r = mv(robot, (cxy[0], cxy[1], zc), stop=True)
+    if r.get("why"):
+        print("cyl descent stopped", r.get("why"), np.round(tcp(robot), 1))
+    sq = squeeze_center(robot, "CYL", 8.0, 78.0)
+    if sq is None:
+        print("cylinder grasp failed")
+        robot.set_gripper(ARM, 80)
+        robot.home(ARM)
+        return
+    C = tcp(robot)
+    db = C[2] - sup
+    t = truth(robot)
+    if t:
+        print("CYL truth err", np.round(np.array(t["w_cyl"][:2]) - C[:2], 2), "db true", round(C[2] - t["w_cyl"][2], 1),
+              "db est", round(db, 1))
+    # ---------------- insert
+    zt = max(stick_top, S["zmax"], ctop) + db + 35
+    mv(robot, (C[0], C[1], zt))
+    mv(robot, (Sxy[0], Sxy[1], zt))
+    z1 = stick_top + 12 + db
+    mv(robot, (Sxy[0], Sxy[1], z1))
+    zend = max(base_top + 2 + db, base_top + 19, 13.0, stick_top - 95)
+    r = mv(robot, (Sxy[0], Sxy[1], zend), stop=True)
+    zn = tcp(robot)[2]
+    print("insert", r.get("why"), "z", round(zn, 1), "zend", round(zend, 1), "bottom", round(zn - db, 1),
+          "stick_top", round(stick_top, 1))
+    if r.get("why") and zn - db > stick_top - 10:
+        found = False
+        for rad in (0.7, 1.4, 2.1, 2.8, 3.5, 4.5):
+            for k in range(8):
+                a = 2 * math.pi * k / 8 + rad
+                x, y = Sxy[0] + rad * math.cos(a), Sxy[1] + rad * math.sin(a)
+                mv(robot, (tcp(robot)[0], tcp(robot)[1], zn + 1.5))
+                mv(robot, (x, y, zn + 1.5))
+                mv(robot, (x, y, zn - 6), stop=True)
+                if tcp(robot)[2] < zn - 3:
+                    found = True
+                    break
+            if found:
+                break
+        print("search", found, np.round(tcp(robot), 2))
+        if found:
+            p = tcp(robot)
+            mv(robot, (p[0], p[1], zend), stop=True)
+    robot.set_gripper(ARM, 80)
+    p = tcp(robot)
+    mv(robot, (p[0], p[1], max(stick_top + 40, p[2] + 10)))
+    robot.home(ARM)
+    j = None
+    try:
+        j = robot.judge()
+    except Exception:
+        pass
+    print("JUDGE", j)

@@ -1,0 +1,85 @@
+{
+ "name": "R2",
+ "run": "20261125_170904_robot_live_NAME",
+ "when": "20261125_170904",
+ "setup": "The same objects as R1, set out anew; the white mug stood against the rack's base.",
+ "contact": "the arm's guarded line at 5 mm/s with 10 mm of lag; stops of the arm's server with less than 3.9 N not passed on (the rig text: move(..., stop_on_contact=True))",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": false,
+ "knocked_off": false,
+ "robot_time_s": 23.184,
+ "program_ended": "returned",
+ "moves_until_contact": [],
+ "server_guarded_lines": [],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.692,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.211,
+   "depth_mm": {
+    "nearest": 316,
+    "p5": 722,
+    "median": 733,
+    "p95": 743
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 14.72,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.18,
+   "depth_mm": {
+    "nearest": 317,
+    "p5": 717,
+    "median": 736,
+    "p95": 744
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_overview_-60",
+  "shown_01_overview_290"
+ ],
+ "video_frames": {
+  "scene": [
+   "video_scene_000.0s",
+   "video_scene_003.7s",
+   "video_scene_007.5s",
+   "video_scene_011.3s",
+   "video_scene_015.0s",
+   "video_scene_018.7s",
+   "video_scene_022.5s",
+   "video_scene_026.3s"
+  ],
+  "wrist": [
+   "video_wrist_000.0s",
+   "video_wrist_003.7s",
+   "video_wrist_007.5s",
+   "video_wrist_011.3s",
+   "video_wrist_015.0s",
+   "video_wrist_018.7s",
+   "video_wrist_022.5s",
+   "video_wrist_026.3s"
+  ]
+ },
+ "output_lines": 20,
+ "version": 38
+}

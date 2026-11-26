@@ -1,0 +1,105 @@
+{
+ "name": "R1",
+ "run": "20261125_170052_robot_live_NAME",
+ "when": "20261125_170052",
+ "setup": "The mug tree, a white mug and a dark blue mug; all on the table.",
+ "contact": "the arm's guarded line at 5 mm/s with 10 mm of lag; stops of the arm's server with less than 3.9 N not passed on (the rig text: move(..., stop_on_contact=True))",
+ "verdict": "FAILED",
+ "operator_note": "",
+ "operator_intervened": false,
+ "knocked_off": false,
+ "robot_time_s": 58.668,
+ "program_ended": "returned",
+ "moves_until_contact": [],
+ "server_guarded_lines": [],
+ "looks": [
+  {
+   "image": "look_00_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 7.95,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.218,
+   "depth_mm": {
+    "nearest": 314,
+    "p5": 685,
+    "median": 737,
+    "p95": 744
+   }
+  },
+  {
+   "image": "look_01_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 14.43,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.177,
+   "depth_mm": {
+    "nearest": 316,
+    "p5": 727,
+    "median": 738,
+    "p95": 745
+   }
+  },
+  {
+   "image": "look_02_left_wrist",
+   "camera": "left_wrist",
+   "robot_time_s": 31.478,
+   "K": [
+    640.0,
+    480.0,
+    619.7024536132812,
+    619.303466796875,
+    312.62640380859375,
+    237.40802001953125
+   ],
+   "pixels_without_depth": 0.32,
+   "depth_mm": {
+    "nearest": 274,
+    "p5": 355,
+    "median": 369,
+    "p95": 372
+   }
+  }
+ ],
+ "shown": [
+  "shown_00_overview_-60",
+  "shown_01_overview_290"
+ ],
+ "video_frames": {
+  "scene": [
+   "video_scene_000.0s",
+   "video_scene_009.3s",
+   "video_scene_018.5s",
+   "video_scene_027.7s",
+   "video_scene_036.9s",
+   "video_scene_046.2s",
+   "video_scene_055.4s",
+   "video_scene_064.7s"
+  ],
+  "wrist": [
+   "video_wrist_000.0s",
+   "video_wrist_009.3s",
+   "video_wrist_018.5s",
+   "video_wrist_027.7s",
+   "video_wrist_036.9s",
+   "video_wrist_046.2s",
+   "video_wrist_055.4s",
+   "video_wrist_064.7s"
+  ]
+ },
+ "output_lines": 39,
+ "version": 38
+}
