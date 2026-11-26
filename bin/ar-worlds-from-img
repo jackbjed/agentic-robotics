@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ar-worlds-from-img: the launcher of a worlds_from_img session (a from-nothing Claude Code session given two real images)
+# (src/agentic_robotics/bimanual/worlds_from_img.py): images | run | brief. Runs this checkout's code with the main
+# checkout's environment, Python isolated (-I).
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY="$ROOT/.venv/bin/python"
+if [ ! -x "$PY" ] && [ -f "$ROOT/.git" ]; then
+  MAIN="$(sed -n 's|^gitdir: \(.*\)/\.git/worktrees/.*$|\1|p' "$ROOT/.git")"
+  PY="$MAIN/.venv/bin/python"
+fi
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH CONDA_PREFIX
+export PYTHONNOUSERSITE=1 MUJOCO_GL=egl
+cd "$ROOT" && exec "$PY" -I -c 'import sys; sys.path.insert(0, sys.argv[1]); from agentic_robotics.bimanual.worlds_from_img import main; sys.exit(main(sys.argv[2:]))' "$ROOT/src" "$@"

@@ -81,6 +81,7 @@ HULL = "hull"                                                   # a part given b
 # the two and mixes the hardness); between two objects that both say them: the larger friction, the mixed hardness.
 CONTACT_KEYS = ("friction", "contact")
 WITHOUT = ("cylinder", "stand", "distractors")                   # a world's scene["without"]: these are not on the table
+WITHOUT_MORE = ("ruler",)                                        # also allowed there: the table's fixed ruler is not built (empty: a bare table)
 DIS_SIZES = dict(box=3, cylinder=2, ball=1, pill=2, L=3, steps=3)
 
 
@@ -535,24 +536,65 @@ def add_mjcf(root, sc, table_z=0.0):
     return int(m.nq)
 
 
-def mjcf_qpos(sc):
+def mjcf_qpos(sc, table_z=0.0):
     """The start values of the qpos of a scene's own MJCF (its joints, in the model's order: they are the last),
-    with scene["joints"] set -> the text to append to the keyframe's qpos."""
+    with scene["joints"] set -> the text to append to the keyframe's qpos. table_z: the table top's height (m): a
+    free body's z counts from it, as a fixed body's does (add_mjcf)."""
     if not sc.get("mjcf"):
         return ""
     import mujoco
     m = mujoco.MjModel.from_xml_string(_mjcf_fragment(_mjcf_root(sc["mjcf"])))
     q = m.qpos0.copy()
+    for k in range(m.njnt):
+        if table_z and m.jnt_type[k] == mujoco.mjtJoint.mjJNT_FREE:
+            q[m.jnt_qposadr[k] + 2] += table_z
     for name, v in (sc.get("joints") or {}).items():
         k = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)
         q[m.jnt_qposadr[k]] = v / 1000 if m.jnt_type[k] == mujoco.mjtJoint.mjJNT_SLIDE else math.radians(v)
     return "".join(f" {v:.9g}" for v in q)
 
 
+def empty(seed):
+    """An empty table for the left arm alone (a session on a task of the model's own: improve.py --own-task): a scene
+    whose cylinder, stand and distractors are not on the table. A world's scene() fills it."""
+    sc = build({"distractors": 0}, seed=int(seed))
+    return dict(sc, seed=int(seed), arm="left", without=list(WITHOUT + WITHOUT_MORE))      # (a bare table: no ruler either)
+
+
+def world_table(t, seed=0):
+    """A world's scene["table"] -> a whole table (build_table's fields). A table as build_table made it stays; a
+    partial one is the usual table (plain dark grey, its top at 0) with what is given: height_mm (TABLE_H), "rgb" or
+    a colour of TABLE_COLOURS, a pattern (PATTERNS of the training set) with color2 / rgb2, size_mm, angle_deg."""
+    if t is None:
+        return None
+    full = ("height_mm", "pattern", "color", "rgb", "color2", "rgb2", "size_mm", "angle_deg", "texture_seed")
+    _known(t, full, "table")
+    T = TRAIN_TABLE
+    pat = t.get("pattern") or "plain"
+    if pat not in PATTERNS:
+        raise ValueError(f"table.pattern: one of {', '.join(PATTERNS)}")
+    out = dict(height_mm=_num(t, "height_mm", TABLE_H, "table.height_mm", 0.0), pattern=pat)
+    for key, rgb, default in (("color", "rgb", "dark grey"), ("color2", "rgb2", "white")):
+        name = t.get(key)
+        if t.get(rgb) is not None:
+            out[rgb] = _rgb3(t[rgb], "table." + rgb); out[key] = str(name or "a colour of your own")[:40]
+        else:
+            if name is not None and name not in TABLE_COLOURS:
+                raise ValueError(f'table.{key}: one of {", ".join(TABLE_COLOURS)}, or any name with "{rgb}": [r, g, b]')
+            out[key] = name or default; out[rgb] = list(TABLE_COLOURS[out[key]])
+    out["size_mm"] = 0.0
+    if pat != "plain":
+        r, step = PATTERN_SIZE[pat]
+        out["size_mm"] = _num(t, "size_mm", r, f"table.size_mm (of {pat})", (r[0] + r[1]) / 2)
+    out["angle_deg"] = _num(t, "angle_deg", (0, 180), "table.angle_deg", 0.0)
+    out["texture_seed"] = int(t["texture_seed"]) if t.get("texture_seed") is not None else int(seed) + 17
+    return out
+
+
 def world_scene(sc, before=None):
     """A scene as a world's code returned it -> the scene the simulation builds: every value checked against WORLD
-    (ValueError with the reason), unknown fields refused, nothing else changed. (before: the scene the world's code
-    got; not used here.)"""
+    (ValueError with the reason), unknown fields refused, nothing else changed. before: the scene the world's code
+    got: a one-armed scene stays one."""
     W = WORLD
     if not isinstance(sc, dict):
         raise ValueError("a world's scene(...) returns the scene: a dict")
@@ -617,7 +659,9 @@ def world_scene(sc, before=None):
     if out_e:
         out["extras"] = out_e
     if sc.get("table") is not None:
-        out["table"] = sc["table"]
+        out["table"] = world_table(sc["table"], out["seed"])
+    if before is not None and before.get("arm") == "left" and sc.get("arm") != "left":
+        raise ValueError('arm: this scene is the left arm\'s alone ("arm": "left" stays)')
     if sc.get("arm") is not None:
         if sc["arm"] != "left":
             raise ValueError('arm: "left" (the left arm alone, within the real rig\'s limits) or absent')
@@ -633,10 +677,10 @@ def world_scene(sc, before=None):
     if cams:
         out["cameras"] = cams
     wo = sc.get("without") or []
-    if not isinstance(wo, (list, tuple)) or set(wo) - set(WITHOUT):
+    if not isinstance(wo, (list, tuple)) or set(wo) - set(WITHOUT + WITHOUT_MORE):
         raise ValueError(f"without: a list of {', '.join(WITHOUT)} (what is not on the table in this scene)")
     if wo:
-        out["without"] = [n for n in WITHOUT if n in wo]
+        out["without"] = [n for n in WITHOUT + WITHOUT_MORE if n in wo]
     return out
 
 
@@ -1075,6 +1119,17 @@ def sample(seed):
 
 def describe(sc):
     """One line of text: what is in the scene."""
+    if set(sc.get("without") or ()) >= set(WITHOUT) and not sc.get("rig"):     # (an empty table, and what a world put on it)
+        out = "an empty table" + (", the left arm alone" if sc.get("arm") == "left" else "")
+        for k, e in enumerate(sc.get("extras") or []):
+            out += (f"; extra_{k} \"{e['name']}\" ({'fixed' if e['fixed'] else 'free'}: " + " + ".join(part_text(q) for q in e["parts"])
+                    + f") at ({e['xy_mm'][0]:g}, {e['xy_mm'][1]:g}, {e['z_mm']:g})")
+        out += mjcf_text(sc) + cameras_text(sc)
+        t = sc.get("table")
+        if t:
+            out += (f"; table: top at {t['height_mm']:g} mm in the robot's frame, {t['color']}"
+                    + ("" if t["pattern"] == "plain" else f" with {t['color2']} {t['pattern']} ({t['size_mm']:g} mm)"))
+        return out
     c, s = sc["cylinder"], sc["stand"]
     b = s["board_mm"]
     out = (f"cylinder {c['diameter_mm']:g} across, {c['height_mm']:g} tall, hole {c['hole_mm']:g}, {c['color']}, {c['density']:g} kg/m3, at "
@@ -1223,6 +1278,8 @@ def model_xml(path, sc):
     comp.set("meshdir", str((path.parent / comp.get("meshdir", ".")).resolve()))
     wb = root.find("worldbody")
     bodies = {b.get("name"): b for b in wb.findall("body")}
+    if "ruler" in (sc.get("without") or ()):                        # (a scene without the table's ruler: the body is not built)
+        wb.remove(bodies["obj_ruler"])
     for name, make, spec in (("obj_stick_stand", _stand, sc["stand"]), ("obj_cylinder", _cylinder, sc["cylinder"])):
         for g in bodies[name].findall("geom"):
             bodies[name].remove(g)
@@ -1265,5 +1322,5 @@ def model_xml(path, sc):
             del top.attrib["rgba"]; top.set("material", "table")
     add_mjcf(root, sc, th)                                          # (a world's own bodies: the last of all)
     key = root.find("keyframe").find("key")                         # (the new bodies are the last: their qpos too)
-    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * (len(sc["distractors"]) + free) + mjcf_qpos(sc))
+    key.set("qpos", key.get("qpos") + " 0 0 0 1 0 0 0" * (len(sc["distractors"]) + free) + mjcf_qpos(sc, th))
     return ET.tostring(root, encoding="unicode")

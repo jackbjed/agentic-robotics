@@ -6,6 +6,8 @@ read_real_depth).
 
 manifest.json (written by the operator), next to which the pack is written:
     {"rig": "text: what the real robot is and how it answers the program's commands (facts, not a diagnosis)",
+     "cameras": {"scene": [W, H, fx, fy, cx, cy], "left_wrist": [...]}   (optional: for the frames of a depth recording,
+                 real/run --depth-fps, which are handed over as looks named video_<camera>_<t>s),
      "episodes": [{"name": "R1", "run": "real/results/<run>", "version": 21, "setup": "what stood where, what the
                    operator changed", "contact": "which setting of the moves until contact the episode ran with"}]}
 
@@ -28,6 +30,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+CAMERAS = None                                                   # (the manifest's "cameras": {name: K}, for recorded depth)
 VIDEO_FRAMES = 8                                                # per camera, evenly over the episode, the last one included
 MOVE = re.compile(r"# t=\s*([\d.]+) move\('left', \(([-\d., ]+)\), .*?(, True)?\) -> (.*?) \| left tool \(([-\d., ]+)\)")
 DEPTH_RANGE = {"scene": (600, 1600), "left_wrist": (250, 500)}   # mm: the colours of a look's depth picture
@@ -65,6 +68,61 @@ def _video(path, out, cam):
             cv2.imwrite(str(out / name), im, [cv2.IMWRITE_JPEG_QUALITY, 88]); names.append(name)
     cap.release()
     return names
+
+
+def _rig_time(run):
+    """An episode without a result's robot time (the operator stopped it): the rig's clock at the end of the last
+    trajectory sent (actions.jsonl), not the program's clock (output.txt's t=), which counts a move until contact as
+    the simulation would."""
+    f = run / "actions.jsonl"
+    A = [json.loads(l) for l in f.read_text().splitlines() if l.strip()] if f.exists() else []
+    A = [a for a in A if a.get("t_start") is not None]
+    return round(float(A[-1]["t_start"]) + float(A[-1].get("dur") or 0.0), 1) if A else None
+
+
+def _recorded_depth(run, out, cam, K):
+    """The rig's depth recording of a camera (real/run --depth-fps: video/<cam>_depth.mkv, FFV1 16-bit mm, one row a
+    frame in <cam>_depth.csv) -> VIDEO_FRAMES of its frames evenly over the episode, each with the colour frame nearest
+    in time, as LOOKS (image video_<cam>_<t>s, t the run's time): the session reads them as it reads the program's
+    looks (view_real_images NAME, NAME_depth, NAME_nodepth; read_real_depth --look NAME). -> the looks' entries."""
+    import csv, subprocess
+    v = run / "video"
+    if not ((v / f"{cam}_depth.mkv").exists() and (v / f"{cam}_depth.csv").exists() and (v / f"{cam}.mp4").exists()):
+        return []
+    td = [float(r["t_run"]) for r in csv.DictReader(open(v / f"{cam}_depth.csv"))]
+    tc = np.array([float(r["t_run"]) for r in csv.DictReader(open(v / f"{cam}_rgb.csv"))])
+    stopped = not td or not len(tc)                                 # (a run the operator stopped: the recorder's time files were not written
+    #                                                                  out; the frames' times are then their number over the frame rate)
+    cap = cv2.VideoCapture(str(v / f"{cam}_depth.mkv"))
+    W, H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)); cap.release()
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(v / f"{cam}_depth.mkv"), "-f", "rawvideo", "-pix_fmt", "gray16le", "-"],
+                         capture_output=True, check=True).stdout
+    D = np.frombuffer(raw[:len(raw) // (2 * H * W) * 2 * H * W], np.uint16).reshape(-1, H, W)
+    if stopped:
+        spec = json.loads((run / "spec.json").read_text()) if (run / "spec.json").exists() else {}
+        dfps = float(spec.get("depth_fps") or 1.0)
+        c0 = cv2.VideoCapture(str(v / f"{cam}.mp4")); nc, fps = int(c0.get(cv2.CAP_PROP_FRAME_COUNT)), c0.get(cv2.CAP_PROP_FPS) or 15.0; c0.release()
+        td, tc = [i / dfps for i in range(len(D))], np.arange(nc) / fps
+    n = min(len(D), len(td))
+    name_cam = {"wrist": "left_wrist"}.get(cam, cam)
+    col = cv2.VideoCapture(str(v / f"{cam}.mp4"))
+    looks = []
+    for k in sorted({int(round(i)) for i in np.linspace(0, max(n - 1, 0), VIDEO_FRAMES)}) if n else []:
+        col.set(cv2.CAP_PROP_POS_FRAMES, int(np.abs(tc - td[k]).argmin()))
+        ok, rgb = col.read()
+        if not ok:
+            continue
+        dep = D[k]
+        base = f"video_{cam}_{td[k]:05.1f}s"
+        cv2.imwrite(str(out / "images" / f"{base}.jpg"), rgb, [cv2.IMWRITE_JPEG_QUALITY, 88])
+        cv2.imwrite(str(out / "images" / f"{base}_nodepth.jpg"), _nodepth(rgb, dep), [cv2.IMWRITE_JPEG_QUALITY, 90])
+        cv2.imwrite(str(out / "images" / f"{base}_depth.jpg"), _depth_picture(dep, name_cam), [cv2.IMWRITE_JPEG_QUALITY, 92])
+        cv2.imwrite(str(out / "depth" / f"{base}.png"), dep)                              # (16-bit, mm, 0 = no depth)
+        x = dep[dep > 0]
+        looks.append(dict(image=base, camera=name_cam, robot_time_s=round(td[k], 1), K=K, recording=True, pixels_without_depth=round(float((dep == 0).mean()), 3),
+                          depth_mm=dict(nearest=int(x.min()), p5=int(np.percentile(x, 5)), median=int(np.median(x)), p95=int(np.percentile(x, 95))) if len(x) else None))
+    col.release()
+    return looks
 
 
 def _contact_moves(run):
@@ -157,7 +215,11 @@ def episode(e, pack, root):
     videos = {}
     for cam in ("scene", "wrist"):
         v = run / "video" / f"{cam}.mp4"
-        if v.exists():
+        K = (CAMERAS or {}).get({"wrist": "left_wrist"}.get(cam, cam)) or next((l["K"] for l in looks if l["camera"] == {"wrist": "left_wrist"}.get(cam, cam)), None)
+        rec = _recorded_depth(run, out, cam, K)                      # (a depth recording: its frames, with their colour, as looks)
+        if rec:
+            looks.extend(rec)
+        elif v.exists():
             names = [n[:-4] for n in _video(v, out / "images", cam)]
             if names:
                 videos[cam] = names
@@ -169,7 +231,7 @@ def episode(e, pack, root):
                 verdict=("success" if v.get("success") else "FAILED") if v else "NO VERDICT (the operator stopped the episode)",
                 operator_note=(v or {}).get("note", ""), operator_intervened=bool((v or {}).get("intervened")) or not v or bool(res.get("interrupted")),
                 knocked_off=bool((v or {}).get("knocked_off")),
-                robot_time_s=res.get("robot_time_s") or (times[-1] if times else None), program_ended=ended,
+                robot_time_s=res.get("robot_time_s") or _rig_time(run) or (times[-1] if times else None), program_ended=ended,
                 moves_until_contact=moves, server_guarded_lines=lines, looks=looks, shown=shown, video_frames=videos,
                 output_lines=len(text.splitlines()))
     asks = _asks(run, out)
@@ -189,6 +251,8 @@ def main():
     mf = Path(a.manifest).resolve()
     M = json.loads(mf.read_text())
     names = [e["name"] for e in M["episodes"]]
+    global CAMERAS
+    CAMERAS = M.get("cameras")
     if len(set(names)) != len(names) or any(not re.fullmatch(r"[A-Za-z0-9]+", n) for n in names):
         raise SystemExit("episode names: distinct, letters and digits only")
     (mf.parent / "rig.md").write_text(M["rig"].strip() + "\n")
