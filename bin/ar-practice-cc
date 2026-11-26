@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# ar-practice-cc: the only shell command of a Claude Code session of bimanual/improve_cc.py (its sub-commands are the
+# Astra session's tools). Lives outside every workspace: the agent cannot edit it. The session is the launcher's
+# AR_CC_SESSION; programs and worlds run only in the program sandbox (bimanual/practice.py).
+# Python runs isolated (-I): nothing of the caller's directory (the agent's workspace) or environment is importable.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY="$ROOT/.venv/bin/python"
+if [ ! -x "$PY" ] && [ -f "$ROOT/.git" ]; then                    # a worktree: the main checkout's environment
+  MAIN="$(sed -n 's|^gitdir: \(.*\)/\.git/worktrees/.*$|\1|p' "$ROOT/.git")"
+  PY="$MAIN/.venv/bin/python"
+fi
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH CONDA_PREFIX
+export PYTHONNOUSERSITE=1 MUJOCO_GL=egl
+exec "$PY" -I -c 'import sys; sys.path.insert(0, sys.argv[1]); from agentic_robotics.bimanual.improve_cc import main; sys.exit(main(["practice"] + sys.argv[2:]))' "$ROOT/src" "$@"
