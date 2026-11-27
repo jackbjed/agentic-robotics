@@ -40,6 +40,7 @@ def public_log(text):
 
 def episode(layout, program, out, task_text, public=None, segmenter=True):
     from m2m import api
+    from m2m.boxed.host import run_program as RUN_PROGRAM
     from sweep_blocks.env import SweepBlocks
     from sweep_blocks.program_api import TABLE_Z, X5Robot, program_robot
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
@@ -81,18 +82,8 @@ def episode(layout, program, out, task_text, public=None, segmenter=True):
         if bad:
             how = "refused: " + "; ".join(bad)
         else:
-            linecache.cache["program.py"] = (len(code), None, code.splitlines(True), "program.py")
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
-                try:
-                    ns = {"__name__": "program"}
-                    exec(compile(code, "program.py", "exec"), ns)
-                    ns["run"](given, task_text)
-                    how = "returned"
-                except api.TimeUp as e:
-                    how = f"time: {e}"
-                except (Exception, SystemExit) as e:
-                    traceback.print_exc(limit=-6)
-                    how = f"error: {type(e).__name__}: {str(e)[:200]}"
+                how = RUN_PROGRAM(code, given, task_text, log)   # (in the sandbox: m2m/boxed)
         info = env.info()
         success = bool(env.success or info["success"])
         log.write(f"# ended: {how}\n# the judge's test at the end: {json.dumps(info)}\n# TRUE positions at the end (mm): {json.dumps(truth())}\n")

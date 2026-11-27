@@ -4,7 +4,7 @@
 # "_plain": the program gets the rig's robot as it is (the world gives the scene only);
 # without: the world's robot() wraps it, as in the project's own evaluations of these worlds.
 cd "$(dirname "$0")/.." || exit 1
-P=<HOME>/micromamba/envs/robomme/bin/python
+P=${M2M_MANISKILL_PYTHON:?set M2M_MANISKILL_PYTHON to the python of the environment that has ManiSkill}
 R=../runs/bimanual
 J=${1:-12}
 declare -A PROG=(

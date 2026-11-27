@@ -1,0 +1,4 @@
+out/
+.venv_usd/
+assets/generated/
+assets/x5/generated/

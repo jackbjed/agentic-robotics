@@ -24,6 +24,7 @@ HERE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(HERE))
 from xsim.bi import mj  # noqa: E402
 from m2m import api  # noqa: E402
+from m2m.boxed import host as boxed  # noqa: E402
 from sweep_blocks import program_api as PA  # noqa: E402
 
 WORLD_NEEDS = ("scene",)
@@ -48,21 +49,24 @@ def check_world(code):
 
 
 def load_world(path, seed):
-    """-> (the world's namespace, its scene dict for the seed). Raises mj.WorldError with what is wrong."""
+    """-> (the world: the file loaded in its sandbox, m2m/boxed; its scene dict for the seed). Raises mj.WorldError with
+    what is wrong. The caller closes the world."""
     code = Path(path).read_text()
     bad = check_world(code)
     if bad:
         raise mj.WorldError("the world file is not taken: " + "; ".join(bad))
-    linecache.cache["world.py"] = (len(code), None, code.splitlines(True), "world.py")
-    ns = {"__name__": "world"}
+    world = None
     try:
-        exec(compile(code, "world.py", "exec"), ns)
-        sc = ns["scene"](dict(mjcf="", table=dict(mj.TABLE_DEFAULT, size_mm=[1400, 1100])), np.random.default_rng(int(seed)))
-    except Exception as e:
-        raise mj.WorldError(f"the world's scene() failed: {type(e).__name__}: {str(e)[:300]}\n" + traceback.format_exc(limit=-3)[-700:])
+        world = boxed.World(code)
+        sc = world.scene(dict(mjcf="", table=dict(mj.TABLE_DEFAULT, size_mm=[1400, 1100])), seed)
+    except boxed.WorldFailure as e:
+        if world is not None:
+            world.close()
+        raise mj.WorldError(f"the world's scene() failed: {e.kind}: {e.msg[:300]}\n" + e.tb[-700:])
     if not isinstance(sc, dict) or not isinstance(sc.get("mjcf"), str) or not sc["mjcf"].strip():
+        world.close()
         raise mj.WorldError('scene() must return the scene dict with scene["mjcf"] filled (a MuJoCo XML string)')
-    return ns, sc
+    return world, sc
 
 
 def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, segmenter=True, validate=False):
@@ -73,9 +77,12 @@ def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, se
     t0 = time.time()
     res = dict(seed=int(seed), simulator="mujoco (practice)", ok=False, world_check=None, robot_s=0.0, commands=0)
     try:
-        ns, sc = load_world(world, seed)
+        wd = None
+        wd, sc = load_world(world, seed)
         task = mj.MJTask(sc["mjcf"], sc.get("table") if isinstance(sc.get("table"), dict) else None)
     except mj.WorldError as e:
+        if wd is not None:
+            wd.close()
         res.update(ended=f"the world does not build: {str(e)[:900]}", wall_s=round(time.time() - t0, 1))
         (out / "output.txt").write_text("# " + res["ended"] + "\n"); (out / "result.json").write_text(json.dumps(res, indent=1))
         return res
@@ -93,7 +100,7 @@ def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, se
         f = task.frame("head", t=t)
         rec.add_head(t, f.rgb, f.depth)
 
-    state, succ, won = mj.State(task), ns.get("success") if callable(ns.get("success")) else None, {}
+    state, succ, won = mj.State(task), wd if wd.has_success else None, {}
 
     def on_step():
         if task.steps % media.OVER_EVERY == 0:
@@ -102,11 +109,11 @@ def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, se
             shoot()
         if succ is not None and not task.done and not validate:     # (as in the target: an episode ends, a success, as soon as the check holds)
             try:
-                c = succ(state)
-                if (c.get("ok") if isinstance(c, dict) else c):
+                yes, c = succ.success(state)                       # (asked of the world's sandboxed process)
+                if yes:
                     won["check"] = c if isinstance(c, dict) else dict(ok=True)
                     task.success = task.done = True
-            except Exception:
+            except boxed.WorldFailure:
                 pass
     robot = mj.X5RobotMJ(task, segmenter=seg, on_step=on_step)
     robot.env_limit = staticmethod(lambda: int(round(float(time_limit) / PA.ACTION_S)))
@@ -116,36 +123,28 @@ def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, se
     with open(out / "output.txt", "w", buffering=1) as log:
         log.write(f"# practice world {Path(world).name}, scene {seed} (MuJoCo)\n# while the scene settled, its bodies moved: {json.dumps(task.settle)}\n")
         given, counts = PA.program_robot(robot, out, trace=log, truth=truth)
+        wd.sink = log.write                                         # (what the world's success() prints: into the episode's log, as before)
         bad = api.check_program(code)
         if bad:
             how = "refused: " + "; ".join(bad)
         else:
-            linecache.cache["program.py"] = (len(code), None, code.splitlines(True), "program.py")
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
-                try:
-                    pns = {"__name__": "program"}
-                    exec(compile(code, "program.py", "exec"), pns)
-                    pns["run"](given, task_text)
-                    how = "returned"
-                except api.TimeUp as e:
-                    how = f"time: {e}"
-                except (Exception, SystemExit) as e:
-                    traceback.print_exc(limit=-6)
-                    how = f"error: {type(e).__name__}: {str(e)[:200]}"
+                how = boxed.run_program(code, given, task_text, log)   # (in the sandbox: m2m/boxed)
         chk = None
         if won:
             chk = json.loads(json.dumps(dict(won["check"], held_at_s=round(task.steps * PA.ACTION_S, 2)), default=str))
-        elif callable(ns.get("success")):
+        elif wd.has_success:
             try:
-                chk = ns["success"](mj.State(task))
+                yes, chk = wd.success(mj.State(task))
                 if not isinstance(chk, dict):
-                    chk = dict(ok=bool(chk))
-                chk = json.loads(json.dumps(chk, default=str))
-            except Exception as e:
-                chk = dict(ok=False, error=f"the world's success() failed: {type(e).__name__}: {str(e)[:200]}")
+                    chk = dict(ok=bool(yes))
+            except boxed.WorldFailure as e:
+                chk = dict(ok=False, error=f"the world's success() failed: {e.kind}: {e.msg[:200]}")
         else:
             chk = dict(ok=False, note="this world has no self-check")
         log.write(f"# ended: {how}\n# the world's own success(): {json.dumps(chk)}\n# TRUE positions at the end (mm): {json.dumps(truth())}\n")
+        wd.sink = None
+    wd.close()
     rec.add_overview(task.steps * PA.ACTION_S, task.image("overview")); shoot()
     rec.save(out)
     res.update(ok=bool(chk.get("ok")), world_check=chk, ended=how, robot_s=round(task.steps * PA.ACTION_S, 2), commands=counts["commands"], shown=counts["shown"],

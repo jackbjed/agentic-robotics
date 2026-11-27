@@ -25,7 +25,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
 PROJECT = HERE.parent
-MS_PY = "<HOME>/micromamba/envs/robomme/bin/python"
+sys.path.insert(0, str(HERE)) if str(HERE) not in sys.path else None
+from m2m.envpaths import maniskill_python  # noqa: E402  (machine-local: M2M_MANISKILL_PYTHON or configs/local.yaml)
 WORK = Path("/var/tmp/ar-cc")
 RULES = ("Imports: only math, numpy, scipy, cv2, itertools, functools, collections, dataclasses, typing, heapq, bisect, statistics, random, "
          "time, copy, enum, operator, numbers, abc (and their submodules). No eval, exec, open, getattr or file access (numpy's and "
@@ -68,7 +69,7 @@ def instructions():
 
 def look(layout, given):
     env = dict(os.environ, PYTHONNOUSERSITE="1", CUDA_VISIBLE_DEVICES=os.environ.get("M2M_GPU", "0"))
-    r = subprocess.run([MS_PY, "-I", str(HERE / "sweep_blocks" / "run_program.py"), "--layout", str(layout), "--look", str(given)],
+    r = subprocess.run([maniskill_python(), "-I", str(HERE / "sweep_blocks" / "run_program.py"), "--layout", str(layout), "--look", str(given)],
                        capture_output=True, text=True, env=env)
     if r.returncode != 0 or not (given / "state.txt").exists():
         raise SystemExit("the look failed:\n" + r.stderr[-1500:])
@@ -152,7 +153,7 @@ def main():
     if code:
         (d / "program.py").write_text(code)
         env = dict(os.environ, PYTHONNOUSERSITE="1", CUDA_VISIBLE_DEVICES=os.environ.get("M2M_GPU", "0"))
-        r = subprocess.run([MS_PY, "-I", str(HERE / "sweep_blocks" / "run_program.py"), "--layout", str(a.layout), "--program", str(d / "program.py"),
+        r = subprocess.run([maniskill_python(), "-I", str(HERE / "sweep_blocks" / "run_program.py"), "--layout", str(a.layout), "--program", str(d / "program.py"),
                             "--out", str(d / "run"), "--video"], capture_output=True, text=True, env=env)
         if (d / "run" / "result.json").exists():
             summary["result"] = json.loads((d / "run" / "result.json").read_text())

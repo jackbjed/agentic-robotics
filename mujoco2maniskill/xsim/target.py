@@ -20,7 +20,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
 PROJECT = HERE.parent
-MS_PY = "<HOME>/micromamba/envs/robomme/bin/python"
+sys.path.insert(0, str(HERE)) if str(HERE) not in sys.path else None
+from m2m.envpaths import maniskill_python  # noqa: E402  (machine-local: M2M_MANISKILL_PYTHON or configs/local.yaml)
 SRC = PROJECT.parent / "agentic-robotics-ownreal" / "src"          # (the checkout with the worlds' code; read only)
 FRAMES = 6                                                      # frames of an episode's video given back
 
@@ -31,7 +32,7 @@ def sha(path):
 
 def _ms(args, timeout=1800):
     env = dict(os.environ, PYTHONNOUSERSITE="1", CUDA_VISIBLE_DEVICES=os.environ.get("M2M_GPU", "0"))
-    return subprocess.run([MS_PY, "-I"] + [str(a) for a in args], capture_output=True, text=True, env=env, timeout=timeout)
+    return subprocess.run([maniskill_python(), "-I"] + [str(a) for a in args], capture_output=True, text=True, env=env, timeout=timeout)
 
 
 def _json(r):
