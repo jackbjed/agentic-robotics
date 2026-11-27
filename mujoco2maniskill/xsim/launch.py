@@ -126,6 +126,17 @@ def out_usd(extra, model, cfg):
     return (extra["thinking"] + OUT_TOKENS_PER_CHAR * extra["chars"]) * P["output"] / 1e6
 
 
+def tool_env(record):
+    """The environment of the session's command (the MCP server and every episode it starts): what its commands need,
+    given explicitly; nothing is inherited from the launcher's environment. The ManiSkill python is resolved HERE, by the
+    launcher (M2M_MANISKILL_PYTHON or configs/local.yaml): the tool's own process has neither."""
+    from m2m.envpaths import maniskill_python
+    env = dict(XSIM_SESSION=str(record), PYTHONNOUSERSITE="1", MUJOCO_GL="egl", PATH=os.environ.get("PATH", "/usr/bin:/bin"), M2M_MANISKILL_PYTHON=maniskill_python())
+    if os.environ.get("M2M_GPU"):
+        env["M2M_GPU"] = os.environ["M2M_GPU"]
+    return env
+
+
 def run_agent(record, root, system, prompt, cfg, cap_usd, hours, shell=True, finished=lambda: False, claude=None, again=None):
     """The isolated Claude Code session(s) of one development stage. record: where cost.json and claude/ are kept.
     -> dict(usd, turns, tokens, wall_s, invocations, model). Stops at the cap, the wall-clock limit, or when the agent
@@ -152,8 +163,7 @@ def run_agent(record, root, system, prompt, cfg, cap_usd, hours, shell=True, fin
     allowed = ["Read", "Edit", "Write", "Glob", "Grep"] + (["mcp__xsim__run"] if shell else [])
     mcp = root / "mcp.json"
     mcp.write_text(json.dumps(dict(mcpServers=dict(xsim=dict(command=str(PROJECT / ".venv" / "bin" / "python"), args=["-I", str(HERE / "xsim" / "mcp_server.py")],
-                                                             env=dict(XSIM_SESSION=str(record), PYTHONNOUSERSITE="1", MUJOCO_GL="egl",
-                                                                      PATH=os.environ.get("PATH", "/usr/bin:/bin"))))) if shell else dict(mcpServers={})))
+                                                             env=tool_env(record)))) if shell else dict(mcpServers={})))
     env.update(MCP_TOOL_TIMEOUT="3600000", MCP_TIMEOUT="60000")
     t0, tot, k, resume, msgs_all, model = time.time(), 0.0, 0, None, {}, None
     cost = dict(usd=0.0, turns=0, tokens={}, t0=t0, t=t0)

@@ -57,7 +57,7 @@ class Agent:
         self.sdir, self.ws, self.tool = Path(sdir), Path(ws), tool
 
     def __call__(self, *argv):
-        r = subprocess.run([str(self.tool), *[str(a) for a in argv]], cwd=str(self.ws), env=dict(os.environ, XSIM_SESSION=str(self.sdir)), capture_output=True, text=True)
+        r = subprocess.run([str(self.tool), *[str(a) for a in argv]], cwd=str(self.ws), env=launch.tool_env(self.sdir), capture_output=True, text=True)   # (a real session's tool env: nothing inherited)
         return r.stdout.strip()
 
     def write(self, name, text):

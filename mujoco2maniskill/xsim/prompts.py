@@ -232,6 +232,10 @@ VIDEOS_BI = ("  videos/        the episode's videos: overview_rgb.mp4 (a camera 
 F_TARGET = ("Final evaluation uses the same target simulator as your practice environment, on held-out configurations you cannot access. "
             "Practice uses your own success checks; official development and final evaluations use the independent target judge.")
 F_NOT_EXPOSED = "The official verdict is not exposed to you and does not control practice termination."
+# (the shared text says the true positions are not given: for F that needs this, in the user's words, 2026-11-27)
+F_PRIVILEGED = ("During oracle-simulator practice, the development agent and its self-check can access true object positions through the documented practice "
+                "interface and logs. The executable skill cannot access privileged state. Official target-development evaluations provide only the "
+                "documented observations and feedback, without true object positions.")
 
 
 def target_doc(task, cond=None):
@@ -310,7 +314,7 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
         subs = "\n".join(SUB[n] for n in WHICH[cond]).format(panel=n_p, subs_max=n_s, panel_w=words.get(n_p, n_p), subs_w=words.get(n_s, n_s), total=n_p * n_s,
                                                              pool=(pool or 1) - 1, fcap=cfg["practice_episode_cap"] + cfg["f_extra_episodes"],
                                                              cap=cfg["build_validation_cap"] if cond == "build" else cfg["practice_episode_cap"])
-        block = TOOL.format(cmd=cmd, subs=subs, start=START[cond])
+        block = TOOL.format(cmd=cmd, subs=subs, start=START[cond] + ("\n\n" + F_PRIVILEGED if cond == "F" and task.get("rig") == "x5" else ""))
         if task.get("rig") == "x5":
             block = block.replace("(it looks with both cameras, reads the arm's state,\n", "(it looks with the three cameras, reads the arms' states,\n") \
                          .replace("moves the gripper a little)", "moves each arm and gripper a little)") \

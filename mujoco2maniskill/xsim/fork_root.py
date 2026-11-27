@@ -67,7 +67,7 @@ def main():
             raise SystemExit(f"the copied snapshot's {n} does not match its recorded hash")
     dev, dev_id = target.checked_panel(task, R1 / "private" / "dev", None)   # (the copied panel against its manifest of hashes)
     (R1 / "FORKED_FROM.json").write_text(json.dumps(dict(
-        made=time.strftime("%Y-%m-%d %H:%M"), source=str(R0.relative_to(HERE)), snapshot=snap["files"], evaluator_sha=target.evaluator_sha(task),
+        made=time.strftime("%Y-%m-%d %H:%M"), source=str(R0.relative_to(HERE)) if HERE in R0.parents else str(R0), snapshot=snap["files"], evaluator_sha=target.evaluator_sha(task),
         development_panel=[f.name for f in dev], development_panel_id=dev_id, copied=["private/dev, private/f_pool, private/example (scenes and manifests only)", "shared", "prepared.json", "init: snapshot and its costs", "A", "test_private/splits.json"],
         not_copied=["the sessions of B to F of the source root", "every held-out result (final_eval)", "the transcripts of the initialization",
                     "the source's execution records under private/: " + ", ".join(left)]), indent=1))
