@@ -279,6 +279,8 @@ def main():
           and all(w in texts["E"] for w in ("This session has no target development evaluations; final\nevaluation feedback is never returned.", "look you were given; coverage",
                                             "what practice showed", "the episode's videos (an overview in colour; the head camera in colour and depth) with frames"))
           and all(w in texts["D"] for w in ("of the same kinds as a target episode gives", "the target showed; coverage", "what the feedback showed", "across B/C/D and across submissions"))
+          and "You are NOT given, and nothing here tells" not in texts["F"] and texts["F"].count(launch.prompts.F_NOT_GIVEN[1]) == 1
+          and all(launch.prompts.F_NOT_GIVEN[0] in texts[c_] and launch.prompts.F_NOT_GIVEN[1] not in texts[c_] for c_ in "BCDE")
           and texts["F"].count(launch.prompts.F_PRIVILEGED) == 1 and not any(launch.prompts.F_PRIVILEGED in texts[c_] or launch.prompts.F_TARGET in texts[c_] for c_ in "BCDE"))
     check("the agent's notes are kept: at every submission and at the end (C wrote both files)",
           (R / "C" / "rounds" / "round_0" / "agent_notes" / "notes.md").is_file() and (R / "C" / "final" / "summary.md").is_file()

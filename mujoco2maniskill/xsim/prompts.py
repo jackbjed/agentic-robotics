@@ -347,7 +347,17 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
                    .replace("What you need of them you estimate from what the cameras and the arm show.", "What you need of them you estimate from what the cameras and the arms show.")
     if cond == "E" and task.get("rig") == "x5":
         text = for_E(text)
+    if cond == "F" and task.get("rig") == "x5":
+        assert text.count(F_NOT_GIVEN[0]) == 1, "the shared sentence that F's scoping replaces has changed"
+        text = text.replace(*F_NOT_GIVEN)
     return text
+
+
+# F: the shared text's "You are NOT given ... their true positions" would contradict what F's practice gives its developer.
+# For F only it is scoped, in the user's words (2026-11-27). (old, new): the old sentence must be found exactly once.
+F_NOT_GIVEN = ("You are NOT given, and nothing here tells: the things' exact sizes, weights and surfaces, their true positions, or\nhow the target environment is made.",
+               "The initial observation package does not provide exact object properties or true positions. During F's oracle-simulator\npractice, the development agent and "
+               "self-check additionally receive the privileged information documented below; the executable\nskill does not.")
 
 
 # E has no target-development evaluation of any kind. Four places of the texts it shares with the other conditions speak
