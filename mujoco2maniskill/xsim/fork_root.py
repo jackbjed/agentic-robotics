@@ -3,8 +3,9 @@ other allowances while the first root's runs stay as they are.
 
     ../.venv/bin/python -I xsim/fork_root.py --task sweep_blocks --rep 0 --src out/xsim --dst out/xsim_10x10
 
-Copied (and nothing else): the replicate's frozen private scenes (development panel, F's pool, the example; without the
-candidates they were chosen from), the shared look and documents, prepared.json, the initialization's snapshot (the
+Copied (and nothing else): the replicate's frozen private scene sets (private/dev, private/f_pool, private/example:
+their ep_NN.json and manifests, by an allow-list; NOT private/rounds or private/fpractice, the hidden side of the
+source's own target runs, which the first version of this tool copied along: see docs/AUDIT_2026-11-27.md), the shared look and documents, prepared.json, the initialization's snapshot (the
 initial program, the shared practice world, its construction notes) with its costs, condition A's record (the initial
 program as a result), and the task's test splits list (the test scenes themselves stay where they are, frozen).
 NOT copied: the first root's sessions of B to F (their programs, worlds, notes, transcripts, feedback) and every
@@ -22,6 +23,9 @@ sys.path.insert(0, str(HERE))
 from xsim import target  # noqa: E402
 from xsim.tasks import TASKS  # noqa: E402
 
+SCENE_SETS = ("dev", "f_pool", "example")                           # what a fork takes of private/: the frozen scene sets
+SCENE_FILES = ("panel_manifest.json", "verification.json", "reverification.json", "looks.json")
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -32,9 +36,15 @@ def main():
     if R1.exists():
         raise SystemExit(f"{R1} exists already")
     R1.mkdir(parents=True)
-    r = subprocess.run(["rsync", "-a", "--exclude", "candidates", str(R0 / "private") + "/", str(R1 / "private") + "/"])
-    if r.returncode != 0:
-        raise SystemExit("copying the private scenes failed")
+    for name in SCENE_SETS:                                         # (ONLY the frozen scene sets: never the source's execution records)
+        s = R0 / "private" / name
+        if not (s / "panel_manifest.json").exists():
+            raise SystemExit(f"{s} is not a frozen scene set")
+        (R1 / "private" / name).mkdir(parents=True)
+        for f in sorted(s.iterdir()):
+            if f.is_file() and (f.name in SCENE_FILES or (f.name.startswith("ep_") and f.suffix == ".json")):
+                shutil.copy2(f, R1 / "private" / name / f.name)
+    left = sorted(p.name for p in (R0 / "private").iterdir() if p.name not in SCENE_SETS)
     shutil.copytree(R0 / "shared", R1 / "shared"); shutil.copy(R0 / "prepared.json", R1 / "prepared.json")
     (R1 / "init").mkdir()
     for n in ("snapshot.json", "A_usage.json", "build_usage.json", "program.py", "world_agent.py", "construction_notes.md"):
@@ -51,8 +61,12 @@ def main():
     dev, dev_id = target.checked_panel(task, R1 / "private" / "dev", None)   # (the copied panel against its manifest of hashes)
     (R1 / "FORKED_FROM.json").write_text(json.dumps(dict(
         made=time.strftime("%Y-%m-%d %H:%M"), source=str(R0.relative_to(HERE)), snapshot=snap["files"], evaluator_sha=target.evaluator_sha(task),
-        development_panel=[f.name for f in dev], development_panel_id=dev_id, copied=["private (without candidates/)", "shared", "prepared.json", "init: snapshot and its costs", "A", "test_private/splits.json"],
-        not_copied=["the sessions of B to F of the source root", "every held-out result (final_eval)", "the transcripts of the initialization"]), indent=1))
+        development_panel=[f.name for f in dev], development_panel_id=dev_id, copied=["private/dev, private/f_pool, private/example (scenes and manifests only)", "shared", "prepared.json", "init: snapshot and its costs", "A", "test_private/splits.json"],
+        not_copied=["the sessions of B to F of the source root", "every held-out result (final_eval)", "the transcripts of the initialization",
+                    "the source's execution records under private/: " + ", ".join(left)]), indent=1))
+    for bad in ("rounds", "fpractice"):
+        if (R1 / "private" / bad).exists():
+            raise SystemExit(f"the fork holds private/{bad}: it must not")
     print(json.dumps(json.loads((R1 / "FORKED_FROM.json").read_text()), indent=1))
 
 

@@ -69,13 +69,15 @@ def load_world(path, seed):
     return world, sc
 
 
-def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, segmenter=True, validate=False):
+def episode(world, seed, program, out, task_text, time_limit=PA.TIME_LIMIT_S, segmenter=True, validate=False, run_id=None):
     """validate: the harness's interface check of a world: the world's self-check does not end the episode early (it is
     evaluated once, at the end, on the scene as the check left it)."""
     import cv2
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    res = dict(seed=int(seed), simulator="mujoco (practice)", ok=False, world_check=None, robot_s=0.0, commands=0)
+    from xsim import provenance
+    res = dict(seed=int(seed), simulator="mujoco (practice)", ok=False, world_check=None, robot_s=0.0, commands=0,
+               provenance=provenance.stamp(run_id, program, world, seed=int(seed), started=round(t0, 1)))
     try:
         wd = None
         wd, sc = load_world(world, seed)
@@ -159,12 +161,13 @@ def main():
     ap.add_argument("--world", required=True); ap.add_argument("--seed", type=int, required=True); ap.add_argument("--program", required=True)
     ap.add_argument("--out", required=True); ap.add_argument("--task-text-file"); ap.add_argument("--time-limit", type=float, default=PA.TIME_LIMIT_S)
     ap.add_argument("--no-segmenter", action="store_true"); ap.add_argument("--check-world", action="store_true"); ap.add_argument("--validate", action="store_true")
+    ap.add_argument("--run-id", help="the id of this execution, given by the batch runner: written into result.json (xsim/provenance.py)")
     a = ap.parse_args()
     if a.check_world:
         print("XSIM_JSON " + json.dumps(check_world(Path(a.world).read_text())))
         return
     text = Path(a.task_text_file).read_text() if a.task_text_file else ""
-    r = episode(a.world, a.seed, a.program, a.out, text, a.time_limit, segmenter=not a.no_segmenter, validate=a.validate)
+    r = episode(a.world, a.seed, a.program, a.out, text, a.time_limit, segmenter=not a.no_segmenter, validate=a.validate, run_id=a.run_id)
     print("XSIM_JSON " + json.dumps({k: r.get(k) for k in ("ok", "ended", "robot_s", "world_check", "commands", "wall_s")}))
 
 

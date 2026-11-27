@@ -237,22 +237,32 @@ def run_batch(program, scene_files, task, private_dir, public_dir, cfg, jobs=Non
     if task.get("rig") == "x5":
         from xsim.bi import backend
         return backend.run_batch(program, scene_files, task, private_dir, public_dir, cfg, jobs=jobs, log=log)
-    program, private_dir = Path(program), Path(private_dir); private_dir.mkdir(parents=True, exist_ok=True)
+    from xsim import provenance
+    program, private_dir = Path(program), provenance.must_be_new(private_dir)   # (never into the folder of an earlier execution)
+    if public_dir:
+        provenance.must_be_new(public_dir)
     txt = private_dir / "task.txt"; txt.write_text(task["text"])
 
     def one(k_f):
         k, f = k_f
         d = private_dir / f"ep_{k:02d}"
         t = time.time()
+        rid = provenance.new_run_id()
         try:
             r = _ms([HERE / "run_episode.py", "--scene", f, "--program", program, "--out", d, "--plain-robot", "--min-depth", "0", "--video",
-                     "--time-limit", task["episode_s"], "--task-text-file", txt], timeout=int(4 * task["episode_s"]) + 600)
+                     "--time-limit", task["episode_s"], "--task-text-file", txt, "--run-id", rid], timeout=int(4 * task["episode_s"]) + 600)
             err = None if r.returncode == 0 else r.stderr[-800:]
         except subprocess.TimeoutExpired:
             err = "the episode's process was stopped (wall-clock limit)"
         if err:
             (d).mkdir(parents=True, exist_ok=True); (d / "harness_error.txt").write_text(str(err))
-        res = json.loads((d / "result.json").read_text()) if (d / "result.json").exists() else dict(success=False, ended="process failed", check=None)
+        res, why = provenance.accept(d, rid, program, f)           # (only the result this execution wrote)
+        if res is None:
+            err = (str(err) + " | " if err else "") + why
+            d.mkdir(parents=True, exist_ok=True); (d / "harness_error.txt").write_text(str(err))
+            if (d / "result.json").exists():                        # (a result of something else: kept, but not under the name that is read)
+                (d / "result.json").rename(d / "result_not_of_this_execution.json")
+            res = dict(success=False, ended="process failed", check=None)
         res.update(episode=k, config=str(f), config_seed=int(Path(f).stem), wall_total_s=round(time.time() - t, 1), harness_error=err)
         pub = public_payload(d, Path(public_dir) / f"ep_{k:02d}", task["text"]) if public_dir else None
         return res, pub

@@ -445,6 +445,10 @@ class Session:
         panel, panel_id = self._dev_panel()
         ev = self._evaluator()
         w = self.st["worlds"][-1] if self.st["worlds"] else None
+        priv = self.private / "rounds" / self.cond / f"round_{k}"
+        if priv.exists() and any(priv.iterdir()):                   # (before anything is counted: this root holds another run's records)
+            raise RuntimeError(f"the private folder of submission {k} exists already ({priv.relative_to(self.rep)}): this experiment root holds the "
+                               "records of another run; nothing is evaluated into them")
         rd = self.dir / "rounds" / f"round_{k}"; rd.mkdir()
         frozen = rd / "program.py"; shutil.copy(pf, frozen); frozen.chmod(0o444)
         if w:                                                       # (the practice world as it was when this was submitted)
@@ -452,7 +456,6 @@ class Session:
         notes_kept = self.keep_notes(rd / "agent_notes")           # (the agent's notes as they stood when it submitted)
         t0, usd0 = time.time(), self.usd()
         self.st["target"]["rounds"] += 1; self.st["target"]["episodes"] += len(panel); self.save()     # (counted when started)
-        priv = self.private / "rounds" / self.cond / f"round_{k}"
         pub, res = target.run_batch(frozen, panel, self.task, priv, rd / "payload", self.cfg)
         agg = dict(successes=sum(1 for p in pub if p["success"]), episodes=len(pub))
         summary = dict(round=k, program_version=v, episodes=[dict(episode=i, **p) for i, p in enumerate(pub)], aggregate=agg,

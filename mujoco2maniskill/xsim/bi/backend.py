@@ -21,6 +21,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(HERE)) if str(HERE) not in sys.path else None
+from xsim import provenance  # noqa: E402
+sys.path.insert(0, str(HERE)) if str(HERE) not in sys.path else None
 from m2m.envpaths import maniskill_python  # noqa: E402  (machine-local: M2M_MANISKILL_PYTHON or configs/local.yaml)
 PANEL0 = HERE / "assets" / "robodojo_sweep" / "panel20"
 INTERFACE_CHECK = '''def run(robot, task):
@@ -71,10 +73,14 @@ def practice(program, world, seeds, out_dirs, task, cfg, time_limit=None, valida
     def one(sd):
         s, d = sd
         try:
-            r = _mj(["--world", world, "--seed", s, "--program", program, "--out", d, "--task-text-file", txt, "--time-limit", time_limit or task["episode_s"]] + (["--validate"] if validate else []))
-            if (Path(d) / "result.json").exists():
-                return json.loads((Path(d) / "result.json").read_text())
-            return dict(ok=False, ended="the practice run failed (an error of the harness or a crash of the simulation): " + r.stderr[-300:])
+            provenance.must_be_new(d)
+            rid = provenance.new_run_id()
+            r = _mj(["--world", world, "--seed", s, "--program", program, "--out", d, "--task-text-file", txt, "--time-limit", time_limit or task["episode_s"],
+                     "--run-id", rid] + (["--validate"] if validate else []))
+            res, why = provenance.accept(d, rid, program, world)
+            if res is not None:
+                return res
+            return dict(ok=False, ended=f"the practice run failed (an error of the harness or a crash of the simulation; {why}): " + r.stderr[-300:])
         except subprocess.TimeoutExpired:
             return dict(ok=False, ended="the practice run was stopped (wall-clock limit)")
         except Exception as e:
@@ -84,14 +90,17 @@ def practice(program, world, seeds, out_dirs, task, cfg, time_limit=None, valida
 
 
 def run_batch(program, scene_files, task, private_dir, public_dir, cfg, jobs=None, log=print):
-    program, private_dir = Path(program), Path(private_dir); private_dir.mkdir(parents=True, exist_ok=True)
+    program, private_dir = Path(program), provenance.must_be_new(private_dir)   # (never into the folder of an earlier execution)
+    if public_dir:
+        provenance.must_be_new(public_dir)
     txt = private_dir / "task.txt"; txt.write_text(task["text"])
 
     def one(k_f):
         k, f = k_f
         d = private_dir / f"ep_{k:02d}"
         t = time.time()
-        args = [HERE / "xsim" / "bi" / "target_run.py", "episode", "--layout", f, "--program", program, "--out", d, "--task-text-file", txt]
+        rid = provenance.new_run_id()
+        args = [HERE / "xsim" / "bi" / "target_run.py", "episode", "--layout", f, "--program", program, "--out", d, "--task-text-file", txt, "--run-id", rid]
         if public_dir:
             args += ["--public", Path(public_dir) / f"ep_{k:02d}"]
         try:
@@ -101,12 +110,18 @@ def run_batch(program, scene_files, task, private_dir, public_dir, cfg, jobs=Non
             err = "the episode's process was stopped (wall-clock limit)"
         if err:
             d.mkdir(parents=True, exist_ok=True); (d / "harness_error.txt").write_text(str(err))
-        res = json.loads((d / "result.json").read_text()) if (d / "result.json").exists() else dict(success=False, ended="process failed", check=None)
+        res, why = provenance.accept(d, rid, program, f)           # (only the result this execution wrote)
+        if res is None:
+            err = (str(err) + " | " if err else "") + why
+            d.mkdir(parents=True, exist_ok=True); (d / "harness_error.txt").write_text(str(err))
+            if (d / "result.json").exists():                        # (a result of something else: kept, but not under the name that is read)
+                (d / "result.json").rename(d / "result_not_of_this_execution.json")
+            res = dict(success=False, ended="process failed", check=None)
         res.update(episode=k, config=str(f), config_name=Path(f).stem, wall_total_s=round(time.time() - t, 1), harness_error=err)
         pub = None
         if public_dir:
             pf = Path(public_dir) / f"ep_{k:02d}" / "episode.json"
-            if pf.exists():
+            if pf.exists() and why is None:
                 pub = json.loads(pf.read_text())
             else:
                 pub = dict(success=False, ended="the episode's process failed (an error of the harness or the program)", robot_s=None, wall_s=None,

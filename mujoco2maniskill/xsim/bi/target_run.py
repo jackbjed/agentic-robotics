@@ -38,7 +38,7 @@ def public_log(text):
     return "\n".join(out) + "\n"
 
 
-def episode(layout, program, out, task_text, public=None, segmenter=True):
+def episode(layout, program, out, task_text, public=None, segmenter=True, run_id=None):
     from m2m import api
     from m2m.boxed.host import run_program as RUN_PROGRAM
     from sweep_blocks.env import SweepBlocks
@@ -91,6 +91,8 @@ def episode(layout, program, out, task_text, public=None, segmenter=True):
     res = dict(layout=str(layout), simulator="maniskill (target)", task="robodojo sweep_blocks", success=success, ended=how,
                robot_s=round(env.steps * 0.04, 2), actions=env.steps, commands=counts["commands"], shown=counts["shown"],
                segment_calls=(seg.calls if seg else 0), safety_stops=0, check=info, wall_s=round(time.time() - t0, 1))
+    from xsim import provenance
+    res["provenance"] = provenance.stamp(run_id, program, layout, started=round(t0, 1))
     (out / "result.json").write_text(json.dumps(res, indent=1))
     env.close()
     if public:
@@ -108,13 +110,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["episode", "look"]); ap.add_argument("--layout", required=True); ap.add_argument("--program"); ap.add_argument("--out", required=True)
     ap.add_argument("--task-text-file"); ap.add_argument("--public"); ap.add_argument("--no-segmenter", action="store_true")
+    ap.add_argument("--run-id", help="the id of this execution, given by the batch runner: written into result.json (xsim/provenance.py)")
     a = ap.parse_args()
     if a.cmd == "look":
         from sweep_blocks.run_program import look
         look(a.layout, a.out)
         print("XSIM_JSON " + json.dumps(sorted(p.name for p in Path(a.out).iterdir())))
     else:
-        r = episode(a.layout, a.program, a.out, Path(a.task_text_file).read_text() if a.task_text_file else "", a.public, segmenter=not a.no_segmenter)
+        r = episode(a.layout, a.program, a.out, Path(a.task_text_file).read_text() if a.task_text_file else "", a.public, segmenter=not a.no_segmenter, run_id=a.run_id)
         print("XSIM_JSON " + json.dumps({k: r[k] for k in ("success", "ended", "robot_s", "commands", "wall_s")}))
 
 

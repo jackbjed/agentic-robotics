@@ -101,7 +101,7 @@ def public_log(text, task=None):
 
 
 def episode(scene, program, out, world=None, time_limit_s=600.0, video=False, segmenter=True, depth_noise_px=0.0,
-            plain_robot=False, shader="default", min_depth=None, task_text=None):
+            plain_robot=False, shader="default", min_depth=None, task_text=None, run_id=None):
     from m2m import api
     from m2m.rig import Rig
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
@@ -184,6 +184,9 @@ def episode(scene, program, out, world=None, time_limit_s=600.0, video=False, se
                    depth_noise_px=depth_noise_px, plain_robot=bool(plain_robot), time_limit_s=time_limit_s)
         if video:
             res["video"] = rig.write_video(out / "video.mp4")
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from xsim import provenance
+        res["provenance"] = provenance.stamp(run_id, program, scene, started=round(t0, 1))
         (out / "result.json").write_text(json.dumps(res, indent=1))
         rig.close()
     return res
@@ -198,10 +201,11 @@ def main():
     ap.add_argument("--shader", default="default")
     ap.add_argument("--min-depth", type=float, help="m: nothing nearer has depth (default 0.275, the D415's; 0 = ideal depth)")
     ap.add_argument("--task-text-file", help="the task's text given to the program (default: the scene file's)")
+    ap.add_argument("--run-id", help="the id of this execution, given by the batch runner: written into result.json (xsim/provenance.py)")
     a = ap.parse_args()
     r = episode(a.scene, a.program, a.out, world=a.world, time_limit_s=a.time_limit, video=a.video, segmenter=not a.no_segmenter,
                 depth_noise_px=a.depth_noise_px, plain_robot=a.plain_robot, shader=a.shader, min_depth=a.min_depth,
-                task_text=Path(a.task_text_file).read_text() if a.task_text_file else None)
+                task_text=Path(a.task_text_file).read_text() if a.task_text_file else None, run_id=a.run_id)
     print(json.dumps({k: r[k] for k in ("seed", "success", "ended", "robot_s", "commands", "wall_s", "check")}))
 
 
