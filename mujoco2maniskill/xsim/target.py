@@ -309,6 +309,8 @@ def evaluator_provenance(task):
         out["machine"] = dict(gpus=sorted(set(r.stdout.strip().splitlines())), note="recorded, not part of the hash")
     except Exception:
         out["machine"] = dict(gpus=None)
+    from xsim import provenance
+    out["code"] = provenance.code_version()                         # (recorded, not part of the hash: the hash is of the files themselves)
     return out
 
 

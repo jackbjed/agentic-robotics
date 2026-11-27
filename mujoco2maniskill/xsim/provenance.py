@@ -15,6 +15,23 @@ class StaleExecutionFolder(RuntimeError):
     """An execution folder exists already: nothing is run into it."""
 
 
+def code_version():
+    """The commit of the code that is running, and whether this folder differs from it (recorded with every session and
+    every evaluation; not part of any hash)."""
+    import subprocess
+    here = Path(__file__).resolve().parents[1]
+    def git(*a):
+        r = subprocess.run(["git", "-C", str(here), *a], capture_output=True, text=True, timeout=30)
+        return r.stdout.rstrip("\n") if r.returncode == 0 else None
+    commit = git("rev-parse", "HEAD")
+    if commit is None:
+        return dict(commit=None, note="not a git checkout")
+    tracked = git("ls-files", "--error-unmatch", "xsim/provenance.py") is not None
+    dirty = git("status", "--porcelain", "--", ".")
+    return dict(commit=commit, branch=git("rev-parse", "--abbrev-ref", "HEAD"), folder_is_tracked=tracked,
+                differs_from_the_commit=bool(dirty) if tracked else None, changed_files=[l[3:] for l in (dirty or "").splitlines()][:40] if tracked else None)
+
+
 def file_sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 

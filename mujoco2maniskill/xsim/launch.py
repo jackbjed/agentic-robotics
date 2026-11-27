@@ -493,6 +493,9 @@ def run(task_name, rep, cond, cfg, out=OUT, agent=None):
                                    + str(int(cfg["practice_episode_cap"]) + int(cfg["target_submissions"]) * config.scenes(cfg, cond))
                                    + " target-simulator interactions. Its extra target-simulator practice makes it an oracle reference, not a "
                                    "target-interaction-matched comparison with B, C or D.")
+    from xsim import provenance as _prov
+    man["code"] = _prov.code_version()                              # (the commit this session's harness ran from)
+    man["evaluator"] = dict(sha=st.get("evaluator_sha"), version=getattr(target, "EVALUATOR_VERSION", None))
     man["agent_notes"] = dict(kept=kept, summary_written="summary.md" in kept, where="final/notes.md, final/summary.md; rounds/round_k/agent_notes/; checkpoints/")
     if agent is None:
         man["audit"] = audit_paths(s.dir, root / "workspace")
