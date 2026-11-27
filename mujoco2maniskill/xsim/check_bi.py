@@ -266,9 +266,13 @@ def main():
         except Exception as x:
             refused.append(type(x).__name__ == "Refused")
     check("the simulator allowance is enforced for practice and for world checks alike (with 1 left, 2 are refused)", refused == [True, True], refused)
-    texts = {c_: launch.prompts.system_text(c_, task, cfg, cmd="", pool=40) for c_ in ("A", "build", "B", "C", "D")}
-    check("the notes-and-summary request is in B, C and D, word for word the same, and nowhere else",
-          all(launch.prompts.NOTES in texts[c_] for c_ in "BCD") and not any(launch.prompts.NOTES[:40] in texts[c_] for c_ in ("A", "build")))
+    texts = {c_: launch.prompts.system_text(c_, task, cfg, cmd="", pool=40) for c_ in ("A", "build", "B", "C", "D", "E", "F")}
+    check("the notes-and-summary request is in every developing session (B to F), word for word the same, and not in A or the world's builder",
+          all(launch.prompts.NOTES in texts[c_] for c_ in "BCDEF") and not any(launch.prompts.NOTES[:40] in texts[c_] for c_ in ("A", "build")))
+    check("E's text: no target submission, no target feedback document; it may revise what D may; F's two clarifications are F's only",
+          "submit_target" not in texts["E"] and "FEEDBACK from an episode in the target" not in texts["E"]
+          and "its things' shapes and physical properties, its scenes, how they vary, and its self-check" in texts["E"] and "its things' shapes and physical properties, its scenes, how they vary, and its self-check" in texts["D"]
+          and texts["F"].count(launch.prompts.F_PRIVILEGED) == 1 and not any(launch.prompts.F_PRIVILEGED in texts[c_] or launch.prompts.F_TARGET in texts[c_] for c_ in "BCDE"))
     check("the agent's notes are kept: at every submission and at the end (C wrote both files)",
           (R / "C" / "rounds" / "round_0" / "agent_notes" / "notes.md").is_file() and (R / "C" / "final" / "summary.md").is_file()
           and mans["C"]["agent_notes"]["summary_written"] and not mans["D"]["agent_notes"]["summary_written"], mans["C"].get("agent_notes"))

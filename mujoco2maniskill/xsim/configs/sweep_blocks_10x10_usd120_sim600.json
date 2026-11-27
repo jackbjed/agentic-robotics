@@ -12,7 +12,8 @@
   "B": 120.0,
   "C": 120.0,
   "D": 120.0,
-  "F": 120.0
+  "F": 120.0,
+  "E": 120.0
  },
  "practice_episode_cap": 600,
  "target_submissions": 10,
@@ -46,7 +47,8 @@
   "B": 10.0,
   "C": 10.0,
   "D": 10.0,
-  "F": 10.0
+  "F": 10.0,
+  "E": 10.0
  },
  "build_validation_cap": 40,
  "target_panel": 20,

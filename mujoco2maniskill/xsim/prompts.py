@@ -144,8 +144,9 @@ START = dict(
       "how they vary, and its self-check; the robot, its commands, its cameras and the table stay as they are.",
     E="\nprogram.py is the starting program (saved as v0; written from the same look, never run). world.py is the practice world "
       "(saved as w0): it was built from the same look by someone who never saw the target either, and construction_notes.md is what "
-      "they noted. You may revise the practice world as well as the program. There are no runs in the target in this session: the "
-      "final program is tried there only after the session has ended, and you are not told how it went.",
+      "they noted. You may revise the practice world as well as the program: its things' shapes and physical properties, its scenes, "
+      "how they vary, and its self-check; the robot, its commands, its cameras and the table stay as they are. There are no runs in the "
+      "target in this session: the final program is tried there only after the session has ended, and you are not told how it went.",
     F="\nprogram.py is the starting program (saved as v0; written from the same look, never run). In this session you practise IN THE "
       "TARGET SIMULATOR ITSELF: the target's own things, robot, sensors and physics. practice.py is your practice file (saved as p0; "
       "docs/practice.md): it says which scenes you practise on (fresh ones drawn by the harness, or scenes you ask for) and holds your own "
@@ -328,7 +329,7 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
                          .replace("robot time, and the episode's log with the TRUE positions of the practice world's bodies.",
                                   "robot time, the episode's log with the TRUE positions of the practice world's bodies,\n"
                                   "                              and videos and frames of the same kinds as a target episode gives.")
-        if cond in ("B", "C", "D", "F"):
+        if cond in ("B", "C", "D", "E", "F"):                      # (the same notes-and-summary request for every developing session)
             block += "\n\n" + NOTES
         if cond in ("B", "C", "D", "F"):
             block += "\n\n" + target_doc(task, cond)
