@@ -89,6 +89,43 @@ def practice(program, world, seeds, out_dirs, task, cfg, time_limit=None, valida
         return list(ex.map(one, list(zip(seeds, out_dirs))))
 
 
+PRACTICE_START = HERE / "xsim" / "bi" / "fixtures" / "practice_start.py"   # condition F's starting practice file
+
+
+def check_practice(code):
+    """-> the reasons a practice file (condition F: scene requests and self-check) is not taken."""
+    sys.path.insert(0, str(HERE))
+    from xsim.bi import practice_run  # noqa: F401  (in the project's .venv this lets m2m.api import without ManiSkill)
+    from xsim.bi.oracle_run import check_practice as chk
+    return chk(code)
+
+
+def oracle_practice(program, setup, seeds, out_dirs, private_dirs, task, cfg, time_limit=None, validate=False):
+    """Condition F: a program on scenes of a practice file IN THE TARGET SIMULATOR, judged by the developer's own
+    self-check (xsim/bi/oracle_run.py). What the official judge would have said stays in private_dirs."""
+    txt = Path(out_dirs[0]).parent / "task.txt"
+    if not txt.exists():
+        txt.write_text(task["text"])
+
+    def one(sdp):
+        s, d, p = sdp
+        try:
+            provenance.must_be_new(d); provenance.must_be_new(p)
+            rid = provenance.new_run_id()
+            r = _ms([HERE / "xsim" / "bi" / "oracle_run.py", "--setup", setup, "--seed", s, "--program", program, "--out", d, "--private", p, "--task-text-file", txt,
+                     "--time-limit", time_limit or task["episode_s"], "--run-id", rid] + (["--validate"] if validate else []), timeout=900)
+            res, why = provenance.accept(d, rid, program, setup)
+            if res is not None:
+                return res
+            return dict(ok=False, ended=f"the practice run failed (an error of the harness or a crash of the simulation; {why}): " + r.stderr[-300:])
+        except subprocess.TimeoutExpired:
+            return dict(ok=False, ended="the practice run was stopped (wall-clock limit)")
+        except Exception as e:
+            return dict(ok=False, ended=f"runner error: {type(e).__name__}: {str(e)[:200]}")
+    with ThreadPoolExecutor(max_workers=int(cfg["target_jobs"])) as ex:
+        return list(ex.map(one, list(zip(seeds, out_dirs, private_dirs))))
+
+
 def run_batch(program, scene_files, task, private_dir, public_dir, cfg, jobs=None, log=print):
     program, private_dir = Path(program), provenance.must_be_new(private_dir)   # (never into the folder of an earlier execution)
     if public_dir:

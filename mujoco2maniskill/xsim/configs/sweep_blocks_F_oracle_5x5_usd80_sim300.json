@@ -1,0 +1,65 @@
+{
+ "_about": {
+  "experiment": "sweep_blocks, condition F: oracle-simulator practice with sparse external evaluation. NOT RUN YET (prepared 2026-11-27).",
+  "root": "a root of its own, forked (xsim/fork_root.py) from the snapshot of out/xsim/sweep_blocks/rep0: the same initial program A",
+  "development": "F starts from the same initial program as B, C and D (no practice world: it practises in the target simulator). $80 after initialization; 300 practice episodes in the target simulator, scene checks counted, judged by its own self-check (the official judge is not asked and not shown); separately at most 5 submissions x the same first 5 scenes of the frozen development panel, judged by the official evaluator, as for B, C and D.",
+  "oracle_reference": "F receives up to 300 + 25 = 325 target-simulator interactions. It is an oracle reference, not a target-interaction-matched comparison."
+ },
+ "budget_usd": {
+  "A": 20.0,
+  "build": 30.0,
+  "B": 80.0,
+  "C": 80.0,
+  "D": 80.0,
+  "F": 80.0
+ },
+ "practice_episode_cap": 300,
+ "target_submissions": 5,
+ "submission_scenes": {
+  "B": 5,
+  "C": 5,
+  "D": 5,
+  "F": 5
+ },
+ "checkpoints_usd": [
+  2,
+  5,
+  10,
+  20,
+  30,
+  40,
+  50,
+  60,
+  70,
+  80
+ ],
+ "model": "claude-opus-5-5",
+ "effort": "xhigh",
+ "max_hours": {
+  "A": 3.0,
+  "build": 3.0,
+  "B": 10.0,
+  "C": 10.0,
+  "D": 10.0,
+  "F": 10.0
+ },
+ "build_validation_cap": 40,
+ "target_panel": 20,
+ "seeds": {
+  "example": 40001,
+  "dev": 41000,
+  "test_id": 45000,
+  "ood": 46000
+ },
+ "splits": {
+  "test_id": 30,
+  "ood_appearance": 10,
+  "ood_dimensions": 10,
+  "ood_heights": 10,
+  "ood_physics": 10,
+  "ood_mirrored": 30
+ },
+ "nudges": 2,
+ "practice_jobs": 6,
+ "target_jobs": 6
+}

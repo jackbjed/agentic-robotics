@@ -3,7 +3,9 @@ the handlers of the ONE command its agent has (xsim/bin/xsim-tool SUB ...). What
 by the session's condition in its record (which the agent cannot reach: the record lies outside its workspace), not by
 the agent's instructions.
 
-  condition   save_program  save_world  validate_world  practice (MuJoCo)  submit_target  target_practice
+  condition   save_program  save_world  validate_world  practice (MuJoCo)  submit_target
+  (F, on the two-arm task: save_program, save_practice, validate_scene, practice IN THE TARGET SIMULATOR with its own
+   self-check, submit_target: "oracle-simulator practice with sparse external evaluation", xsim/bi/oracle_run.py)
   build            -            yes          yes               -                 -               -
   B               yes            -            -                -                yes              -
   C               yes            -           yes (as is)      yes               yes              -
@@ -42,7 +44,7 @@ SRC = target.SRC
 PERMS = {"build": {"save_world", "validate_world"}, "B": {"save_program", "submit_target"},
          "C": {"save_program", "validate_world", "practice", "submit_target"},
          "D": {"save_program", "save_world", "validate_world", "practice", "submit_target"},
-         "E": {"save_program", "save_world", "validate_world", "practice"}, "F": {"save_program", "target_practice"}}
+         "E": {"save_program", "save_world", "validate_world", "practice"}, "F": {"save_program", "save_practice", "validate_scene", "practice", "submit_target"}}
 ALWAYS = {"note", "status", "finish"}
 FILE_BYTES = 400_000
 PER_CALL = 8
@@ -173,8 +175,15 @@ class Session:
     def sim_used(self):
         return int(self.st["practice"]["episodes"]) + int(self.st["validation_jobs"])
 
-    def f_cap(self):
-        return int(self.cfg["practice_episode_cap"]) + int(self.cfg["f_extra_episodes"])
+    def oracle(self):
+        """Condition F: practice is in the target simulator, with a practice file (pK) in place of a practice world (wK)."""
+        return self.cond == "F"
+
+    def _w(self):
+        return dict(tag="p", what="practice file", flag="--practice", check="validate_scene", where="the target simulator",
+                    measured="the agent's own self-check in the target simulator (not the target's evaluator)") if self.oracle() else \
+            dict(tag="w", what="practice world", flag="--world", check="validate_world", where="MuJoCo",
+                 measured="the agent's own self-check in its own practice world (not the target's evaluator)")
 
     def log(self, kind, **kw):
         with open(self.dir / "revisions.jsonl", "a") as f:
@@ -182,19 +191,17 @@ class Session:
                                     after_round=self._last_feedback(), **kw)) + "\n")
 
     def _last_feedback(self):
-        if self.cond == "F":
-            return dict(target_practice_episodes=self.st["fpractice"]["episodes"])
         return self.st["target"]["rounds"] - 1 if self.st["target"]["rounds"] else None
 
     def note(self):
         s = self.st
         parts = [f"model usage ${self.usd():.2f} of ${self.cap_usd():.0f}"]
-        if "validate_world" in PERMS.get(self.cond, ()):
-            parts.append(f"simulator episodes {self.sim_used()} of {self.practice_cap()} (practice {s['practice']['episodes']}, world checks {s['validation_jobs']})")
+        if "practice" in PERMS.get(self.cond, ()) or "validate_world" in PERMS.get(self.cond, ()):
+            parts.append((f"target-simulator practice episodes {self.sim_used()} of {self.practice_cap()} (practice {s['practice']['episodes']}, scene checks {s['validation_jobs']})")
+                         if self.oracle() else
+                         f"simulator episodes {self.sim_used()} of {self.practice_cap()} (practice {s['practice']['episodes']}, world checks {s['validation_jobs']})")
         if "submit_target" in PERMS.get(self.cond, ()):
             parts.append(f"target submissions {s['target']['rounds']} of {self.cfg['target_submissions']}")
-        if self.cond == "F":
-            parts.append(f"target practice episodes {s['fpractice']['episodes']} of {self.f_cap()}")
         return "[" + "; ".join(parts) + "]"
 
     def checkpoints(self):
@@ -227,8 +234,10 @@ class Session:
         a = sub.add_parser("save_world", add_help=False); a.add_argument("file"); a.add_argument("--note", default="")
         a.add_argument("--aim", choices=["mismatch", "coverage", "construction"], default=None)
         a = sub.add_parser("validate_world", add_help=False); a.add_argument("--world", type=int); a.add_argument("--seeds", type=int, nargs="+", default=[1])
+        a = sub.add_parser("save_practice", add_help=False); a.add_argument("file"); a.add_argument("--note", default="")
+        a = sub.add_parser("validate_scene", add_help=False); a.add_argument("--practice", dest="world", type=int); a.add_argument("--seeds", type=int, nargs="+", default=[1])
         a = sub.add_parser("practice", add_help=False); a.add_argument("--seeds", type=int, nargs="+", required=True)
-        a.add_argument("--version", type=int); a.add_argument("--world", type=int)
+        a.add_argument("--version", type=int); a.add_argument("--world", "--practice", dest="world", type=int)
         a = sub.add_parser("submit_target", add_help=False); a.add_argument("--version", type=int); a.add_argument("--diagnosis", default="")
         a = sub.add_parser("target_practice", add_help=False); a.add_argument("--configs", type=int, nargs="+", required=True); a.add_argument("--version", type=int)
         a = sub.add_parser("note", add_help=False); a.add_argument("--text", required=True); a.add_argument("--round", type=int)
@@ -271,13 +280,13 @@ class Session:
 
     def _world(self, k=None):
         if not self.st["worlds"]:
-            raise Refused("there is no practice world")
+            raise Refused(f"there is no {self._w()['what']}")
         k = self.st["worlds"][-1]["k"] if k is None else k
         if self.cond == "C" and k != 0:
             raise Refused("this session's practice world is fixed: w0")
         w = next((w for w in self.st["worlds"] if w["k"] == k), None)
         if w is None:
-            raise Refused(f"there is no world w{k}")
+            raise Refused(f"there is no {self._w()['what']} {self._w()['tag']}{k}")
         f = self.dir / "worlds" / f"w{k}.py"
         if sha(f.read_text()) != w["sha"]:                          # (a kept world never changes)
             raise RuntimeError(f"world w{k} does not match its record")
@@ -305,9 +314,9 @@ class Session:
         return k
 
     def add_world(self, code, note, aim, source="agent"):
-        bad = self.bi.check_world(code) if self.bi else check_world_code(code)
+        bad = (self.bi.check_practice(code) if self.oracle() else self.bi.check_world(code)) if self.bi else check_world_code(code)
         if bad:
-            raise Refused("the world was not saved: " + "; ".join(bad))
+            raise Refused(f"the {self._w()['what'] if self.bi else 'world'} was not saved: " + "; ".join(bad))
         k = len(self.st["worlds"])
         full = code if self.bi else code + world_footer(" ".join(self.task["text"].split()), _has_success(code))
         (self.dir / "worlds" / f"w{k}_agent.py").write_text(code)
@@ -332,8 +341,18 @@ class Session:
         k = self.add_world(self._file(a.file), a.note, aim)
         return f"saved as w{k} (not yet checked: validate_world --world {k})"
 
-    # ---- MuJoCo: world checks and practice
+    def _t_save_practice(self, a):
+        k = self.add_world(self._file(a.file), a.note, "practice file")
+        return f"saved as p{k} (not yet checked: validate_scene --practice {k})"
+
+    def _t_validate_scene(self, a):
+        return self._t_validate_world(a)
+
+    # ---- MuJoCo (or, for condition F, the target simulator): scene checks and practice
     def _mujoco(self, program, world, seeds, out_dirs, time_limit=None, validate=False):
+        if self.bi and self.oracle():
+            priv = [self.private / "oracle_practice" / self.cond / Path(d).name for d in out_dirs]
+            return self.bi.oracle_practice(program, world, seeds, out_dirs, priv, self.task, self.cfg, time_limit=time_limit, validate=validate)
         if self.bi:
             return self.bi.practice(program, world, seeds, out_dirs, self.task, self.cfg, time_limit=time_limit, validate=validate)
         sys.path.insert(0, str(SRC))
@@ -370,29 +389,35 @@ class Session:
             raise Refused("at most 4 scenes a call")
         left = self.practice_cap() - self.sim_used()
         if len(seeds) > left:
-            raise Refused(f"only {left} simulator episodes are left (a checked scene counts as one)")
+            raise Refused(f"only {left} {'practice' if self.oracle() else 'simulator'} episodes are left (a checked scene counts as one)")
         chk = self.dir / "validation" / "interface_check.py"
         if not chk.exists():
             chk.write_text(self.bi.INTERFACE_CHECK if self.bi else INTERFACE_CHECK)
         n0 = self.st["validation_jobs"]
-        dirs = [self.dir / "validation" / f"j{n0 + i:04d}_w{k}_s{s}" for i, s in enumerate(seeds)]
+        W = self._w(); g = W["tag"]
+        dirs = [self.dir / "validation" / f"j{n0 + i:04d}_{g}{k}_s{s}" for i, s in enumerate(seeds)]
         self.st["validation_jobs"] += len(seeds); self.save()
         res = self._mujoco(chk, wf, seeds, dirs, time_limit=min(60.0, self.task["episode_s"]), validate=True)
         lines = []
         for s, d, r in zip(seeds, dirs, res):
             ok = str(r.get("ended")) == "returned"
-            where = self._give(d, f"validation/w{k}_s{s}")
-            names = ("output.txt",)
+            where = self._give(d, f"validation/{g}{k}_s{s}", names=("output.txt", "scene.json"))
             if (Path(d) / "frames").is_dir():                       # (the overview's first and last frames)
-                fr = sorted((Path(d) / "frames").glob("overview_rgb_*.jpg")); (self.ws / f"validation/w{k}_s{s}").mkdir(parents=True, exist_ok=True)
+                fr = sorted((Path(d) / "frames").glob("overview_rgb_*.jpg")); (self.ws / f"validation/{g}{k}_s{s}").mkdir(parents=True, exist_ok=True)
                 for f in fr[:1] + fr[-1:]:
-                    shutil.copy(f, self.ws / f"validation/w{k}_s{s}" / f.name)
-            lines.append(f"scene {s}: {'loads, renders and answers the interface check' if ok else 'FAILED: ' + str(r.get('ended'))[:900]}"
-                         + (f"; while it settled its bodies moved: {json.dumps(r.get('settle'))[:400]}" if r.get("settle") else "") +
-                         f"; your self-check on the untouched scene: {json.dumps(r.get('world_check'))[:200]}; files: {where}/ (output.txt has the TRUE "
-                         f"positions of your world's bodies at the start; shown/ the cameras' images)")
+                    shutil.copy(f, self.ws / f"validation/{g}{k}_s{s}" / f.name)
+            if self.oracle():
+                lines.append(f"scene {s}: {'is valid, rests as asked, renders and answers the interface check' if ok else 'NOT RUN or FAILED: ' + str(r.get('ended'))[:900]}"
+                             + (f"; while it settled its things moved (mm): {json.dumps(r.get('settle'))[:400]}" if r.get("settle") else "") +
+                             f"; your self-check on the untouched scene: {json.dumps(r.get('world_check'))[:200]}; files: {where}/ (scene.json the scene as built; "
+                             f"output.txt has the TRUE positions of the things at the start; shown/ the cameras' images)")
+            else:
+                lines.append(f"scene {s}: {'loads, renders and answers the interface check' if ok else 'FAILED: ' + str(r.get('ended'))[:900]}"
+                             + (f"; while it settled its bodies moved: {json.dumps(r.get('settle'))[:400]}" if r.get("settle") else "") +
+                             f"; your self-check on the untouched scene: {json.dumps(r.get('world_check'))[:200]}; files: {where}/ (output.txt has the TRUE "
+                             f"positions of your world's bodies at the start; shown/ the cameras' images)")
         self.log("validation", world=k, seeds=seeds, ok=[str(r.get("ended")) == "returned" for r in res])
-        return f"world w{k}:\n" + "\n".join(lines)
+        return f"{W['what']} {g}{k}:\n" + "\n".join(lines)
 
     def _t_practice(self, a):
         seeds = list(dict.fromkeys(a.seeds))
@@ -400,11 +425,12 @@ class Session:
             raise Refused(f"at most {PER_CALL} practice episodes a call")
         left = self.practice_cap() - self.sim_used()
         if len(seeds) > left:
-            raise Refused(f"only {left} simulator episodes are left")
+            raise Refused(f"only {left} {'practice' if self.oracle() else 'simulator'} episodes are left")
         v, pf = self._version(a.version)
         k, wf = self._world(a.world)
         n0 = self.st["practice"]["episodes"]
-        dirs = [self.dir / "practice" / f"p{n0 + i:04d}_v{v}_w{k}_s{s}" for i, s in enumerate(seeds)]
+        W = self._w(); g = W["tag"]
+        dirs = [self.dir / "practice" / f"p{n0 + i:04d}_v{v}_{g}{k}_s{s}" for i, s in enumerate(seeds)]
         self.st["practice"]["episodes"] += len(seeds); self.st["practice"]["calls"] += 1; self.save()    # (every started episode counts)
         t = time.time()
         res = self._mujoco(pf, wf, seeds, dirs)
@@ -412,16 +438,21 @@ class Session:
         for s, d, r in zip(seeds, dirs, res):
             rec = dict(n=n0 + seeds.index(s), version=v, program_sha=sha(pf.read_text()), world=k, world_sha=sha(wf.read_text()), seed=s,
                        self_check=r.get("world_check"), self_reported_success=bool(r.get("ok")), ended=str(r.get("ended"))[:300], robot_s=r.get("robot_s"),
-                       t=round(time.time(), 1), usd=round(self.usd(), 4), measured_by="the agent's own self-check in its own practice world (not the target's evaluator)")
+                       t=round(time.time(), 1), usd=round(self.usd(), 4), measured_by=W["measured"])
+            if self.oracle():                                       # (the scene that was asked for and built; where the simulator's layout of it is kept)
+                rec.update(simulator="the target simulator", scene=r.get("scene"), settle=r.get("settle"),
+                           private_record=str((self.private / "oracle_practice" / self.cond / d.name).relative_to(self.rep)))
+            d.mkdir(parents=True, exist_ok=True)
             (d / "practice_record.json").write_text(json.dumps(rec, indent=1))
-            where = self._give(d, f"practice/v{v}_w{k}_s{s}")
+            where = self._give(d, f"practice/v{v}_{g}{k}_s{s}", names=("output.txt", "scene.json"))
             for sub in ("frames", "videos"):
                 if (Path(d) / sub).is_dir():
                     shutil.copytree(Path(d) / sub, self.ws / where / sub, dirs_exist_ok=True)
             lines.append(f"scene {s}: your self-check says {json.dumps(r.get('world_check'))[:300]}; ended: {str(r.get('ended'))[:200]}; robot time "
                          f"{r.get('robot_s')} s; log: {where}/output.txt")
         self.log("practice", version=v, world=k, seeds=seeds, self_reported=[bool(r.get("ok")) for r in res], wall_s=round(time.time() - t, 1))
-        return f"v{v} in your practice world w{k} (MuJoCo):\n" + "\n".join(lines)
+        return (f"v{v} in the target simulator, practice file p{k} (judged by YOUR success(), not by the target's judge):\n" if self.oracle()
+                else f"v{v} in your practice world w{k} (MuJoCo):\n") + "\n".join(lines)
 
     # ---- the target
     def _dev_panel(self):
@@ -466,7 +497,7 @@ class Session:
         rec = dict(condition=self.cond, replicate=self.rep.name, task=self.st["task"], round=k, t_start=round(t0, 1), t_end=round(time.time(), 1),
                    session_s_at_end=round(time.time() - self.st["t0"], 1), usd_at_start=round(usd0, 4), usd_at_end=round(self.usd(), 4),
                    cumulative=dict(target_episodes=self.st["target"]["episodes"], target_rounds=self.st["target"]["rounds"],
-                                   simulator_episodes=self.sim_used(), simulator_allowance=self.practice_cap() if "validate_world" in PERMS.get(self.cond, ()) else 0,
+                                   simulator_episodes=self.sim_used(), simulator_allowance=self.practice_cap() if "practice" in PERMS.get(self.cond, ()) else 0,
                                    practice_episodes=self.st["practice"]["episodes"], practice_calls=self.st["practice"]["calls"],
                                    validation_jobs=self.st["validation_jobs"], program_versions=len(self.st["versions"]), world_versions=len(self.st["worlds"]),
                                    model_usage=self._usage()),
@@ -491,37 +522,8 @@ class Session:
                 + f"\nthe feedback: feedback/round_{k}/ (summary.json; ep_NN/ for each episode)")
 
     def _t_target_practice(self, a):
-        pool, _ = target.checked_panel(self.task, self.private / "f_pool")
-        self._evaluator()
-        ids = list(dict.fromkeys(a.configs))
-        if len(ids) > PER_CALL:
-            raise Refused(f"at most {PER_CALL} practice episodes a call")
-        if any(not 0 <= i < len(pool) for i in ids):
-            raise Refused(f"the practice configurations are numbered 0 to {len(pool) - 1}")
-        left = self.f_cap() - self.st["fpractice"]["episodes"]
-        if len(ids) > left:
-            raise Refused(f"only {left} practice episodes are left")
-        v, pf = self._version(a.version)
-        n0 = self.st["fpractice"]["episodes"]
-        self.st["fpractice"]["episodes"] += len(ids); self.save()
-        call = self.dir / "fpractice" / f"e{n0:04d}_v{v}"; call.mkdir()
-        frozen = call / "program.py"; shutil.copy(pf, frozen); frozen.chmod(0o444)
-        priv = self.private / "fpractice" / f"e{n0:04d}_v{v}"
-        pub, res = target.run_batch(frozen, [pool[i] for i in ids], self.task, priv, call / "payload", self.cfg)
-        rec = dict(condition="F", first_episode=n0, configs=ids, program=dict(version=v, sha=sha(frozen.read_text())), episodes=pub, t=round(time.time(), 1),
-                   usd=round(self.usd(), 4), session_s=round(time.time() - self.st["t0"], 1))
-        (call / "record.json").write_text(json.dumps(rec, indent=1))
-        (priv / "private_record.json").write_text(json.dumps(dict(rec, config_files=[str(pool[i]) for i in ids], results=res), indent=1, default=str))
-        dst = self.ws / "feedback" / f"practice_{n0:04d}"
-        shutil.copytree(call / "payload", dst)
-        for i, p in zip(ids, dst.glob("ep_*")):
-            pass
-        self.log("target_practice", first_episode=n0, configs=ids, version=v, successes=sum(1 for p in pub if p["success"]))
-        lines = [f"configuration {i}: {'SUCCESS' if p['success'] else 'failure'}; ended: {str(p['ended'])[:120]}; robot time {p['robot_s']} s; "
-                 f"feedback/practice_{n0:04d}/ep_{j:02d}/" for j, (i, p) in enumerate(zip(ids, pub))]
-        return f"v{v} in the target environment:\n" + "\n".join(lines)
+        raise Refused("there is no target_practice in these experiments (condition F practises in the target simulator through `practice`)")
 
-    # ---- notes, status, the end
     def _t_note(self, a):
         self.log("note", note_kind=a.kind, about_round=a.round, text=a.text[:6000], text_is="agent-proposed (not verified)")
         return "noted"

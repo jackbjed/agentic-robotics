@@ -38,9 +38,13 @@ KEEP_OUT = {"the left arm's base": (-390.0, -540.0, -210.0, -360.0), "the right 
 REST_MM, REST_TILT_DEG = 5.0, 3.0
 
 
+# the tables a scene may name: the development tables of sweep_blocks/looks.py TABLES (tests/test_scene_gen.py checks that
+# this is that list). The final appearance test's other tables are not among them and cannot be asked for.
+TABLE_NAMES = ("wood_red", "wood_pale", "wood_grey", "speckled", "white", "grey", "slate", "sand", "green", "blue")
+
+
 def table_names():
-    from sweep_blocks import looks
-    return tuple(looks.TABLES)                                      # (the development tables only: the test's other tables cannot be asked for)
+    return TABLE_NAMES
 
 
 def _R(q):

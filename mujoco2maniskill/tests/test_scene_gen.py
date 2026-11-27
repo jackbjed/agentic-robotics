@@ -69,6 +69,8 @@ def test_3_invalid_requests_are_refused():
 
 
 def test_4_fresh_scenes():
+    from sweep_blocks import looks
+    assert G.table_names() == tuple(looks.TABLES) and not set(G.table_names()) & set(looks.TABLES_OOD)
     a, b, c = G.sample(np.random.default_rng([7, 1])), G.sample(np.random.default_rng([7, 1])), G.sample(np.random.default_rng([8, 1]))
     assert a == b and a != c
     frozen = {json.dumps(json.loads(f.read_text())["Rigid"]["broom_shovel"][0]["default_pos"][:2]) for f in PANEL}

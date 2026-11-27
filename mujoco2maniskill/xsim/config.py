@@ -20,15 +20,20 @@ DEFAULTS = dict(
     # how many of the frozen development scenes (the FIRST n of the panel, in its fixed order) one submission runs, by
     # condition. The user, 2026-11-27 ~03:45: five scenes a submission for B, C and D alike (5 submissions x 5 = at most 25
     # target episodes a session), in place of the 20 said before.
-    submission_scenes=dict(B=5, C=5, D=5),
+    submission_scenes=dict(B=5, C=5, D=5, F=5),
     target_panel=20,                     # the frozen development panel's size (made once per replicate;
     #                                      episodes; the user's word of 2026-11-27: 20 verified-solvable episodes, 5 rounds)
     # which sets of target configurations must be SHOWN SOLVABLE (the task's reference program solves each in the target)
     # besides passing the validation rules: any of dev, f_pool, test_id, ood_base. A configuration the reference does not
     # solve is set aside and recorded; no configuration is ever excluded because a tested method (A-F) failed on it.
     shown_solvable=["dev"],
-    f_extra_episodes=100,                # F's practice episodes: practice_episode_cap + this
-    f_pool=40,                           # F's practice sampler: this many development-distribution configurations
+    # F ("oracle-simulator practice with sparse external evaluation", the two-arm task): practice IN the target simulator, on
+    # scenes from a generator (sweep_blocks/scene_gen.py), judged by the developer's own self-check; the same allowance
+    # of practice episodes as C and D (practice_episode_cap, scene checks counted), and the same submissions. So F gets up
+    # to practice_episode_cap + target_submissions x submission_scenes interactions with the target simulator: an oracle
+    # reference, not a target-interaction-matched comparison.
+    f_extra_episodes=100,                # (the one-arm tasks' older F only: practice episodes beyond practice_episode_cap)
+    f_pool=40,                           # (a frozen set of development-like scenes, still made by `prepare`; the two-arm F does not use it)
     checkpoints_usd=[2, 5, 10, 20, 30, 40, 50, 60, 70, 80],
     practice_jobs=6, target_jobs=6,      # episodes run at the same time
     observation=dict(colour="640x480 RGB, scene and wrist cameras",

@@ -27,7 +27,7 @@ TASK, REAL, OUT = "sweep_blocks", HERE / "out" / "xsim", HERE / "out" / "xsim_ch
 CFG = dict(target_jobs=10, practice_jobs=4)                         # (everything else: the experiments' defaults)
 if "--small" in sys.argv:                                           # (a quick run of the same checks on a cut-down copy: SRC OUT after --small)
     REAL, OUT = Path(sys.argv[sys.argv.index("--small") + 1]), Path(sys.argv[sys.argv.index("--small") + 2])
-    CFG.update(target_panel=2, target_submissions=2, f_pool=2, submission_scenes=dict(B=2, C=2, D=2))
+    CFG.update(target_panel=2, target_submissions=2, f_pool=2, submission_scenes=dict(B=2, C=2, D=2, F=2))
 if "--config" in sys.argv:                                          # (the same checks under a run's own settings: --config FILE.json --out DIR)
     CFG.update(json.loads(Path(sys.argv[sys.argv.index("--config") + 1]).read_text()))
 if "--out" in sys.argv:
@@ -68,7 +68,7 @@ def submit_all(a, tag):
         check(f"{tag}: submission {k} runs the whole panel", f"target submission {k}" in r and f"{N} episodes" in r, r[:300])
     check(f"{tag}: a submission beyond the allowance is refused", "REFUSED" in a("submit_target", "--version", "0"))
     check(f"{tag}: a submission cannot name its own scenes", "REFUSED" in a("submit_target", "--configs", "1", "2"))
-    check(f"{tag}: no practice directly in the target", "REFUSED" in a("target_practice", "--configs", "0"))
+    check(f"{tag}: no practice in a pool of target scenes", "REFUSED" in a("target_practice", "--configs", "0"))
 
 
 def play_B(sdir, ws, tool):
@@ -129,13 +129,59 @@ def play_E(sdir, ws, tool):
     a("finish")
 
 
+F_PRACTICE = '''
+def scene(scene, rng):
+    scene["dustpan"]["xy_mm"] = [float(scene["dustpan"]["xy_mm"][0]) - 20.0 * float(rng.uniform(0, 1)), float(scene["dustpan"]["xy_mm"][1])]
+    scene["table"] = {"rgb": [0.3, 0.6, 0.4]}
+    return scene
+def success(state):
+    a = state.arm("right")
+    return {"ok": a["from_start_mm"] > 20.0, "right_moved_mm": a["from_start_mm"], "dustpan": state.pos("dustpan")}
+'''
+F_INVALID = '''
+def scene(scene, rng):
+    scene["cubes"][0]["xy_mm"] = list(scene["dustpan"]["xy_mm"])
+    return scene
+'''
+OFFICIAL_WORDS = ("cubes_in_dustpan", "dustpan_left_of_broom", "blocks_never_gripped", "arms_back", "grippers_open", "dustpan_not_lifted", "dustpan_level", "gripped_at_action")
+
+
 def play_F(sdir, ws, tool):
-    a = Agent(sdir, ws, tool)
-    check("F: no practice simulator, no batch submission", "REFUSED" in a("practice", "--seeds", "1") and "REFUSED" in a("submit_target")
-          and "REFUSED" in a("save_world", "program.py", "--aim", "coverage"))
-    r = a("target_practice", "--configs", "0", str(POOL - 1))
-    check("F: practises directly in the target, on scenes of its pool", "in the target environment" in r and f"configuration {POOL - 1}" in r, r[:300])
-    check("F: its scenes are numbered within its pool", "REFUSED" in a("target_practice", "--configs", str(POOL)))
+    """Oracle-simulator practice with sparse external evaluation: practice in the target simulator with its own self-check,
+    and the same judged submissions as B, C and D."""
+    a = Agent(sdir, ws, tool); R = Path(sdir).parent
+    check("F: no practice world to build, no practice in a pool", "REFUSED" in a("save_world", "practice.py", "--aim", "coverage") and "REFUSED" in a("validate_world")
+          and "REFUSED" in a("target_practice", "--configs", "0"))
+    st = Session(sdir).st
+    check("F: starts from the shared program and the harness's practice file p0, with its document", (ws / "practice.py").exists() and (ws / "docs" / "practice.md").exists()
+          and (ws / "docs" / "target.md").exists() and not (ws / "world.py").exists() and st["worlds"][0]["source"] == "shared initialization" and st["versions"][0]["source"] == "shared initialization")
+    r = a("validate_scene", "--seeds", "1")
+    check("F: a fresh scene is built in the target simulator and checked", "is valid, rests as asked" in r and (ws / "validation" / "p0_s1" / "scene.json").exists()
+          and "TRUE positions" in (ws / "validation" / "p0_s1" / "output.txt").read_text(), r[:400])
+    a.write("practice.py", F_PRACTICE)
+    check("F: saves a version of its practice file (scene requests and self-check)", "saved as p1" in a("save_practice", "practice.py", "--note", "my own check; the dustpan moved; a green table"))
+    a.write("program.py", QUICK); a("save_program", "program.py", "--note", "a short program")
+    r = a("practice", "--seeds", "2", "3")
+    recs = [json.loads(f.read_text()) for f in sorted((Path(sdir) / "practice").glob("p*/practice_record.json"))]
+    check("F: practises in the target simulator, judged by its OWN self-check", "in the target simulator" in r and "YOUR success()" in r and len(recs) == 2
+          and all(x["self_reported_success"] and x["self_check"]["right_moved_mm"] > 20 and x["simulator"] == "the target simulator" for x in recs), r[:500])
+    check("F: the scene it asked for is what was built, and is on record", all(x["scene"]["table"] == {"rgb": [0.3, 0.6, 0.4]} for x in recs)
+          and all((R / x["private_record"] / "layout.json").exists() for x in recs) and (ws / "practice" / "v1_p1_s2" / "scene.json").exists())
+    seen = "\n".join(p.read_text(errors="replace") for d in (ws, Path(sdir) / "practice", Path(sdir) / "validation") for p in d.rglob("*") if p.is_file() and p.suffix in (".json", ".txt", ".md"))
+    check("F: nothing of the official judge in what practice returns", not any(w in seen for w in OFFICIAL_WORDS) and "judge's test" not in seen, [w for w in OFFICIAL_WORDS if w in seen])
+    off = [json.loads((R / x["private_record"] / "official.json").read_text()) for x in recs]
+    check("F: what the judge would have said of a practice episode is kept privately only", all("at_the_end" in o and "success" in o["at_the_end"] for o in off)
+          and ws.resolve() not in (R / recs[0]["private_record"]).resolve().parents)
+    a.write("bad.py", F_INVALID); a("save_practice", "bad.py", "--note", "a cube in the dustpan")
+    r = a("practice", "--seeds", "4", "--practice", "2")
+    check("F: a scene that is not valid is not run, and counts", "not valid" in r and "overlap" in r, r[:400])
+    s = Session(sdir)
+    check("F: every practice episode and every checked scene counts toward one allowance", s.sim_used() == 4 and s.st["practice"]["episodes"] == 3 and s.st["validation_jobs"] == 1
+          and s.practice_cap() == s.cfg["practice_episode_cap"], (s.sim_used(), s.st["practice"], s.st["validation_jobs"]))
+    s.st["practice"]["episodes"] = s.practice_cap() - s.st["validation_jobs"] - 1; s.save()
+    check("F: the practice allowance is enforced (with 1 left, 2 are refused)", "REFUSED" in a("practice", "--seeds", "8", "9") and "REFUSED" in a("validate_scene", "--seeds", "8", "9"))
+    s = Session(sdir); s.st["practice"]["episodes"] = 3; s.save()
+    submit_all(a, "F")
     a("finish")
 
 
@@ -231,7 +277,20 @@ def main():
     check("a session whose evaluator had changed would be stopped", stopped)
     check("manifests: practice and target counts per condition",
           mans["B"]["target_interactions"] == NB and mans["C"]["target_interactions"] == N * M and mans["D"]["target_interactions"] == N * M
-          and mans["E"]["target_interactions"] == 0 and mans["F"]["target_interactions"] == 2 and mans["C"]["practice_episodes"] == 2 and mans["D"]["practice_episodes"] == 2)
+          and mans["E"]["target_interactions"] == 0 and mans["C"]["practice_episodes"] == 2 and mans["D"]["practice_episodes"] == 2)
+    NF = config.scenes(cfg, "F")
+    check("F's manifest: the judged episodes, and every episode in the target simulator (submissions + practice + scene checks); named an oracle reference",
+          mans["F"]["target_interactions"] == NF * M and mans["F"]["practice_episodes"] == 3 and mans["F"]["validation_jobs"] == 1
+          and mans["F"]["target_simulator_interactions"] == NF * M + 4 and "oracle reference" in mans["F"].get("oracle_reference", "")
+          and mans["C"]["target_simulator_interactions"] == N * M and mans["F"]["budgets"]["practice_simulator"].startswith("the target simulator"),
+          {k: mans["F"].get(k) for k in ("target_interactions", "practice_episodes", "validation_jobs", "target_simulator_interactions")})
+    fr = [json.loads((R / "F" / "rounds" / f"round_{k}" / "round.json").read_text()) for k in range(M)]
+    check("F's submissions: the same development scenes, the same evaluator and the same allowance as C's and D's", [r["panel"] for r in fr] == [r["panel"] for r in rc][:M]
+          and {r["evaluator_sha"] for r in fr} == {ev} and all(r["allowance"] == dict(submissions=M, episodes_each=NF) for r in fr) and NF == N)
+    fv = sorted(p.name for p in (R / "F" / "worlds").glob("w*_agent.py"))
+    check("F's records: every program version, every practice-file version, every practice episode's scene and payload", len(fv) == 3
+          and len(list((R / "F" / "versions").glob("v*.py"))) >= 2 and len(list((R / "F" / "practice").glob("p*/practice_record.json"))) == 3
+          and len(list((R / "F" / "practice").glob("p*/scene.json"))) >= 2 and len(list((R / "private" / "oracle_practice" / "F").glob("*/layout.json"))) >= 3, fv)
     rep = dict(passed=sum(c["ok"] for c in checks), of=len(checks), wall_s=round(time.time() - t0, 1), panel=pid, evaluator=ev, checks=checks)
     (OUT / "report.json").write_text(json.dumps(rep, indent=1))
     print(f"{rep['passed']} of {rep['of']} checks passed in {rep['wall_s']} s")

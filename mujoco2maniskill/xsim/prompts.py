@@ -94,6 +94,26 @@ SUB = dict(
                   '                              result and the arm\'s measured tool position), frames of the episode\'s video, and the images\n'
                   '                              the program showed; and, for the submission, the success rate. You do not get the things\'\n'
                   '                              true positions or properties.',
+    save_practice='save_practice FILE --note "..."  save a file of yours as a new version of your practice file (p0, p1, ...): see docs/practice.md.\n'
+                  '                              It holds scene(scene, rng), the scenes you practise on, and success(state), your own check\n'
+                  '                              of a practice episode. Every version is kept. --note: why this version.',
+    validate_scene='validate_scene [--practice K] [--seeds S ...]\n'
+                   '                              build scenes of a practice file in the target simulator (at most 4 a call) and run the\n'
+                   '                              harness\'s own interface check in each (it looks with the three cameras, reads the arms\' states,\n'
+                   '                              moves each arm and gripper a little): you get whether the scene is valid and rests as asked,\n'
+                   '                              the scene as built, the cameras\' images, and the TRUE positions of the things. Every scene\n'
+                   '                              asked for counts as one episode of the session\'s practice allowance ({cap} episodes in all).',
+    practice_f='practice --seeds S ... [--version V] [--practice K]\n'
+               '                              run a version of the program on scenes of a practice file, IN THE TARGET SIMULATOR (the\n'
+               '                              target\'s own things, robot, sensors and physics), at most 8 episodes a call. An episode ends\n'
+               '                              when the program returns, when YOUR success(state) says so, when the robot time is spent, or\n'
+               '                              on an error. For each you get the verdict of your own success() (NOT the target judge\'s: the\n'
+               '                              judge is not asked in practice, and what it would say is not shown), how the program ended,\n'
+               '                              the robot time, the episode\'s log with the TRUE positions of the things, the scene as built,\n'
+               '                              and videos and frames of the same kinds as a target episode gives. The session\'s practice\n'
+               '                              allowance is {cap} episodes in all: every practice episode asked for counts one, whatever its\n'
+               '                              outcome (an invalid scene, a failed or crashed run too), and so does every scene checked by\n'
+               '                              validate_scene.',
     target_practice='target_practice --configs I ... [--version V]\n'
                     '                              run a version of the program in the TARGET environment on practice scenes of your choice\n'
                     '                              (numbered 0 to {pool}; at most 8 episodes a call, {fcap} in the whole session), one fresh\n'
@@ -125,14 +145,17 @@ START = dict(
       "(saved as w0): it was built from the same look by someone who never saw the target either, and construction_notes.md is what "
       "they noted. You may revise the practice world as well as the program. There are no runs in the target in this session: the "
       "final program is tried there only after the session has ended, and you are not told how it went.",
-    F="\nprogram.py is the starting program (saved as v0; written from the same look, never run). There is no practice simulator in "
-      "this session: the program is practised directly in the target, through target_practice, on practice scenes drawn like the "
-      "ones it will finally be tried on (but not those).",
+    F="\nprogram.py is the starting program (saved as v0; written from the same look, never run). In this session you practise IN THE "
+      "TARGET SIMULATOR ITSELF: the target's own things, robot, sensors and physics. practice.py is your practice file (saved as p0; "
+      "docs/practice.md): it says which scenes you practise on (fresh ones drawn by the harness, or scenes you ask for) and holds your own "
+      "check of a practice episode, success(state), which you write and may revise. In practice the target's judge is not asked: an episode "
+      "is judged by your own check only, from the TRUE state of the practice scene, which your check and you may see and the program may "
+      "not. The target's judge speaks only through submit_target.",
 )
 WHICH = dict(build=["save_world_build", "validate_world"], B=["save_program", "submit_target"],
              C=["save_program", "validate_world", "practice", "submit_target"],
              D=["save_program", "save_world", "validate_world", "practice", "submit_target"],
-             E=["save_program", "save_world", "validate_world", "practice"], F=["save_program", "target_practice"])
+             E=["save_program", "save_world", "validate_world", "practice"], F=["save_program", "save_practice", "validate_scene", "practice_f", "submit_target"])
 
 WORLDS_DOC = """A practice world is a Python file that makes the practice simulator's (MuJoCo's) scenes. It defines
 
@@ -216,6 +239,47 @@ def worlds_doc(task):
     return WORLDS_DOC_BI if task.get("rig") == "x5" else WORLDS_DOC
 
 
+PRACTICE_DOC = """A practice file is a Python file for practising in the TARGET SIMULATOR. It defines
+
+    scene(scene, rng) -> scene     optional: the scenes you practise on. `scene` arrives as a FRESH scene the harness drew for
+                                   this seed (of the kind the program will be tried on):
+                                       {"dustpan": {"xy_mm": [x, y], "yaw_deg": a},      a: the direction its mouth faces
+                                        "brush":   {"xy_mm": [x, y], "yaw_deg": a},      a: from its handle's end to its head
+                                        "cubes":   [{"xy_mm": [x, y], "yaw_deg": a}, x3],
+                                        "colours": {"dustpan": [r, g, b], "brush": [r, g, b], "cubes": [[r, g, b], x3]},
+                                        "table":   {"name": NAME} or {"rgb": [r, g, b]}}
+                                   (millimetres and degrees in the TABLE frame of the interface; a yaw of 0 is +x, 90 is +y;
+                                   colours from 0 to 1; NAME one of {tables}). Return it as it is to practise on fresh scenes,
+                                   or change it to ask for a scene of your own. `rng` is a numpy random generator seeded by the
+                                   scene's seed: draw from it, so that every seed gives another scene.
+                                   A scene is built only if it is VALID: exactly three cubes; every thing on the table, at
+                                   least 20 mm from its edge and clear of the two arms' bases and of the camera stand's foot;
+                                   no thing on or in another (at least 4 mm apart); colours from 0 to 1; a table that is one
+                                   of the names or a plain colour. A scene that is not valid, or in which a thing does not
+                                   stay where it was asked to be while the scene settles, is not run (it counts).
+    success(state) -> dict         optional: YOUR check of a practice episode ({{"ok": True/False, ...}}), from the TRUE state
+                                   of the practice scene: state.names (["dustpan", "brush", "cube_0", "cube_1", "cube_2"]),
+                                   state.pos(name) (mm, table frame: the thing's own origin), state.rot(name) (3x3 as rows),
+                                   state.start (the positions at the start), state.start_rot(name), state.touching(name)
+                                   ({{"robot": ..., "others": [...]}}, "table" among the others), state.speed(name) (mm/s),
+                                   state.held(name) ("left" / "right" / None: squeezed between the two fingers of one
+                                   gripper), state.arm("left" | "right") ({{"tcp_mm", "opening_mm", "from_start_mm",
+                                   "from_start_deg"}}). It is evaluated after every action: when it says ok the episode
+                                   ends, a success by YOUR check. The target has its own judge, which is not asked in
+                                   practice and which you cannot see.
+
+Fixed by the harness, whatever the file says: the things themselves (the target's dustpan, brush and three cubes: their
+shapes, sizes, weights and surfaces), the robot and its commands, the cameras, the table, the physics, the task's text
+and an episode's time. A practice file may not define robot(), goal() or run(). The file is under the same rules as a
+program (imports, no files). The program you practise gets nothing of this: in practice as in the target it has the
+robot's documented interface, and nothing else."""
+
+
+def practice_doc(task=None):
+    from sweep_blocks import scene_gen
+    return PRACTICE_DOC.replace("{tables}", ", ".join(scene_gen.table_names())).replace("{{", "{").replace("}}", "}")
+
+
 def interface(task):
     """The interface text of a task's robot (a task dict; or, as before, the single-arm tasks' episode length)."""
     if isinstance(task, dict) and task.get("rig") == "x5":
@@ -247,7 +311,7 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
                          .replace("robot time, and the episode's log with the TRUE positions of the practice world's bodies.",
                                   "robot time, the episode's log with the TRUE positions of the practice world's bodies,\n"
                                   "                              and videos and frames of the same kinds as a target episode gives.")
-        if cond in ("B", "C", "D"):
+        if cond in ("B", "C", "D", "F"):
             block += "\n\n" + NOTES
         if cond in ("B", "C", "D", "F"):
             block += "\n\n" + target_doc(task)
@@ -273,7 +337,7 @@ FIRST = dict(
     C="Improve the program for the task, using practice in the fixed practice world and the target submissions you have.",
     D="Improve the program for the task, using practice, revisions of the practice world, and the target submissions you have.",
     E="Improve the program for the task, using practice and revisions of the practice world.",
-    F="Improve the program for the task, by practising it in the target.",
+    F="Improve the program for the task, using practice in the target simulator with your own self-check, and the target submissions you have.",
 )
 # (the user's wording, 2026-11-27: identical in B, C and D; it asks for a record, not for a way of solving the task)
 NOTES = ("Keep notes.md as a concise running log of changes, reasons, and observed outcomes, referencing program/world versions and feedback\n"

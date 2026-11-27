@@ -244,6 +244,8 @@ def give_shared(R, ws, cond, task=None):
         (ws / "docs" / "worlds.md").write_text(prompts.worlds_doc(task or {}) + "\n")
     if cond in ("B", "C", "D", "F"):
         (ws / "docs" / "target.md").write_text(prompts.target_doc(task or {}) + "\n")
+    if cond == "F" and (task or {}).get("rig") == "x5":
+        (ws / "docs" / "practice.md").write_text(prompts.practice_doc(task) + "\n")
     (ws / "notes.md").write_text("")
 
 
@@ -426,6 +428,10 @@ def start(task_name, rep, cond, cfg, out=OUT):
         shutil.copy(S / "world_agent.py", ws / "world.py"); shutil.copy(S / "construction_notes.md", ws / "construction_notes.md")
         s.add_world((S / "world_agent.py").read_text(), "the shared practice world (built from the look, without target feedback)", "construction",
                     source="shared initialization")
+    if cond == "F" and task.get("rig") == "x5":                     # (oracle-simulator practice: the harness's starting practice file, the same for every F)
+        from xsim.bi import backend as bi_backend
+        shutil.copy(bi_backend.PRACTICE_START, ws / "practice.py")
+        s.add_world(bi_backend.PRACTICE_START.read_text(), "the starting practice file: fresh scenes, no self-check yet", "practice file", source="shared initialization")
     for f in ws.rglob("*"):
         if f.is_file():
             f.chmod(0o644)
@@ -469,15 +475,22 @@ def run(task_name, rep, cond, cfg, out=OUT, agent=None):
     init_cost = snap.get("cost") or {}
     world_cost = init_cost.get("build") if cond in ("C", "D", "E") else None
     man = dict(condition=cond, task=task_name, replicate=rep, model=cfg["model"], effort=cfg["effort"], snapshot=snap["files"], start=st.get("start"),
-               budgets=dict(usd=cfg["budget_usd"][cond], practice_episodes=cfg["practice_episode_cap"] if cond in "CDE" else 0,
+               budgets=dict(usd=cfg["budget_usd"][cond], practice_episodes=cfg["practice_episode_cap"] if cond in "CDEF" else 0,
                             target_submissions=cfg["target_submissions"] if cond in "BCD" else 0, target_panel=config.scenes(cfg, cond) if cond in "BCD" else 0,
-                            target_practice_episodes=s.f_cap() if cond == "F" else 0, max_hours=cfg["max_hours"][cond]),
+                            practice_simulator="the target simulator (ManiSkill)" if cond == "F" else "MuJoCo" if cond in "CDE" else None, max_hours=cfg["max_hours"][cond]),
                cost=dict(initial_program_usd=init_cost.get("A"), world_construction_usd=world_cost, adaptation_usd=use.get("usd"),
                          total_usd=round(float(init_cost.get("A") or 0) + float(world_cost or 0) + float(use.get("usd") or 0), 4)),
                usage=use, practice_episodes=st["practice"]["episodes"], validation_jobs=st["validation_jobs"],
-               target_interactions=st["target"]["episodes"] + st["fpractice"]["episodes"], target_rounds=st["rounds"],
+               target_interactions=st["target"]["episodes"], target_rounds=st["rounds"],
+               # every episode run IN the target simulator: the judged submissions, and (F only) practice episodes and scene checks
+               target_simulator_interactions=st["target"]["episodes"] + ((st["practice"]["episodes"] + st["validation_jobs"]) if cond == "F" else 0),
                wall_s=use.get("wall_s"), versions=len(st["versions"]), worlds=len(st["worlds"]), checkpoints=st["checkpoints"], final=st["final"],
                workspace=str(root / "workspace"), observation=cfg["observation"])
+    if cond == "F":
+        man["oracle_reference"] = ("F practises in the target simulator itself: up to " + str(cfg["practice_episode_cap"]) + " practice episodes and scene checks, plus "
+                                   + str(int(cfg["target_submissions"]) * config.scenes(cfg, cond)) + " judged episodes in its submissions = up to "
+                                   + str(int(cfg["practice_episode_cap"]) + int(cfg["target_submissions"]) * config.scenes(cfg, cond))
+                                   + " target-simulator interactions. It is an oracle reference, not a target-interaction-matched comparison with B, C or D.")
     man["agent_notes"] = dict(kept=kept, summary_written="summary.md" in kept, where="final/notes.md, final/summary.md; rounds/round_k/agent_notes/; checkpoints/")
     if agent is None:
         man["audit"] = audit_paths(s.dir, root / "workspace")

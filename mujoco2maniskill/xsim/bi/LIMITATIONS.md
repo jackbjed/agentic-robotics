@@ -35,10 +35,24 @@
   and network are closed, the simulator's true state is not. It needs its own fix (a program process apart from the
   simulator's, as `m2m/boxed` does) before those tasks are run with agents. The two-arm task's runners and the
   one-arm TARGET runner have the boundary.
+- **Condition F is an oracle reference, not a target-interaction-matched comparison.** F ("oracle-simulator practice with
+  sparse external evaluation") practises in the target simulator itself, with the target's things and physics: up to
+  300 practice episodes and scene checks, plus the 25 judged episodes of its five submissions = up to 325 interactions
+  with the target simulator, against 25 for B, C and D. Its practice is judged by its own self-check (the official
+  judge is not asked and not shown in practice); only its submissions get the official feedback, the same as B, C
+  and D. Its practice scenes come from a generator (`sweep_blocks/scene_gen.py`): fresh ones are drawn the way the
+  development scenes were drawn but are not checked with the scripted reference (about half of such draws were
+  solved by it), and F may ask for other placements, turns, colours and plain table colours. It cannot change the
+  things, the robot, the sensors or the physics, and cannot ask for the tables of the final appearance test.
 - **Practice episodes that use the segmentation service are not reproducible run to run**: the same program on the
   same practice scene gave different segmentation scores and different outcomes in three runs (the same episodes
-  without segmentation, and target episodes with it, were identical run to run). A practice success rate is noisier
-  than its number of episodes suggests.
+  without segmentation, and target episodes with it, were identical run to run, on the scenes tested). A practice
+  success rate is noisier than its number of episodes suggests; small differences between practice scores should not
+  be interpreted without repeated executions or a deterministic rendering configuration
+  (`docs/PRACTICE_NONDETERMINISM.md`).
+- **Development scores are not generalization results.** The successes a session sees on its submissions (5 or 10
+  scenes, the same at every submission) are scores on repeatedly observed configurations. Conditions are compared by
+  their frozen final programs on the held-out scenes only.
 - **The model's thinking is mostly not exposed by the CLI**, so the transcripts hold the calls, results and visible
   text, and little of the reasoning.
 - **Costs are API-equivalent figures** (the CLI's own totals), on a subscription.

@@ -201,6 +201,33 @@ Not covered: the one-arm tasks' PRACTICE path, which is the main project's (`bim
 whole episode, simulator and program in one process, so the true state is not closed off there. It needs its own
 fix before the one-arm tasks are run with agents.
 
+### Condition F: oracle-simulator practice with sparse external evaluation (`xsim/bi/oracle_run.py`)
+
+D learns with a revisable approximate simulator; F practises directly in the target simulator, with the correct
+physics. Both write their own practice success checks, and both get the same limited feedback of the official
+evaluator (the same submissions on the same development scenes as B, C and D).
+
+- Practice scenes: `sweep_blocks/scene_gen.py`. F's practice file (`practice.py`, versions p0, p1, ...) may define
+  `scene(scene, rng)`: it is handed a fresh scene for the seed and returns it unchanged, or changed to ask for other
+  places, turns, colours and table looks. A request is built only if valid; the things, the robot, the sensors and the
+  physics are the target's and cannot be asked to change; the tables of the final appearance test cannot be named.
+- Self-check: the practice file's `success(state)` gets the TRUE state of the practice scene through the same
+  queries as a practice world's state (pos, rot, start, start_rot, touching, speed, held, arm). It runs in a sandbox
+  of its own; the skill runs in another and has the documented robot only, in practice as in evaluation.
+- A practice episode ends when the program returns, when the developer's self-check says so, at the time limit or on
+  an error. The official judge neither ends it nor appears in what is returned (the self-check's verdict, the log
+  with the true positions, the scene as built, images and videos). What the judge would have said is kept in
+  `private/oracle_practice/` for the experiment's own analysis and never returned.
+- Allowances (`xsim/configs/sweep_blocks_F_oracle_5x5_usd80_sim300.json`): the same initial program as B, C, D; $80;
+  300 practice episodes, scene checks counted; separately 5 submissions x 5 development scenes with the official
+  feedback. **F therefore gets up to 325 interactions with the target simulator: it is an oracle reference, not a
+  target-interaction-matched comparison.**
+- Kept: every program version (`versions/`), every practice-file version (`worlds/w<k>_agent.py`: for F these are its
+  practice files p<k>), every practice episode's request and payload (`practice/p<n>_v<v>_p<k>_s<seed>/`: scene.json,
+  practice_record.json, output.txt, videos), the simulator's layout of each scene (`private/oracle_practice/F/`), every
+  submission as for the other conditions, and the counts in `manifest.json` (`target_simulator_interactions`).
+- Tests: `tests/test_scene_gen.py`, `tests/test_oracle_practice.py` (the real simulator), and F's part of `xsim/check_bi.py`.
+
 ### Whose result is this (`xsim/provenance.py`)
 
 Every episode's `result.json` names the execution that wrote it (an id the batch runner gave on the command line),
@@ -215,7 +242,8 @@ reused only if all three match, and nothing is written into an existing record.
 
 ```bash
 export PYTHONNOUSERSITE=1 MUJOCO_GL=egl M2M_MANISKILL_PYTHON=/path/to/env/bin/python
-for t in boundary provenance mirrored_split final_provenance judge_strict configs; do ../.venv/bin/python -I tests/test_$t.py; done
+for t in boundary provenance mirrored_split final_provenance judge_strict configs oracle_practice; do ../.venv/bin/python -I tests/test_$t.py; done
+$M2M_MANISKILL_PYTHON -I tests/test_scene_gen.py
 ../.venv/bin/python -I xsim/check_bi.py     # conditions A-F played by scripts, with the real simulators
 ```
 
