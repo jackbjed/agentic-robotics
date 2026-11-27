@@ -1,0 +1,517 @@
+{
+  "Rigid": {
+    "broom_shovel": [
+      {
+        "category": "broom_shovel",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          -0.35,
+          0.0
+        ],
+        "ylim": [
+          -0.2,
+          0.1
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": [
+          135,
+          225
+        ],
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "broom_shovel",
+        "default_pos": [
+          -0.17101017879260175,
+          0.02835115470317904,
+          0.7893
+        ],
+        "default_ori": [
+          -0.38577487433005975,
+          0.0,
+          -0.0,
+          -0.9225929472609395
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.15,
+          "friction": 0.3,
+          "size": [
+            0.23,
+            0.35,
+            0.06
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ],
+    "broom": [
+      {
+        "category": "broom",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          -0.35,
+          0.0
+        ],
+        "ylim": [
+          -0.2,
+          0.1
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": [
+          -90,
+          30
+        ],
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "broom",
+        "default_pos": [
+          9.275729223946153e-05,
+          -0.19117775866730857,
+          0.7791908933919295
+        ],
+        "default_ori": [
+          -0.44137418529683614,
+          0.5977801537441096,
+          0.3777718559688916,
+          0.5523912935420343
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.04,
+          "friction": 0.45,
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ],
+    "small_cube": [
+      {
+        "category": "small_cube",
+        "category_idx": 2,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "cube_0",
+        "default_pos": [
+          0.3270400118547886,
+          -0.10741732732666481,
+          0.7825
+        ],
+        "default_ori": [
+          0.943176457513958,
+          0.0,
+          0.0,
+          0.3322922960157534
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.03,
+          "friction": 0.3,
+          "size": [
+            0.035,
+            0.035,
+            0.035
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      },
+      {
+        "category": "small_cube",
+        "category_idx": 9,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "cube_1",
+        "default_pos": [
+          0.10266720064395746,
+          -0.11878121406747841,
+          0.7825
+        ],
+        "default_ori": [
+          0.9507302779374456,
+          0.0,
+          0.0,
+          0.31001925522939294
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.03,
+          "friction": 0.3,
+          "size": [
+            0.035,
+            0.035,
+            0.035
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      },
+      {
+        "category": "small_cube",
+        "category_idx": 2,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "cube_2",
+        "default_pos": [
+          0.1495098718314642,
+          -0.01728754016044176,
+          0.7825
+        ],
+        "default_ori": [
+          0.9448387814911342,
+          0.0,
+          0.0,
+          -0.3275357644446616
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.03,
+          "friction": 0.3,
+          "size": [
+            0.035,
+            0.035,
+            0.035
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      },
+      {
+        "category": "small_cube",
+        "category_idx": 8,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "cube_3",
+        "default_pos": [
+          0.19728152361649653,
+          -0.04613348984082474,
+          0.7825
+        ],
+        "default_ori": [
+          0.9962005072450895,
+          0.0,
+          0.0,
+          0.08708931831531617
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.03,
+          "friction": 0.3,
+          "size": [
+            0.035,
+            0.035,
+            0.035
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      },
+      {
+        "category": "small_cube",
+        "category_idx": 8,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "cube_4",
+        "default_pos": [
+          0.2560458101125149,
+          -0.08694815219077762,
+          0.7825
+        ],
+        "default_ori": [
+          0.9978139127708076,
+          0.0,
+          0.0,
+          0.06608627301498629
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.03,
+          "friction": 0.3,
+          "size": [
+            0.035,
+            0.035,
+            0.035
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ]
+  },
+  "Geometry": {
+    "camera_stand": [
+      {
+        "category": "camera_stand",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          0.0,
+          0.0
+        ],
+        "ylim": [
+          -0.47,
+          -0.47
+        ],
+        "zlim": [
+          0.715,
+          0.715
+        ],
+        "qpos": [
+          0.707,
+          -0.707,
+          0.0,
+          0.0
+        ],
+        "rotate_deg": 0,
+        "rotate_rand": false,
+        "relative_plane": "Ground",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "camera_stand",
+        "default_pos": [
+          0.0,
+          -0.47,
+          0.765
+        ],
+        "default_ori": [
+          0.707,
+          -0.707,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "type": "geometry"
+        },
+        "visual": {}
+      }
+    ]
+  },
+  "Room": {
+    "default": "Simple_Room_nolight",
+    "default_pos": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "default_rot": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "scale": [
+      0.5,
+      0.5,
+      0.5
+    ]
+  },
+  "Table": {
+    "default": "material_0122",
+    "scale": [
+      1.4,
+      1.1,
+      0.05
+    ],
+    "default_pos": [
+      0.0,
+      -0.05,
+      0.74
+    ],
+    "default_ori": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "Ground": {
+    "geometry": "cube",
+    "thickness": 0.1,
+    "axis": "Z",
+    "default_pos": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "materials": {
+      "type": "mdl",
+      "default": "material_0564",
+      "random": false
+    },
+    "physics_material": {
+      "static_friction": 1.0,
+      "dynamic_friction": 1.0,
+      "restitution": 0.0,
+      "friction_combine_mode": "multiply",
+      "restitution_combine_mode": "multiply",
+      "compliant_contact_stiffness": 0.0,
+      "compliant_contact_damping": 0.0
+    }
+  },
+  "Background": {
+    "intensity": 1000,
+    "category_name": "brown_photostudio_02_4k.hdr"
+  }
+}

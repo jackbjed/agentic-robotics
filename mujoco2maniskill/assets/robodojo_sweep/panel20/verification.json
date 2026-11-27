@@ -1,0 +1,2937 @@
+{
+ "how": "each candidate was run with the scripted reference reference_sweep.py (true positions) under the task's own 40 s and success test; the first N solved are the panel",
+ "seed": 5,
+ "candidates": 36,
+ "solved": 20,
+ "kept": 20,
+ "panel": [
+  {
+   "layout": "cand_000",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 35.72,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 23.0,
+      "t": 20.64,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 25.2,
+      "front": 81,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 28.64,
+      "front": 82,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_000.json",
+   "episode": 0
+  },
+  {
+   "layout": "cand_001",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 26.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.3,
+    "brush_laid": {
+     "t": 7.36,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.8,
+    "right_grasp_mm": 58.2,
+    "strokes": [
+     {
+      "line": 14.527015389661688,
+      "t": 20.04,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_001.json",
+   "episode": 1
+  },
+  {
+   "layout": "cand_002",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 32.72,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.36,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 0.49721701340934743,
+      "t": 20.6,
+      "front": 87,
+      "inside": 1
+     },
+     {
+      "line": 16.722176120697437,
+      "t": 23.04,
+      "front": 84,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 25.48,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_002.json",
+   "episode": 2
+  },
+  {
+   "layout": "cand_005",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.72,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 1.8998442055692006,
+      "t": 20.48,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -26.322531323023235,
+      "t": 24.2,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_005.json",
+   "episode": 3
+  },
+  {
+   "layout": "cand_007",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 35.44,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.2,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 14.476492934495216,
+      "t": 21.2,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 23.240000000000002,
+      "front": 82,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 26.16,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 28.36,
+      "front": 84,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_007.json",
+   "episode": 4
+  },
+  {
+   "layout": "cand_011",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.68,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      59.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.97,
+      -0.26
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -23.0,
+      "t": 20.72,
+      "front": 109,
+      "inside": 2
+     },
+     {
+      "line": 1.2547334220288953,
+      "t": 23.56,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [
+    "stroke 0 held up at 109 mm"
+   ],
+   "candidate": "cand_011.json",
+   "episode": 5
+  },
+  {
+   "layout": "cand_013",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 28.84,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.0,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 0.15497859558752936,
+      "t": 21.64,
+      "front": 79,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_013.json",
+   "episode": 6
+  },
+  {
+   "layout": "cand_016",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 29.12,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.8,
+    "brush_laid": {
+     "t": 7.6000000000000005,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 58.2,
+    "strokes": [
+     {
+      "line": -13.730305886312905,
+      "t": 19.240000000000002,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": 27.238761136584785,
+      "t": 22.48,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_016.json",
+   "episode": 7
+  },
+  {
+   "layout": "cand_017",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 37.04,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.44,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.6,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": 1.5383597229633512,
+      "t": 19.64,
+      "front": 86,
+      "inside": 0
+     },
+     {
+      "line": -20.801334795833228,
+      "t": 22.92,
+      "front": 89,
+      "inside": 1
+     },
+     {
+      "line": 30.0,
+      "t": 25.52,
+      "front": 87,
+      "inside": 2
+     },
+     {
+      "line": 13.69520771401325,
+      "t": 28.2,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_017.json",
+   "episode": 8
+  },
+  {
+   "layout": "cand_018",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 37.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      62.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": 16.183242774052403,
+      "t": 20.76,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 24.560000000000002,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 27.88,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 31.16,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_018.json",
+   "episode": 9
+  },
+  {
+   "layout": "cand_020",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.6000000000000005,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 58.2,
+    "strokes": [
+     {
+      "line": -19.92378013473914,
+      "t": 20.92,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": 21.12331323303859,
+      "t": 23.92,
+      "front": 76,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_020.json",
+   "episode": 10
+  },
+  {
+   "layout": "cand_024",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 27.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.3,
+    "brush_laid": {
+     "t": 7.44,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.94,
+      -0.34
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.9,
+    "strokes": [
+     {
+      "line": -11.2692782204278,
+      "t": 20.88,
+      "front": 89,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_024.json",
+   "episode": 11
+  },
+  {
+   "layout": "cand_025",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.6000000000000005,
+     "centre": [
+      62.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": -13.616981130273615,
+      "t": 20.72,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": 28.774124580774117,
+      "t": 23.16,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_025.json",
+   "episode": 12
+  },
+  {
+   "layout": "cand_027",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 36.6,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.9,
+    "brush_laid": {
+     "t": 7.76,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.2,
+    "strokes": [
+     {
+      "line": 18.508096858258888,
+      "t": 21.28,
+      "front": 87,
+      "inside": 1
+     },
+     {
+      "line": -10.50838207340978,
+      "t": 24.44,
+      "front": 89,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 27.0,
+      "front": 86,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 29.44,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_027.json",
+   "episode": 13
+  },
+  {
+   "layout": "cand_028",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 37.8,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.2,
+    "brush_laid": {
+     "t": 9.32,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.1,
+    "strokes": [
+     {
+      "line": -0.7613110408173913,
+      "t": 22.36,
+      "front": 86,
+      "inside": 0
+     },
+     {
+      "line": 30.0,
+      "t": 25.44,
+      "front": 85,
+      "inside": 1
+     },
+     {
+      "line": 5.541112774951945,
+      "t": 28.0,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -19.815071523788596,
+      "t": 30.68,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind"
+   ],
+   "candidate": "cand_028.json",
+   "episode": 14
+  },
+  {
+   "layout": "cand_029",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 29.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.3,
+    "right_grasp_mm": 57.3,
+    "strokes": [
+     {
+      "line": 6.0980139742550605,
+      "t": 20.28,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -28.89776007908229,
+      "t": 22.88,
+      "front": 87,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_029.json",
+   "episode": 15
+  },
+  {
+   "layout": "cand_032",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 28.68,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.36,
+     "centre": [
+      60.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.1,
+    "strokes": [
+     {
+      "line": -11.458059335903238,
+      "t": 19.28,
+      "front": 84,
+      "inside": 2
+     },
+     {
+      "line": 17.62922256948352,
+      "t": 21.88,
+      "front": 80,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_032.json",
+   "episode": 16
+  },
+  {
+   "layout": "cand_033",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 31.04,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.8,
+    "brush_laid": {
+     "t": 7.88,
+     "centre": [
+      61.0,
+      -358.0,
+      14.0
+     ],
+     "axis": [
+      0.94,
+      -0.35
+     ]
+    },
+    "pan_grasp_mm": 29.3,
+    "right_grasp_mm": 58.1,
+    "strokes": [
+     {
+      "line": -23.0,
+      "t": 20.92,
+      "front": 82,
+      "inside": 2
+     },
+     {
+      "line": 29.905216492984703,
+      "t": 23.84,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_033.json",
+   "episode": 17
+  },
+  {
+   "layout": "cand_034",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 28.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.0,
+    "brush_laid": {
+     "t": 7.72,
+     "centre": [
+      32.0,
+      -343.0,
+      14.0
+     ],
+     "axis": [
+      0.97,
+      -0.26
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -3.317925647399143,
+      "t": 21.8,
+      "front": 85,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_034.json",
+   "episode": 18
+  },
+  {
+   "layout": "cand_035",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 34.24,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.5200000000000005,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.28
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 1.0889719251557235,
+      "t": 20.080000000000002,
+      "front": 86,
+      "inside": 1
+     },
+     {
+      "line": 17.012709022106446,
+      "t": 24.84,
+      "front": 89,
+      "inside": 2
+     },
+     {
+      "line": -11.535351846067908,
+      "t": 27.560000000000002,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_035.json",
+   "episode": 19
+  }
+ ],
+ "all": [
+  {
+   "layout": "cand_000",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 35.72,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 23.0,
+      "t": 20.64,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 25.2,
+      "front": 81,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 28.64,
+      "front": 82,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_000.json",
+   "episode": 0
+  },
+  {
+   "layout": "cand_001",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 26.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.3,
+    "brush_laid": {
+     "t": 7.36,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.8,
+    "right_grasp_mm": 58.2,
+    "strokes": [
+     {
+      "line": 14.527015389661688,
+      "t": 20.04,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_001.json",
+   "episode": 1
+  },
+  {
+   "layout": "cand_002",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 32.72,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.36,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 0.49721701340934743,
+      "t": 20.6,
+      "front": 87,
+      "inside": 1
+     },
+     {
+      "line": 16.722176120697437,
+      "t": 23.04,
+      "front": 84,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 25.48,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_002.json",
+   "episode": 2
+  },
+  {
+   "layout": "cand_003",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 36.24,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.24,
+     "centre": [
+      59.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 0.8,
+    "right_grasp_mm": 57.3,
+    "strokes": [
+     {
+      "line": 9.479465094313717,
+      "t": 20.56,
+      "front": 85,
+      "inside": 0
+     },
+     {
+      "line": -10.451313248310381,
+      "t": 23.36,
+      "front": 83,
+      "inside": 0
+     },
+     {
+      "line": 14.462294195116574,
+      "t": 26.16,
+      "front": 85,
+      "inside": 0
+     },
+     {
+      "line": 14.462239893674855,
+      "t": 28.92,
+      "front": 85,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "brush up: the arm cannot get there in one move without swinging behind"
+   ],
+   "candidate": "cand_003.json"
+  },
+  {
+   "layout": "cand_004",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 33.24,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.3,
+    "brush_laid": {
+     "t": 7.28,
+     "centre": [
+      50.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 0.8,
+    "right_grasp_mm": 57.6,
+    "strokes": [
+     {
+      "line": -6.911748862329063,
+      "t": 17.64,
+      "front": 245,
+      "inside": 0
+     },
+     {
+      "line": 14.904681372056757,
+      "t": 20.92,
+      "front": 87,
+      "inside": 0
+     },
+     {
+      "line": 23.546941564717,
+      "t": 23.04,
+      "front": 87,
+      "inside": 0
+     },
+     {
+      "line": -30.0,
+      "t": 25.96,
+      "front": 87,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "brush up: the arm cannot get there in one move without swinging behind",
+    "stroke 0 held up at 245 mm"
+   ],
+   "candidate": "cand_004.json"
+  },
+  {
+   "layout": "cand_005",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.72,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 1.8998442055692006,
+      "t": 20.48,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -26.322531323023235,
+      "t": 24.2,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_005.json",
+   "episode": 3
+  },
+  {
+   "layout": "cand_006",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 31.28,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.4,
+     "centre": [
+      59.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.28
+     ]
+    },
+    "pan_grasp_mm": 0.8,
+    "right_grasp_mm": 58.3,
+    "strokes": [
+     {
+      "line": 0.09736590948968171,
+      "t": 19.400000000000002,
+      "front": 87,
+      "inside": 0
+     },
+     {
+      "line": 24.148356418254757,
+      "t": 21.12,
+      "front": 88,
+      "inside": 0
+     },
+     {
+      "line": -30.0,
+      "t": 22.84,
+      "front": 88,
+      "inside": 0
+     },
+     {
+      "line": 30.0,
+      "t": 24.400000000000002,
+      "front": 88,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_006.json"
+  },
+  {
+   "layout": "cand_007",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 35.44,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.2,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 14.476492934495216,
+      "t": 21.2,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 23.240000000000002,
+      "front": 82,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 26.16,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 28.36,
+      "front": 84,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_007.json",
+   "episode": 4
+  },
+  {
+   "layout": "cand_008",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 36.16,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": false,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.2,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 3.6852463970867184,
+      "t": 19.68,
+      "front": 163,
+      "inside": 0
+     },
+     {
+      "line": 29.001050959502557,
+      "t": 22.68,
+      "front": 88,
+      "inside": 1
+     },
+     {
+      "line": -22.077519599361885,
+      "t": 25.84,
+      "front": 12782,
+      "inside": 0
+     },
+     {
+      "line": -30.0,
+      "t": 28.44,
+      "front": 36437,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "stroke 0 held up at 163 mm",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "stroke 2 held up at 12782 mm",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_008.json"
+  },
+  {
+   "layout": "cand_009",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 37.68,
+   "cubes": 3,
+   "cubes_in": 1,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.8,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -9.438144510051071,
+      "t": 20.56,
+      "front": 87,
+      "inside": 0
+     },
+     {
+      "line": 9.74014172932867,
+      "t": 24.0,
+      "front": 118,
+      "inside": 2
+     },
+     {
+      "line": 6.378411562677632,
+      "t": 26.96,
+      "front": 90,
+      "inside": 1
+     },
+     {
+      "line": 6.891306332697562,
+      "t": 30.68,
+      "front": 89,
+      "inside": 1
+     }
+    ]
+   },
+   "notes": [
+    "stroke 1 held up at 118 mm",
+    "stroke 2 held up at 90 mm"
+   ],
+   "candidate": "cand_009.json"
+  },
+  {
+   "layout": "cand_010",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 37.56,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.4,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 0.4935043210315584,
+      "t": 21.080000000000002,
+      "front": 89,
+      "inside": 1
+     },
+     {
+      "line": 12.817170437164659,
+      "t": 24.52,
+      "front": 83,
+      "inside": 1
+     },
+     {
+      "line": 30.0,
+      "t": 30.84,
+      "front": -203,
+      "inside": 0
+     },
+     {
+      "line": 30.0,
+      "t": 30.96,
+      "front": -203,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "back, clear of the pan: out of the arm's reach (no joint solution for that pose)",
+    "up from the brush: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_010.json"
+  },
+  {
+   "layout": "cand_011",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.68,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      59.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.97,
+      -0.26
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -23.0,
+      "t": 20.72,
+      "front": 109,
+      "inside": 2
+     },
+     {
+      "line": 1.2547334220288953,
+      "t": 23.56,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [
+    "stroke 0 held up at 109 mm"
+   ],
+   "candidate": "cand_011.json",
+   "episode": 5
+  },
+  {
+   "layout": "cand_012",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 40.0,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": false,
+   "log": {
+    "left_grasp_mm": 28.9,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.94,
+      -0.33
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.3,
+    "strokes": [
+     {
+      "line": -22.114952596637025,
+      "t": 40.0,
+      "front": 106,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_012.json"
+  },
+  {
+   "layout": "cand_013",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 28.84,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.0,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 0.15497859558752936,
+      "t": 21.64,
+      "front": 79,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_013.json",
+   "episode": 6
+  },
+  {
+   "layout": "cand_014",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 36.32,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.4,
+     "centre": [
+      63.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -7.1263711363589834,
+      "t": 21.8,
+      "front": 84,
+      "inside": 1
+     },
+     {
+      "line": 30.0,
+      "t": 24.560000000000002,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 27.2,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 29.04,
+      "front": 164,
+      "inside": 2
+     }
+    ]
+   },
+   "notes": [
+    "stroke 3 held up at 164 mm"
+   ],
+   "candidate": "cand_014.json"
+  },
+  {
+   "layout": "cand_015",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 28.36,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.2,
+     "centre": [
+      -327.0,
+      -181.0,
+      14.0
+     ],
+     "axis": [
+      0.97,
+      0.23
+     ]
+    },
+    "pan_grasp_mm": 0.8,
+    "right_grasp_mm": 0.8,
+    "strokes": [
+     {
+      "line": 4.976616445456052,
+      "t": 15.48,
+      "front": -256,
+      "inside": 0
+     },
+     {
+      "line": 30.0,
+      "t": 16.68,
+      "front": -256,
+      "inside": 0
+     },
+     {
+      "line": -30.0,
+      "t": 17.88,
+      "front": -256,
+      "inside": 0
+     },
+     {
+      "line": 30.0,
+      "t": 19.080000000000002,
+      "front": -256,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "above the brush: out of the arm's reach (no joint solution for that pose)",
+    "down to the brush: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j"
+   ],
+   "candidate": "cand_015.json"
+  },
+  {
+   "layout": "cand_016",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 29.12,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.8,
+    "brush_laid": {
+     "t": 7.6000000000000005,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 58.2,
+    "strokes": [
+     {
+      "line": -13.730305886312905,
+      "t": 19.240000000000002,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": 27.238761136584785,
+      "t": 22.48,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_016.json",
+   "episode": 7
+  },
+  {
+   "layout": "cand_017",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 37.04,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.44,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.6,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": 1.5383597229633512,
+      "t": 19.64,
+      "front": 86,
+      "inside": 0
+     },
+     {
+      "line": -20.801334795833228,
+      "t": 22.92,
+      "front": 89,
+      "inside": 1
+     },
+     {
+      "line": 30.0,
+      "t": 25.52,
+      "front": 87,
+      "inside": 2
+     },
+     {
+      "line": 13.69520771401325,
+      "t": 28.2,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_017.json",
+   "episode": 8
+  },
+  {
+   "layout": "cand_018",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 37.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.68,
+     "centre": [
+      62.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": 16.183242774052403,
+      "t": 20.76,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 24.560000000000002,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 27.88,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 31.16,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_018.json",
+   "episode": 9
+  },
+  {
+   "layout": "cand_019",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 33.68,
+   "cubes": 3,
+   "cubes_in": 1,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.0,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      59.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 0.8,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": 3.56190105892793,
+      "t": 20.32,
+      "front": 89,
+      "inside": 0
+     },
+     {
+      "line": 15.034478086155197,
+      "t": 22.04,
+      "front": 87,
+      "inside": 0
+     },
+     {
+      "line": 15.03447925313482,
+      "t": 24.32,
+      "front": 79,
+      "inside": 1
+     },
+     {
+      "line": 15.03447925313482,
+      "t": 26.400000000000002,
+      "front": 83,
+      "inside": 1
+     }
+    ]
+   },
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_019.json"
+  },
+  {
+   "layout": "cand_020",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.6000000000000005,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 58.2,
+    "strokes": [
+     {
+      "line": -19.92378013473914,
+      "t": 20.92,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": 21.12331323303859,
+      "t": 23.92,
+      "front": 76,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_020.json",
+   "episode": 10
+  },
+  {
+   "layout": "cand_021",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 40.0,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": false,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.5600000000000005,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -2.947546117087322,
+      "t": 18.04,
+      "front": 258,
+      "inside": 0
+     },
+     {
+      "line": -30.0,
+      "t": 22.16,
+      "front": 81,
+      "inside": 1
+     },
+     {
+      "line": -6.822470905076925,
+      "t": 25.52,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 33.0,
+      "front": 475,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "stroke 0 held up at 258 mm",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "stroke 3 held up at 475 mm",
+    "brush up from the mouth: the arm stopped short of the target (46 mm and 7 degrees fro",
+    "back, clear of the pan: the arm stopped short of the target (32 mm and 5 degrees fro"
+   ],
+   "candidate": "cand_021.json"
+  },
+  {
+   "layout": "cand_022",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 35.8,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.2,
+    "brush_laid": {
+     "t": 7.640000000000001,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -23.0,
+      "t": 21.48,
+      "front": 72,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 24.0,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 26.28,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 28.560000000000002,
+      "front": 88,
+      "inside": 2
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_022.json"
+  },
+  {
+   "layout": "cand_023",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 32.4,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.8,
+    "brush_laid": {
+     "t": 7.24,
+     "centre": [
+      63.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 0.8,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 3.4732746453458674,
+      "t": 19.56,
+      "front": 87,
+      "inside": 0
+     },
+     {
+      "line": -28.910089745017682,
+      "t": 21.44,
+      "front": 88,
+      "inside": 0
+     },
+     {
+      "line": -28.91004525033513,
+      "t": 23.28,
+      "front": 88,
+      "inside": 0
+     },
+     {
+      "line": -28.910004693626153,
+      "t": 25.28,
+      "front": 88,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "brush up: the arm cannot get there in one move without swinging behind"
+   ],
+   "candidate": "cand_023.json"
+  },
+  {
+   "layout": "cand_024",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 27.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.3,
+    "brush_laid": {
+     "t": 7.44,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.94,
+      -0.34
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.9,
+    "strokes": [
+     {
+      "line": -11.2692782204278,
+      "t": 20.88,
+      "front": 89,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_024.json",
+   "episode": 11
+  },
+  {
+   "layout": "cand_025",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 30.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.5,
+    "brush_laid": {
+     "t": 7.6000000000000005,
+     "centre": [
+      62.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": -13.616981130273615,
+      "t": 20.72,
+      "front": 83,
+      "inside": 2
+     },
+     {
+      "line": 28.774124580774117,
+      "t": 23.16,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_025.json",
+   "episode": 12
+  },
+  {
+   "layout": "cand_026",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 40.0,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": false,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.640000000000001,
+     "centre": [
+      62.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.8,
+    "strokes": [
+     {
+      "line": -0.31639479562903716,
+      "t": 36.64,
+      "front": 104,
+      "inside": 0
+     },
+     {
+      "line": 27.221123469222995,
+      "t": 37.24,
+      "front": 104,
+      "inside": 0
+     },
+     {
+      "line": -30.0,
+      "t": 37.24,
+      "front": 104,
+      "inside": 0
+     },
+     {
+      "line": 27.221123469222995,
+      "t": 37.24,
+      "front": 104,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "stroke 0 held up at 104 mm",
+    "brush up from the mouth: out of the arm's reach (no joint solution for that pose)",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_026.json"
+  },
+  {
+   "layout": "cand_027",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 36.6,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.9,
+    "brush_laid": {
+     "t": 7.76,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.3
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.2,
+    "strokes": [
+     {
+      "line": 18.508096858258888,
+      "t": 21.28,
+      "front": 87,
+      "inside": 1
+     },
+     {
+      "line": -10.50838207340978,
+      "t": 24.44,
+      "front": 89,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 27.0,
+      "front": 86,
+      "inside": 2
+     },
+     {
+      "line": 30.0,
+      "t": 29.44,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_027.json",
+   "episode": 13
+  },
+  {
+   "layout": "cand_028",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 37.8,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.2,
+    "brush_laid": {
+     "t": 9.32,
+     "centre": [
+      61.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.1,
+    "strokes": [
+     {
+      "line": -0.7613110408173913,
+      "t": 22.36,
+      "front": 86,
+      "inside": 0
+     },
+     {
+      "line": 30.0,
+      "t": 25.44,
+      "front": 85,
+      "inside": 1
+     },
+     {
+      "line": 5.541112774951945,
+      "t": 28.0,
+      "front": 88,
+      "inside": 2
+     },
+     {
+      "line": -19.815071523788596,
+      "t": 30.68,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind"
+   ],
+   "candidate": "cand_028.json",
+   "episode": 14
+  },
+  {
+   "layout": "cand_029",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 29.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.48,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 29.3,
+    "right_grasp_mm": 57.3,
+    "strokes": [
+     {
+      "line": 6.0980139742550605,
+      "t": 20.28,
+      "front": 85,
+      "inside": 2
+     },
+     {
+      "line": -28.89776007908229,
+      "t": 22.88,
+      "front": 87,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_029.json",
+   "episode": 15
+  },
+  {
+   "layout": "cand_030",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 40.0,
+   "cubes": 3,
+   "cubes_in": 1,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": false,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.84,
+     "centre": [
+      61.0,
+      -357.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.32
+     ]
+    },
+    "pan_grasp_mm": 29.8,
+    "right_grasp_mm": 57.6,
+    "strokes": [
+     {
+      "line": -19.94491692748363,
+      "t": 20.72,
+      "front": 86,
+      "inside": 1
+     },
+     {
+      "line": -30.0,
+      "t": 24.240000000000002,
+      "front": 114,
+      "inside": 2
+     },
+     {
+      "line": 0.9340899015447164,
+      "t": 28.0,
+      "front": 96,
+      "inside": 2
+     },
+     {
+      "line": -30.0,
+      "t": 36.0,
+      "front": -139,
+      "inside": 1
+     }
+    ]
+   },
+   "notes": [
+    "stroke 1 held up at 114 mm",
+    "stroke 2 held up at 96 mm",
+    "back, clear of the pan: out of the arm's reach (no joint solution for that pose)",
+    "up from the brush: the arm cannot get there in one move without swinging behind"
+   ],
+   "candidate": "cand_030.json"
+  },
+  {
+   "layout": "cand_031",
+   "solved": false,
+   "how": "swept with the brush",
+   "robot_s": 40.0,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": false,
+   "arms_back": false,
+   "log": {
+    "left_grasp_mm": 28.6,
+    "brush_laid": {
+     "t": 7.44,
+     "centre": [
+      61.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.29
+     ]
+    },
+    "pan_grasp_mm": 35.1,
+    "right_grasp_mm": 57.2,
+    "strokes": [
+     {
+      "line": 6.822044836709054,
+      "t": 32.160000000000004,
+      "front": 103,
+      "inside": 0
+     },
+     {
+      "line": -13.983155940792983,
+      "t": 33.96,
+      "front": 103,
+      "inside": 0
+     },
+     {
+      "line": -13.983155940792983,
+      "t": 36.24,
+      "front": 103,
+      "inside": 0
+     },
+     {
+      "line": -13.983155940792983,
+      "t": 38.52,
+      "front": 103,
+      "inside": 0
+     }
+    ]
+   },
+   "notes": [
+    "above the pan's handle: out of the arm's reach (no joint solution for that pose)",
+    "down to the pan's handle: the arm stopped short of the target (20 mm and 2 degrees fro",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "straightening: the arm cannot make that turn (out of reach or a j",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "stroke 0 held up at 103 mm",
+    "to behind the cubes: out of the arm's reach (no joint solution for that pose)",
+    "brush down behind the cubes: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_031.json"
+  },
+  {
+   "layout": "cand_032",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 28.68,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.4,
+    "brush_laid": {
+     "t": 7.36,
+     "centre": [
+      60.0,
+      -355.0,
+      14.0
+     ],
+     "axis": [
+      0.95,
+      -0.31
+     ]
+    },
+    "pan_grasp_mm": 29.5,
+    "right_grasp_mm": 57.1,
+    "strokes": [
+     {
+      "line": -11.458059335903238,
+      "t": 19.28,
+      "front": 84,
+      "inside": 2
+     },
+     {
+      "line": 17.62922256948352,
+      "t": 21.88,
+      "front": 80,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_032.json",
+   "episode": 16
+  },
+  {
+   "layout": "cand_033",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 31.04,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 28.8,
+    "brush_laid": {
+     "t": 7.88,
+     "centre": [
+      61.0,
+      -358.0,
+      14.0
+     ],
+     "axis": [
+      0.94,
+      -0.35
+     ]
+    },
+    "pan_grasp_mm": 29.3,
+    "right_grasp_mm": 58.1,
+    "strokes": [
+     {
+      "line": -23.0,
+      "t": 20.92,
+      "front": 82,
+      "inside": 2
+     },
+     {
+      "line": 29.905216492984703,
+      "t": 23.84,
+      "front": 86,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_033.json",
+   "episode": 17
+  },
+  {
+   "layout": "cand_034",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 28.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.0,
+    "brush_laid": {
+     "t": 7.72,
+     "centre": [
+      32.0,
+      -343.0,
+      14.0
+     ],
+     "axis": [
+      0.97,
+      -0.26
+     ]
+    },
+    "pan_grasp_mm": 29.4,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": -3.317925647399143,
+      "t": 21.8,
+      "front": 85,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_034.json",
+   "episode": 18
+  },
+  {
+   "layout": "cand_035",
+   "solved": true,
+   "how": "swept with the brush",
+   "robot_s": 34.24,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "log": {
+    "left_grasp_mm": 29.1,
+    "brush_laid": {
+     "t": 7.5200000000000005,
+     "centre": [
+      62.0,
+      -356.0,
+      14.0
+     ],
+     "axis": [
+      0.96,
+      -0.28
+     ]
+    },
+    "pan_grasp_mm": 29.7,
+    "right_grasp_mm": 57.5,
+    "strokes": [
+     {
+      "line": 1.0889719251557235,
+      "t": 20.080000000000002,
+      "front": 86,
+      "inside": 1
+     },
+     {
+      "line": 17.012709022106446,
+      "t": 24.84,
+      "front": 89,
+      "inside": 2
+     },
+     {
+      "line": -11.535351846067908,
+      "t": 27.560000000000002,
+      "front": 88,
+      "inside": 3
+     }
+    ]
+   },
+   "notes": [],
+   "candidate": "cand_035.json",
+   "episode": 19
+  }
+ ]
+}

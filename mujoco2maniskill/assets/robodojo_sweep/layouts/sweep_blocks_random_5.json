@@ -1,0 +1,496 @@
+{
+  "Rigid": {
+    "broom_shovel": [
+      {
+        "category": "broom_shovel",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          -0.35,
+          0.0
+        ],
+        "ylim": [
+          -0.2,
+          0.1
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": [
+          135,
+          225
+        ],
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "broom_shovel",
+        "default_pos": [
+          -0.23609934032502727,
+          -0.09601255416001228,
+          0.7893
+        ],
+        "default_ori": [
+          -0.909205515213228,
+          0.0,
+          0.0,
+          -0.4163476085026173
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.15,
+          "friction": 0.3,
+          "size": [
+            0.18400000035762787,
+            0.2800000011920929,
+            0.04800000041723251
+          ],
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ],
+    "broom": [
+      {
+        "category": "broom",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          -0.35,
+          0.0
+        ],
+        "ylim": [
+          -0.2,
+          0.1
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": [
+          -90,
+          30
+        ],
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "broom",
+        "default_pos": [
+          -0.013935233550840136,
+          0.039447259204901754,
+          0.7791908933919295
+        ],
+        "default_ori": [
+          -0.1723629291707066,
+          0.7006438124258955,
+          0.09566052206536912,
+          0.6857392604154888
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.04,
+          "friction": 0.45,
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ],
+    "brick": [
+      {
+        "category": "brick",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "target_1_0",
+        "default_pos": [
+          0.27601848438856424,
+          -0.1433035479422227,
+          0.7772000578039948
+        ],
+        "default_ori": [
+          0.9369600319726802,
+          0.00028108800959180405,
+          0.00010483092465355164,
+          0.3494364155118388
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.035,
+          "friction": 0.45,
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ],
+    "paper_ball": [
+      {
+        "category": "paper_ball",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "target_2_0",
+        "default_pos": [
+          0.13656514623082158,
+          -0.06847883880508233,
+          0.7860832426435349
+        ],
+        "default_ori": [
+          0.9973825871334246,
+          -0.055287466515716234,
+          -0.009959459130228977,
+          0.04552010658097779
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.08,
+          "friction": 0.45,
+          "type": "rigid"
+        },
+        "visual": {}
+      },
+      {
+        "category": "paper_ball",
+        "category_idx": 1,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "target_2_1",
+        "default_pos": [
+          0.21174638196169293,
+          -0.014782566446498398,
+          0.7778636476588169
+        ],
+        "default_ori": [
+          0.8846868559956029,
+          -0.39849448047659725,
+          -0.17722409866039693,
+          0.16469042082741828
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.08,
+          "friction": 0.45,
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ],
+    "earbuds": [
+      {
+        "category": "earbuds",
+        "category_idx": 2,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "target_3_0",
+        "default_pos": [
+          0.29044926116008074,
+          -0.008392467026810383,
+          0.774764340803822
+        ],
+        "default_ori": [
+          0.749443259606486,
+          0.5966241151190806,
+          0.2565159056989909,
+          0.12874026569883237
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.005,
+          "friction": 0.32,
+          "type": "rigid"
+        },
+        "visual": {}
+      },
+      {
+        "category": "earbuds",
+        "category_idx": 1,
+        "group": null,
+        "xlim": [
+          0.04,
+          0.35
+        ],
+        "ylim": [
+          -0.15,
+          0.05
+        ],
+        "zlim": null,
+        "qpos": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rotate_deg": 45,
+        "rotate_rand": true,
+        "relative_plane": "Table",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "target_3_1",
+        "default_pos": [
+          0.08380387281546632,
+          -0.1461075357809475,
+          0.778384134596277
+        ],
+        "default_ori": [
+          0.6532539735420276,
+          -0.06616480028066966,
+          -0.6470560289221768,
+          0.38755639678740184
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "mass": 0.006,
+          "friction": 0.25,
+          "type": "rigid"
+        },
+        "visual": {}
+      }
+    ]
+  },
+  "Geometry": {
+    "camera_stand": [
+      {
+        "category": "camera_stand",
+        "category_idx": 0,
+        "group": null,
+        "xlim": [
+          0.0,
+          0.0
+        ],
+        "ylim": [
+          -0.47,
+          -0.47
+        ],
+        "zlim": [
+          0.715,
+          0.715
+        ],
+        "qpos": [
+          0.707,
+          -0.707,
+          0.0,
+          0.0
+        ],
+        "rotate_deg": 0,
+        "rotate_rand": false,
+        "relative_plane": "Ground",
+        "place_tag": null,
+        "margin": 0.01,
+        "check_mode": "bbox",
+        "need_check_stable": true,
+        "label": "camera_stand",
+        "default_pos": [
+          0.0,
+          -0.47,
+          0.765
+        ],
+        "default_ori": [
+          0.707,
+          -0.707,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "physics": {
+          "type": "geometry"
+        },
+        "visual": {}
+      }
+    ]
+  },
+  "Room": {
+    "default": "Simple_Room_green",
+    "default_pos": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "default_rot": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "scale": [
+      0.5,
+      0.5,
+      0.5
+    ]
+  },
+  "Table": {
+    "default": "material_0566",
+    "scale": [
+      1.4,
+      1.1,
+      0.05
+    ],
+    "default_pos": [
+      0.0,
+      -0.05,
+      0.74
+    ],
+    "default_ori": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "Ground": {
+    "geometry": "cube",
+    "thickness": 0.1,
+    "axis": "Z",
+    "default_pos": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "materials": {
+      "type": "mdl",
+      "default": "material_0563",
+      "random": false
+    },
+    "physics_material": {
+      "static_friction": 1.0,
+      "dynamic_friction": 1.0,
+      "restitution": 0.0,
+      "friction_combine_mode": "multiply",
+      "restitution_combine_mode": "multiply",
+      "compliant_contact_stiffness": 0.0,
+      "compliant_contact_damping": 0.0
+    }
+  },
+  "Background": {
+    "intensity": 1000,
+    "category_name": "brown_photostudio_02_4k.hdr"
+  }
+}

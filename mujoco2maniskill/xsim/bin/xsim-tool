@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# xsim-tool: the only shell command of a development session of the cross-simulator experiments (xsim/session.py).
+# It lives outside every workspace: an agent cannot edit it. Python runs isolated (-I): nothing of the caller's
+# directory (the agent's workspace) or environment is importable.
+HERE="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY="$HERE/../../.venv/bin/python"
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH CONDA_PREFIX
+export PYTHONNOUSERSITE=1 MUJOCO_GL=egl
+exec "$PY" -I "$HERE/tool.py" "$@"

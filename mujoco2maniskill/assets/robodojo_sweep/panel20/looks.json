@@ -1,0 +1,67 @@
+{
+ "seed": 11,
+ "tables": {
+  "wood_red": {
+   "texture": "table_wood.png"
+  },
+  "wood_pale": {
+   "texture": "tables/wood_pale.png"
+  },
+  "wood_grey": {
+   "texture": "tables/wood_grey.png"
+  },
+  "speckled": {
+   "texture": "tables/speckled.png"
+  },
+  "white": {
+   "rgb": [
+    0.84,
+    0.84,
+    0.82
+   ]
+  },
+  "grey": {
+   "rgb": [
+    0.5,
+    0.51,
+    0.53
+   ]
+  },
+  "slate": {
+   "rgb": [
+    0.17,
+    0.19,
+    0.23
+   ]
+  },
+  "sand": {
+   "rgb": [
+    0.8,
+    0.71,
+    0.55
+   ]
+  },
+  "green": {
+   "rgb": [
+    0.3,
+    0.47,
+    0.37
+   ]
+  },
+  "blue": {
+   "rgb": [
+    0.22,
+    0.36,
+    0.58
+   ]
+  }
+ },
+ "rules": {
+  "object_to_table": 50.0,
+  "object_to_texture_extremes": 35.0,
+  "cube_to_pan": 30.0,
+  "cube_to_cube": 25.0,
+  "brush_to_pan": 25.0
+ },
+ "note": "colours sRGB 0..1; distances CIE Lab; physics unchanged"
+}

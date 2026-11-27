@@ -1,0 +1,60 @@
+{
+ "name": "broom",
+ "source": "Assets/Object/RoboDojo/Rigid/broom/00000/object.usdz",
+ "bbox_min": [
+  -0.01874,
+  -0.04139,
+  -0.12514
+ ],
+ "bbox_max": [
+  0.01866,
+  0.04141,
+  0.12486
+ ],
+ "collision_parts": 34,
+ "visual_faces": 738074,
+ "colors": [
+  null
+ ],
+ "physics": {
+  "mass": 0.04,
+  "friction": 0.45
+ },
+ "active": {
+  "place": {
+   "side": {
+    "orientation": [
+     -0.5268,
+     0.5269,
+     0.4716,
+     0.4716
+    ],
+    "projection_circle": {
+     "center": [
+      -0.0146,
+      -0.0029,
+      -0.0,
+      -0.5268,
+      -0.5269,
+      -0.4716,
+      -0.4716
+     ],
+     "radius": 0.1301
+    },
+    "contact_circle": {
+     "center": [
+      -0.0148,
+      -0.0044,
+      0.002,
+      -0.5268,
+      -0.5269,
+      -0.4716,
+      -0.4716
+     ],
+     "radius": 0.1216
+    }
+   }
+  }
+ },
+ "passive": null
+}

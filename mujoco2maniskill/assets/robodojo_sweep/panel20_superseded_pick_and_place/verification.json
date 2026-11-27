@@ -1,0 +1,1082 @@
+{
+ "how": "each candidate was run with the scripted reference (true positions) under the task's own 40 s and success test; the first N solved are the panel",
+ "seed": 1,
+ "candidates": 48,
+ "solved": 28,
+ "kept": 20,
+ "panel": [
+  {
+   "layout": "cand_002",
+   "solved": true,
+   "robot_s": 27.52,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_002.json",
+   "episode": 0
+  },
+  {
+   "layout": "cand_003",
+   "solved": true,
+   "robot_s": 27.56,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_003.json",
+   "episode": 1
+  },
+  {
+   "layout": "cand_007",
+   "solved": true,
+   "robot_s": 27.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_007.json",
+   "episode": 2
+  },
+  {
+   "layout": "cand_008",
+   "solved": true,
+   "robot_s": 25.2,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_008.json",
+   "episode": 3
+  },
+  {
+   "layout": "cand_009",
+   "solved": true,
+   "robot_s": 27.88,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_009.json",
+   "episode": 4
+  },
+  {
+   "layout": "cand_012",
+   "solved": true,
+   "robot_s": 26.16,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_012.json",
+   "episode": 5
+  },
+  {
+   "layout": "cand_014",
+   "solved": true,
+   "robot_s": 28.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_014.json",
+   "episode": 6
+  },
+  {
+   "layout": "cand_016",
+   "solved": true,
+   "robot_s": 28.16,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_016.json",
+   "episode": 7
+  },
+  {
+   "layout": "cand_017",
+   "solved": true,
+   "robot_s": 27.0,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "down to cube_1: the arm stopped short of the target (6 mm and 1 degrees from it): some"
+   ],
+   "candidate": "cand_017.json",
+   "episode": 8
+  },
+  {
+   "layout": "cand_019",
+   "solved": true,
+   "robot_s": 25.2,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_019.json",
+   "episode": 9
+  },
+  {
+   "layout": "cand_022",
+   "solved": true,
+   "robot_s": 27.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_022.json",
+   "episode": 10
+  },
+  {
+   "layout": "cand_023",
+   "solved": true,
+   "robot_s": 31.72,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "up from cube_2: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_023.json",
+   "episode": 11
+  },
+  {
+   "layout": "cand_025",
+   "solved": true,
+   "robot_s": 24.16,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_1: the arm stopped short of the target (9 mm and 1 degrees from it): some"
+   ],
+   "candidate": "cand_025.json",
+   "episode": 12
+  },
+  {
+   "layout": "cand_026",
+   "solved": true,
+   "robot_s": 25.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_026.json",
+   "episode": 13
+  },
+  {
+   "layout": "cand_028",
+   "solved": true,
+   "robot_s": 25.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_028.json",
+   "episode": 14
+  },
+  {
+   "layout": "cand_029",
+   "solved": true,
+   "robot_s": 31.2,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above cube_1: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_029.json",
+   "episode": 15
+  },
+  {
+   "layout": "cand_030",
+   "solved": true,
+   "robot_s": 26.12,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_030.json",
+   "episode": 16
+  },
+  {
+   "layout": "cand_031",
+   "solved": true,
+   "robot_s": 28.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_031.json",
+   "episode": 17
+  },
+  {
+   "layout": "cand_032",
+   "solved": true,
+   "robot_s": 27.0,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_2 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_2: out of the arm's reach (no joint solution for that pose)",
+    "cube_0 up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_032.json",
+   "episode": 18
+  },
+  {
+   "layout": "cand_034",
+   "solved": true,
+   "robot_s": 27.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_034.json",
+   "episode": 19
+  }
+ ],
+ "all": [
+  {
+   "layout": "cand_000",
+   "solved": false,
+   "robot_s": 26.64,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_2 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_2 lowered: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_2: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_1: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_000.json"
+  },
+  {
+   "layout": "cand_001",
+   "solved": false,
+   "robot_s": 25.08,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: out of the arm's reach (no joint solution for that pose)",
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush down: the arm stopped short of the target (39 mm and 5 degrees from it): som"
+   ],
+   "candidate": "cand_001.json"
+  },
+  {
+   "layout": "cand_002",
+   "solved": true,
+   "robot_s": 27.52,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_002.json",
+   "episode": 0
+  },
+  {
+   "layout": "cand_003",
+   "solved": true,
+   "robot_s": 27.56,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_003.json",
+   "episode": 1
+  },
+  {
+   "layout": "cand_004",
+   "solved": false,
+   "robot_s": 28.48,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above cube_1: the closing direction is parallel to the approach direction",
+    "down to cube_1: the closing direction is parallel to the approach direction",
+    "cube_1 up: the closing direction is parallel to the approach direction",
+    "cube_1 over the pan: the closing direction is parallel to the approach direction",
+    "cube_1 lowered: the closing direction is parallel to the approach direction",
+    "up from cube_1: the closing direction is parallel to the approach direction"
+   ],
+   "candidate": "cand_004.json"
+  },
+  {
+   "layout": "cand_005",
+   "solved": false,
+   "robot_s": 24.2,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": false,
+   "arms_back": true,
+   "notes": [
+    "brush up: the arm cannot get there in one move without swinging behind the robot",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_2: the arm stopped short of the target (22 mm and 4 degrees from it): som",
+    "down to cube_0: the arm stopped short of the target (23 mm and 3 degrees from it): som",
+    "down to cube_1: the arm stopped short of the target (10 mm and 1 degrees from it): som"
+   ],
+   "candidate": "cand_005.json"
+  },
+  {
+   "layout": "cand_006",
+   "solved": false,
+   "robot_s": 24.0,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_1: the arm stopped short of the target (26 mm and 4 degrees from it): som",
+    "down to cube_0: the arm stopped short of the target (8 mm and 1 degrees from it): some"
+   ],
+   "candidate": "cand_006.json"
+  },
+  {
+   "layout": "cand_007",
+   "solved": true,
+   "robot_s": 27.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_007.json",
+   "episode": 2
+  },
+  {
+   "layout": "cand_008",
+   "solved": true,
+   "robot_s": 25.2,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_008.json",
+   "episode": 3
+  },
+  {
+   "layout": "cand_009",
+   "solved": true,
+   "robot_s": 27.88,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_009.json",
+   "episode": 4
+  },
+  {
+   "layout": "cand_010",
+   "solved": false,
+   "robot_s": 28.08,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_010.json"
+  },
+  {
+   "layout": "cand_011",
+   "solved": false,
+   "robot_s": 22.48,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_0: the arm stopped short of the target (8 mm and 1 degrees from it): some",
+    "above cube_2: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_2: out of the arm's reach (no joint solution for that pose)",
+    "cube_2 up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_011.json"
+  },
+  {
+   "layout": "cand_012",
+   "solved": true,
+   "robot_s": 26.16,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_012.json",
+   "episode": 5
+  },
+  {
+   "layout": "cand_013",
+   "solved": false,
+   "robot_s": 20.92,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_0: the arm stopped short of the target (13 mm and 2 degrees from it): som",
+    "down to cube_2: the arm stopped short of the target (29 mm and 5 degrees from it): som",
+    "above cube_1: the closing direction is parallel to the approach direction",
+    "down to cube_1: the closing direction is parallel to the approach direction",
+    "cube_1 up: the closing direction is parallel to the approach direction"
+   ],
+   "candidate": "cand_013.json"
+  },
+  {
+   "layout": "cand_014",
+   "solved": true,
+   "robot_s": 28.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_014.json",
+   "episode": 6
+  },
+  {
+   "layout": "cand_015",
+   "solved": false,
+   "robot_s": 25.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_015.json"
+  },
+  {
+   "layout": "cand_016",
+   "solved": true,
+   "robot_s": 28.16,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_016.json",
+   "episode": 7
+  },
+  {
+   "layout": "cand_017",
+   "solved": true,
+   "robot_s": 27.0,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "down to cube_1: the arm stopped short of the target (6 mm and 1 degrees from it): some"
+   ],
+   "candidate": "cand_017.json",
+   "episode": 8
+  },
+  {
+   "layout": "cand_018",
+   "solved": false,
+   "robot_s": 28.56,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_0 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_0 lowered: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_0: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_018.json"
+  },
+  {
+   "layout": "cand_019",
+   "solved": true,
+   "robot_s": 25.2,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_019.json",
+   "episode": 9
+  },
+  {
+   "layout": "cand_020",
+   "solved": false,
+   "robot_s": 25.92,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_1 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_1 lowered: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_1: out of the arm's reach (no joint solution for that pose)",
+    "cube_0 over the pan: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_020.json"
+  },
+  {
+   "layout": "cand_021",
+   "solved": false,
+   "robot_s": 26.68,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_0 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_0 lowered: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_0: out of the arm's reach (no joint solution for that pose)",
+    "above cube_1: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_021.json"
+  },
+  {
+   "layout": "cand_022",
+   "solved": true,
+   "robot_s": 27.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_022.json",
+   "episode": 10
+  },
+  {
+   "layout": "cand_023",
+   "solved": true,
+   "robot_s": 31.72,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "up from cube_2: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_023.json",
+   "episode": 11
+  },
+  {
+   "layout": "cand_024",
+   "solved": false,
+   "robot_s": 30.56,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_024.json"
+  },
+  {
+   "layout": "cand_025",
+   "solved": true,
+   "robot_s": 24.16,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_1: the arm stopped short of the target (9 mm and 1 degrees from it): some"
+   ],
+   "candidate": "cand_025.json",
+   "episode": 12
+  },
+  {
+   "layout": "cand_026",
+   "solved": true,
+   "robot_s": 25.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_026.json",
+   "episode": 13
+  },
+  {
+   "layout": "cand_027",
+   "solved": false,
+   "robot_s": 22.92,
+   "cubes": 3,
+   "cubes_in": 0,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: out of the arm's reach (no joint solution for that pose)",
+    "up from the brush: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_1: the arm stopped short of the target (8 mm and 1 degrees from it): some",
+    "cube_2 up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_027.json"
+  },
+  {
+   "layout": "cand_028",
+   "solved": true,
+   "robot_s": 25.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_028.json",
+   "episode": 14
+  },
+  {
+   "layout": "cand_029",
+   "solved": true,
+   "robot_s": 31.2,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above cube_1: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_029.json",
+   "episode": 15
+  },
+  {
+   "layout": "cand_030",
+   "solved": true,
+   "robot_s": 26.12,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_030.json",
+   "episode": 16
+  },
+  {
+   "layout": "cand_031",
+   "solved": true,
+   "robot_s": 28.96,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_031.json",
+   "episode": 17
+  },
+  {
+   "layout": "cand_032",
+   "solved": true,
+   "robot_s": 27.0,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_2 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_2: out of the arm's reach (no joint solution for that pose)",
+    "cube_0 up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_032.json",
+   "episode": 18
+  },
+  {
+   "layout": "cand_033",
+   "solved": false,
+   "robot_s": 27.92,
+   "cubes": 3,
+   "cubes_in": 1,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "down to cube_0: the arm stopped short of the target (8 mm and 1 degrees from it): some",
+    "above cube_2: the arm stopped short of the target (105 mm and 16 degrees from it): s",
+    "down to cube_2: the arm stopped short of the target (167 mm and 26 degrees from it): s",
+    "cube_2 up: the arm stopped short of the target (86 mm and 14 degrees from it): so",
+    "cube_2 lowered: the arm stopped short of the target (12 mm and 1 degrees from it): som"
+   ],
+   "candidate": "cand_033.json"
+  },
+  {
+   "layout": "cand_034",
+   "solved": true,
+   "robot_s": 27.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_034.json",
+   "episode": 19
+  },
+  {
+   "layout": "cand_035",
+   "solved": false,
+   "robot_s": 31.32,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush down: the arm stopped short of the target (14 mm and 2 degrees from it): som",
+    "above cube_0: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_035.json"
+  },
+  {
+   "layout": "cand_036",
+   "solved": true,
+   "robot_s": 28.08,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_036.json"
+  },
+  {
+   "layout": "cand_037",
+   "solved": false,
+   "robot_s": 38.4,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": false,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_037.json"
+  },
+  {
+   "layout": "cand_038",
+   "solved": false,
+   "robot_s": 31.88,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind the robot",
+    "above cube_1: the arm cannot get there in one move without swinging behind the robot",
+    "down to cube_1: the arm stopped short of the target (5 mm and 0 degrees from it): some",
+    "cube_1 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_1 lowered: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_1: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_038.json"
+  },
+  {
+   "layout": "cand_039",
+   "solved": false,
+   "robot_s": 25.96,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": false,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "above the brush: the arm cannot get there in one move without swinging behind the robot",
+    "down to the brush: the arm cannot get there in one move without swinging behind the robot",
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush down: the arm stopped short of the target (100 mm and 14 degrees from it): s",
+    "cube_0 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_0 lowered: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_039.json"
+  },
+  {
+   "layout": "cand_040",
+   "solved": true,
+   "robot_s": 27.92,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush down: the arm stopped short of the target (50 mm and 6 degrees from it): som"
+   ],
+   "candidate": "cand_040.json"
+  },
+  {
+   "layout": "cand_041",
+   "solved": false,
+   "robot_s": 26.96,
+   "cubes": 3,
+   "cubes_in": 2,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_1 over the pan: out of the arm's reach (no joint solution for that pose)",
+    "cube_1 lowered: out of the arm's reach (no joint solution for that pose)",
+    "up from cube_1: out of the arm's reach (no joint solution for that pose)"
+   ],
+   "candidate": "cand_041.json"
+  },
+  {
+   "layout": "cand_042",
+   "solved": true,
+   "robot_s": 24.04,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush up: out of the arm's reach (no joint solution for that pose)",
+    "brush carried: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_042.json"
+  },
+  {
+   "layout": "cand_043",
+   "solved": true,
+   "robot_s": 28.04,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_043.json"
+  },
+  {
+   "layout": "cand_044",
+   "solved": true,
+   "robot_s": 25.52,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_044.json"
+  },
+  {
+   "layout": "cand_045",
+   "solved": true,
+   "robot_s": 27.8,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "brush carried: the arm stopped short of the target (7 mm and 1 degrees from it): some",
+    "brush down: the arm stopped short of the target (7 mm and 1 degrees from it): some"
+   ],
+   "candidate": "cand_045.json"
+  },
+  {
+   "layout": "cand_046",
+   "solved": true,
+   "robot_s": 34.28,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [],
+   "candidate": "cand_046.json"
+  },
+  {
+   "layout": "cand_047",
+   "solved": true,
+   "robot_s": 33.64,
+   "cubes": 3,
+   "cubes_in": 3,
+   "left_of_broom": true,
+   "not_lifted": true,
+   "level": true,
+   "arms_back": true,
+   "notes": [
+    "cube_2 over the pan: the arm cannot get there in one move without swinging behind the robot"
+   ],
+   "candidate": "cand_047.json"
+  }
+ ]
+}

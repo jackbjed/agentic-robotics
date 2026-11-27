@@ -1,0 +1,283 @@
+[
+ {
+  "layout": "ep_00",
+  "solved": true,
+  "robot_s": 27.52,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "above the brush: the arm cannot get there in one move without swinging behind the robot"
+  ],
+  "episode": "ep_00"
+ },
+ {
+  "layout": "ep_01",
+  "solved": true,
+  "robot_s": 27.56,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "above the brush: out of the arm's reach (no joint solution for that pose)"
+  ],
+  "episode": "ep_01"
+ },
+ {
+  "layout": "ep_02",
+  "solved": true,
+  "robot_s": 27.96,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_02"
+ },
+ {
+  "layout": "ep_03",
+  "solved": true,
+  "robot_s": 25.2,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_03"
+ },
+ {
+  "layout": "ep_04",
+  "solved": true,
+  "robot_s": 27.88,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_04"
+ },
+ {
+  "layout": "ep_05",
+  "solved": true,
+  "robot_s": 26.16,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_05"
+ },
+ {
+  "layout": "ep_06",
+  "solved": true,
+  "robot_s": 28.64,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_06"
+ },
+ {
+  "layout": "ep_07",
+  "solved": true,
+  "robot_s": 28.16,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_07"
+ },
+ {
+  "layout": "ep_08",
+  "solved": true,
+  "robot_s": 27.0,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "down to cube_1: the arm stopped short of the target (6 mm and 1 degrees from it): some"
+  ],
+  "episode": "ep_08"
+ },
+ {
+  "layout": "ep_09",
+  "solved": true,
+  "robot_s": 25.2,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "brush up: out of the arm's reach (no joint solution for that pose)",
+   "brush carried: the arm cannot get there in one move without swinging behind the robot"
+  ],
+  "episode": "ep_09"
+ },
+ {
+  "layout": "ep_10",
+  "solved": true,
+  "robot_s": 27.64,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_10"
+ },
+ {
+  "layout": "ep_11",
+  "solved": true,
+  "robot_s": 31.72,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "up from cube_2: the arm cannot get there in one move without swinging behind the robot"
+  ],
+  "episode": "ep_11"
+ },
+ {
+  "layout": "ep_12",
+  "solved": true,
+  "robot_s": 24.16,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "brush up: out of the arm's reach (no joint solution for that pose)",
+   "brush carried: the arm cannot get there in one move without swinging behind the robot",
+   "down to cube_1: the arm stopped short of the target (9 mm and 1 degrees from it): some"
+  ],
+  "episode": "ep_12"
+ },
+ {
+  "layout": "ep_13",
+  "solved": true,
+  "robot_s": 25.32,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_13"
+ },
+ {
+  "layout": "ep_14",
+  "solved": true,
+  "robot_s": 25.32,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_14"
+ },
+ {
+  "layout": "ep_15",
+  "solved": true,
+  "robot_s": 31.2,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "above cube_1: the arm cannot get there in one move without swinging behind the robot"
+  ],
+  "episode": "ep_15"
+ },
+ {
+  "layout": "ep_16",
+  "solved": true,
+  "robot_s": 26.12,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_16"
+ },
+ {
+  "layout": "ep_17",
+  "solved": true,
+  "robot_s": 28.96,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_17"
+ },
+ {
+  "layout": "ep_18",
+  "solved": true,
+  "robot_s": 27.0,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [
+   "cube_2 over the pan: out of the arm's reach (no joint solution for that pose)",
+   "up from cube_2: out of the arm's reach (no joint solution for that pose)",
+   "cube_0 up: out of the arm's reach (no joint solution for that pose)"
+  ],
+  "episode": "ep_18"
+ },
+ {
+  "layout": "ep_19",
+  "solved": true,
+  "robot_s": 27.92,
+  "cubes": 3,
+  "cubes_in": 3,
+  "left_of_broom": true,
+  "not_lifted": true,
+  "level": true,
+  "arms_back": true,
+  "notes": [],
+  "episode": "ep_19"
+ }
+]
