@@ -256,6 +256,9 @@ def give_shared(R, ws, cond, task=None):
         (ws / "docs" / "target.md").write_text(prompts.target_doc(task or {}, cond) + "\n")
     if cond == "F" and (task or {}).get("rig") == "x5":
         (ws / "docs" / "practice.md").write_text(prompts.practice_doc(task) + "\n")
+    if cond in ("E", "F") and (task or {}).get("rig") == "x5":      # (the workspace's copy of the interface carries the session's clarification too)
+        f = ws / "docs" / "interface.md"; f.chmod(0o644)
+        f.write_text(prompts.after_interface(f.read_text(), cond))
     (ws / "notes.md").write_text("")
 
 

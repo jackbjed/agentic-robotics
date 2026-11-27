@@ -350,7 +350,29 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
     if cond == "F" and task.get("rig") == "x5":
         assert text.count(F_NOT_GIVEN[0]) == 1, "the shared sentence that F's scoping replaces has changed"
         text = text.replace(*F_NOT_GIVEN)
+        assert text.count("across B/C/D and across submissions") == 1 and text.count("across B/C/D. At most") == 1
+        text = text.replace("across B/C/D and across submissions", "across B/C/D/F and across submissions").replace("across B/C/D. At most", "across B/C/D/F. At most")
+    if cond in ("E", "F") and task.get("rig") == "x5":
+        text = after_interface(text, cond)
     return text
+
+
+def after_interface(text, cond):
+    """E and F: their clarification right after the interface's last paragraph, before "Imports:" (in the session text, and
+    in the workspace's docs/interface.md, which repeats that part)."""
+    anchor = "soon as everything the task asks for holds at once, and is a failure if that never happens within the 40 s.\n\nImports: "
+    assert text.count(anchor) == 1, "the interface's last paragraph has changed"
+    return text.replace(anchor, anchor[:-len("Imports: ")] + AFTER_INTERFACE[cond] + "\n\nImports: ")
+
+
+# E and F: the interface's last paragraph says an episode ends, a success, as soon as the task's conditions hold. That is
+# the official target evaluation's rule; in these two sessions' own practice it is not. In the user's words (2026-11-27):
+AFTER_INTERFACE = dict(
+    F="The automatic task-success termination described above applies to official target evaluations. Practice feedback and termination follow\n"
+      "the practice rules specified below.",
+    E="During this session, all execution is in your MuJoCo practice world, using its own success checks and termination rules. The official\n"
+      "target-success criteria described above apply only to evaluation of your final program after the session ends; that feedback is not\n"
+      "returned to you.")
 
 
 # F: the shared text's "You are NOT given ... their true positions" would contradict what F's practice gives its developer.

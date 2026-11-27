@@ -156,6 +156,8 @@ def play_F(sdir, ws, tool):
     check("F: no practice world to build, no practice in a pool", "REFUSED" in a("save_world", "practice.py", "--aim", "coverage") and "REFUSED" in a("validate_world")
           and "REFUSED" in a("target_practice", "--configs", "0"))
     st = Session(sdir).st
+    check("F: the workspace's copy of the interface carries F's clarification", launch.prompts.AFTER_INTERFACE["F"] in (ws / "docs" / "interface.md").read_text()
+          and launch.prompts.AFTER_INTERFACE["E"] not in (ws / "docs" / "interface.md").read_text())
     check("F: starts from the shared program and the harness's practice file p0, with its document", (ws / "practice.py").exists() and (ws / "docs" / "practice.md").exists()
           and (ws / "docs" / "target.md").exists() and not (ws / "world.py").exists() and st["worlds"][0]["source"] == "shared initialization" and st["versions"][0]["source"] == "shared initialization")
     r = a("validate_scene", "--seeds", "1")
@@ -281,6 +283,10 @@ def main():
           and all(w in texts["D"] for w in ("of the same kinds as a target episode gives", "the target showed; coverage", "what the feedback showed", "across B/C/D and across submissions"))
           and "You are NOT given, and nothing here tells" not in texts["F"] and texts["F"].count(launch.prompts.F_NOT_GIVEN[1]) == 1
           and all(launch.prompts.F_NOT_GIVEN[0] in texts[c_] and launch.prompts.F_NOT_GIVEN[1] not in texts[c_] for c_ in "BCDE")
+          and "across B/C/D/F and across submissions" in texts["F"] and "across B/C/D/F. At most" in texts["F"] and not any("B/C/D/F" in texts[c_] for c_ in "BCDE")
+          and all(texts[c_].count(launch.prompts.AFTER_INTERFACE[c_]) == 1 and texts[c_].index(launch.prompts.AFTER_INTERFACE[c_]) < texts[c_].index("Imports: only math")
+                  and texts[c_].index("is a failure if that never happens within the 40 s.") < texts[c_].index(launch.prompts.AFTER_INTERFACE[c_]) for c_ in "EF")
+          and not any(launch.prompts.AFTER_INTERFACE[x] in texts[c_] for x in "EF" for c_ in "BCD") and launch.prompts.AFTER_INTERFACE["E"] not in texts["F"]
           and texts["F"].count(launch.prompts.F_PRIVILEGED) == 1 and not any(launch.prompts.F_PRIVILEGED in texts[c_] or launch.prompts.F_TARGET in texts[c_] for c_ in "BCDE"))
     check("the agent's notes are kept: at every submission and at the end (C wrote both files)",
           (R / "C" / "rounds" / "round_0" / "agent_notes" / "notes.md").is_file() and (R / "C" / "final" / "summary.md").is_file()
