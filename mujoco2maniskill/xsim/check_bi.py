@@ -147,8 +147,9 @@ def main():
         subprocess.run(["chmod", "-R", "u+w", str(OUT)]); shutil.rmtree(OUT)
     (OUT / TASK / "rep0").mkdir(parents=True)
     shutil.copytree(src / "test_private", OUT / TASK / "test_private")
-    for n in ("private", "shared"):
-        shutil.copytree(src / "rep0" / n, OUT / TASK / "rep0" / n)
+    from xsim.fork_root import copy_scene_sets
+    copy_scene_sets(src / "rep0", OUT / TASK / "rep0")              # (the scene sets only: never the real sessions' private records)
+    shutil.copytree(src / "rep0" / "shared", OUT / TASK / "rep0" / "shared")
     shutil.copy(src / "rep0" / "prepared.json", OUT / TASK / "rep0" / "prepared.json")
     cfg = config.load(**CFG); task = TASKS[TASK]; R = OUT / TASK / "rep0"
     t0 = time.time()

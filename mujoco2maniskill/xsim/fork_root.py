@@ -27,6 +27,21 @@ SCENE_SETS = ("dev", "f_pool", "example")                           # what a for
 SCENE_FILES = ("panel_manifest.json", "verification.json", "reverification.json", "looks.json")
 
 
+def copy_scene_sets(R0, R1):
+    """ONLY the frozen scene sets of a replicate's private/ (their ep_NN.json and manifests): never its execution records.
+    -> the names of what was left behind."""
+    R0, R1 = Path(R0), Path(R1)
+    for name in SCENE_SETS:
+        s = R0 / "private" / name
+        if not (s / "panel_manifest.json").exists():
+            raise SystemExit(f"{s} is not a frozen scene set")
+        (R1 / "private" / name).mkdir(parents=True)
+        for f in sorted(s.iterdir()):
+            if f.is_file() and (f.name in SCENE_FILES or (f.name.startswith("ep_") and f.suffix == ".json")):
+                shutil.copy2(f, R1 / "private" / name / f.name)
+    return sorted(p.name for p in (R0 / "private").iterdir() if p.name not in SCENE_SETS)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", required=True); ap.add_argument("--rep", type=int, default=0); ap.add_argument("--src", required=True); ap.add_argument("--dst", required=True)
@@ -36,15 +51,7 @@ def main():
     if R1.exists():
         raise SystemExit(f"{R1} exists already")
     R1.mkdir(parents=True)
-    for name in SCENE_SETS:                                         # (ONLY the frozen scene sets: never the source's execution records)
-        s = R0 / "private" / name
-        if not (s / "panel_manifest.json").exists():
-            raise SystemExit(f"{s} is not a frozen scene set")
-        (R1 / "private" / name).mkdir(parents=True)
-        for f in sorted(s.iterdir()):
-            if f.is_file() and (f.name in SCENE_FILES or (f.name.startswith("ep_") and f.suffix == ".json")):
-                shutil.copy2(f, R1 / "private" / name / f.name)
-    left = sorted(p.name for p in (R0 / "private").iterdir() if p.name not in SCENE_SETS)
+    left = copy_scene_sets(R0, R1)
     shutil.copytree(R0 / "shared", R1 / "shared"); shutil.copy(R0 / "prepared.json", R1 / "prepared.json")
     (R1 / "init").mkdir()
     for n in ("snapshot.json", "A_usage.json", "build_usage.json", "program.py", "world_agent.py", "construction_notes.md"):

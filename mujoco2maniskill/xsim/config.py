@@ -57,6 +57,8 @@ def load(path=None, **over):
     c = copy.deepcopy(DEFAULTS)
     if path:
         for k, v in json.loads(Path(path).read_text()).items():
+            if k.startswith("_"):                                   # (a description of the file: not a setting)
+                continue
             if isinstance(v, dict) and isinstance(c.get(k), dict):
                 c[k].update(v)
             else:
