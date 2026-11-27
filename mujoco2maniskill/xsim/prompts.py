@@ -345,6 +345,36 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
                    .replace("depth.txt the depth as\n  numbers (mm along the camera's axis on a grid over the image, with the camera's intrinsics and pose); state.txt the\n  arm's state.",
                             "depth.txt the depth as\n  numbers (mm along the camera's axis on a grid over the image, with the camera's intrinsics and pose); state.txt the\n  arms' state.") \
                    .replace("What you need of them you estimate from what the cameras and the arm show.", "What you need of them you estimate from what the cameras and the arms show.")
+    if cond == "E" and task.get("rig") == "x5":
+        text = for_E(text)
+    return text
+
+
+# E has no target-development evaluation of any kind. Four places of the texts it shares with the other conditions speak
+# of target feedback it never gets; for E only they read as below (the user's decision, 2026-11-27). Each (old, new) must
+# be found exactly once: a change of the shared texts that breaks one of them stops here, not in a session.
+E_WORDING = (
+    ("referencing program/world versions and feedback\nrounds. Before calling finish, write summary.md: what you tried, what the feedback showed, which program version you selected and",
+     "referencing program/world versions and practice\nresults. Before calling finish, write summary.md: what you tried, what practice showed, which program version you selected and"),
+    ("The {panel} target development configurations are identical\nacross B/C/D and across submissions; final evaluation feedback is never returned during development.",
+     "This session has no target development evaluations; final\nevaluation feedback is never returned."),
+    ("--aim: mismatch = to make the practice world agree better with what\n" + PAD + "the target showed; coverage = to practise a wider range of cases.",
+     "--aim: mismatch = to make the practice world agree better with the\n" + PAD + "look you were given; coverage = to practise a wider range of cases."),
+    ("and videos and frames of the same kinds as a target episode gives.",
+     "and the episode's videos (an overview in colour; the head camera in colour and depth) with frames\n" + PAD + "sampled from them."),
+)
+
+
+def for_E(text, panel=None):
+    import re
+    for old, new in E_WORDING:
+        if "{panel}" in old:
+            m = re.search(re.escape(old).replace(re.escape("{panel}"), r"\d+"), text)
+            assert m and len(re.findall(re.escape(old).replace(re.escape("{panel}"), r"\d+"), text)) == 1, old[:60]
+            text = text.replace(m.group(0), new)
+        else:
+            assert text.count(old) == 1, (old[:60], text.count(old))
+            text = text.replace(old, new)
     return text
 
 

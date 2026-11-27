@@ -272,6 +272,11 @@ def main():
     check("E's text: no target submission, no target feedback document; it may revise what D may; F's two clarifications are F's only",
           "submit_target" not in texts["E"] and "FEEDBACK from an episode in the target" not in texts["E"]
           and "its things' shapes and physical properties, its scenes, how they vary, and its self-check" in texts["E"] and "its things' shapes and physical properties, its scenes, how they vary, and its self-check" in texts["D"]
+          and not any(w in texts["E"] for w in ("what the target showed", "of the same kinds as a target episode gives", "feedback\nrounds", "what the feedback showed",
+                                                "across B/C/D and across submissions", "target development configurations are identical"))
+          and all(w in texts["E"] for w in ("This session has no target development evaluations; final\nevaluation feedback is never returned.", "look you were given; coverage",
+                                            "what practice showed", "the episode's videos (an overview in colour; the head camera in colour and depth) with frames"))
+          and all(w in texts["D"] for w in ("of the same kinds as a target episode gives", "the target showed; coverage", "what the feedback showed", "across B/C/D and across submissions"))
           and texts["F"].count(launch.prompts.F_PRIVILEGED) == 1 and not any(launch.prompts.F_PRIVILEGED in texts[c_] or launch.prompts.F_TARGET in texts[c_] for c_ in "BCDE"))
     check("the agent's notes are kept: at every submission and at the end (C wrote both files)",
           (R / "C" / "rounds" / "round_0" / "agent_notes" / "notes.md").is_file() and (R / "C" / "final" / "summary.md").is_file()

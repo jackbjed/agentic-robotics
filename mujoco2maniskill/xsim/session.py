@@ -336,8 +336,8 @@ class Session:
     def _t_save_world(self, a):
         aim = a.aim or ("construction" if self.cond == "build" else None)
         if aim is None:
-            raise Refused('say what this revision is for: --aim mismatch (to make the practice world agree better with what the target '
-                          'showed) or --aim coverage (to practise a wider range of cases)')
+            raise Refused('say what this revision is for: --aim mismatch (to make the practice world agree better with '
+                          + ('the look you were given' if self.cond == "E" else 'what the target showed') + ') or --aim coverage (to practise a wider range of cases)')
         k = self.add_world(self._file(a.file), a.note, aim)
         return f"saved as w{k} (not yet checked: validate_world --world {k})"
 
