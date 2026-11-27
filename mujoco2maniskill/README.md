@@ -39,7 +39,10 @@ body are counted as contacts on that body.
 Two Python environments are used, neither is modified:
 
 - `PROJ=../.venv/bin/python` (the project's: MuJoCo), for exporting scenes;
-- `MS=<HOME>/micromamba/envs/robomme/bin/python` (ManiSkill 3.0.0b21, SAPIEN 3.0.3), for everything else.
+- `MS=$M2M_MANISKILL_PYTHON` (the python of an environment with ManiSkill 3.0.0b21, SAPIEN 3.0.3), for everything else.
+  The harness finds it the same way: the environment variable `M2M_MANISKILL_PYTHON`, or a line
+  `maniskill_python: /path/to/env/bin/python` in `configs/local.yaml` (machine-local, not committed). No path of a
+  machine is in the code (`m2m/envpaths.py`).
 
 ```bash
 cd mujoco2maniskill
@@ -156,7 +159,7 @@ PY=../.venv/bin/python
 $PY -I xsim/launch.py prepare --task insert --rep 0     # no model: private target configurations, the shared look and documents
 $PY -I xsim/launch.py init    --task insert --rep 0     # PAID: the shared initial program (= A) and the shared practice world; the snapshot
 $PY -I xsim/launch.py run     --task insert --rep 0 --cond D      # PAID: one condition's isolated session
-$PY -I xsim/launch.py final   --task insert --rep 0     # no model: frozen final programs on the ID and OOD test splits
+$PY -I xsim/launch.py final   --task insert --rep 0     # no model: the final programs on the ID and OOD test splits (records bound by hash)
 $PY -I xsim/launch.py report  --task insert             # manifests, development curves, the final table
 PYTHONNOUSERSITE=1 MUJOCO_GL=egl $PY -I xsim/smoke_test.py   # no model: 56 checks of permissions, initialization, accounting, records
 ```
@@ -168,24 +171,55 @@ PYTHONNOUSERSITE=1 MUJOCO_GL=egl $PY -I xsim/smoke_test.py   # no model: 56 chec
 - `xsim/prompts.py`: the shared template and the A-F blocks. `xsim/tasks.py`, `xsim/tasks/*_target.py`: the tasks and
   their hidden target worlds (fixed objects; only where they stand varies).
 - Records: `out/xsim/<task>/rep<r>/<cond>/` (versions, worlds, practice, rounds with the exact payload, revisions.jsonl,
-  checkpoints, manifest.json); the evaluator's private records in `rep<r>/private/`; final results in `rep<r>/final_eval/`.
+  checkpoints, manifest.json); the evaluator's private records in `rep<r>/private/`; final results in
+  `rep<r>/final_eval/<cond>/<split>/eval_<key>/` and `final_eval/summary_bound.json` (the runs of 2026-11-27 have the
+  earlier layout, `final_eval/<cond>/<split>/` and `summary.json`: audited in `docs/AUDIT_2026-11-27.md`).
 
-Development rounds (B, C, D): `target_submissions` = 5 rounds, each on the same `target_panel` = 20 development
-configurations. `shown_solvable` (default: the development panel) names the sets whose every configuration must be
+Development rounds (B, C, D): at most `target_submissions` rounds, each on the first `submission_scenes[condition]`
+scenes of the frozen `target_panel` of 20 development configurations (the same scenes for B, C and D and for every
+round). The experiments that were run are named settings files: `xsim/configs/` (5 x 5, $80, 300 simulator episodes;
+10 x 10, $120, 600), to be given with `--config`. `shown_solvable` (default: the development panel) names the sets whose every configuration must be
 solved in the target by the task's reference program (`xsim/reference/`: copies of earlier sessions' programs, the
 harness's own, never given to an agent) before it is admitted; the runs are in `private/dev/reference_runs/` and
 `validation.json`. A configuration the reference does not solve is set aside, not called unsolvable.
 
-What it runs on today: the single-arm Panda rig (tasks `insert` and `sweep`), where the MuJoCo practice simulator, the
-program interface and agent-written worlds already exist. It does NOT yet run on RoboDojo's sweep_blocks (the two X5
-arms): that needs an X5 practice simulator in MuJoCo with the same program interface and agent-written objects.
-Not implemented: retrospective evaluation of checkpoints; re-validation of the OOD variants; a real-agent pilot
-(the launcher's call of the Claude Code CLI is written after the existing launcher but has not been run).
+What it runs on: RoboDojo's sweep_blocks with the two X5 arms (below: the experiments run so far are on this task),
+and the single-arm Panda rig (tasks `insert` and `sweep`; built and checked without a model, never run with paid
+sessions). Not implemented: retrospective evaluation of checkpoints (every submission's program and world are kept,
+so it can be done).
+
+### How agent-written code is run (`m2m/boxed/`)
+
+A skill program, and a practice-world file, never runs in the process that holds the simulator, the judge or the true
+state. It runs in a bubblewrap sandbox (the project's recipe, `src/agentic_robotics/execution/sandbox.py`: no network,
+the system and the Python environment read-only, nothing of the repository or of the experiment's records, no
+writable file) and reaches its host only through a socket: a program, the documented robot calls; a world file,
+`scene()` and `success(state)` with the documented state queries (the true state of the author's own practice
+world). The syntax check of a program (`m2m/api.py check_program`) is a first line for clear messages, not the
+boundary. `tests/test_boundary.py` reproduces with dummy state what the syntax check alone let through.
+
+### Whose result is this (`xsim/provenance.py`)
+
+Every episode's `result.json` names the execution that wrote it (an id the batch runner gave on the command line),
+its program and its scene (hashes). A batch runner writes only into folders that did not exist and takes a result
+only with its own id: a result left by an earlier run is never read as a new one's. A final evaluation's record is
+`final_eval/<condition>/<split>/eval_<key>/`, the key being the hash of the program, the evaluator
+(`target.evaluator_provenance`: every local file the episode runner imports, the robot's and objects' assets, the
+simulator's package versions, the segmentation service's configuration) and the scene set's frozen manifest; it is
+reused only if all three match, and nothing is written into an existing record.
+
+### Tests (no model; `tests/`)
+
+```bash
+export PYTHONNOUSERSITE=1 MUJOCO_GL=egl M2M_MANISKILL_PYTHON=/path/to/env/bin/python
+for t in boundary provenance mirrored_split final_provenance judge_strict configs; do ../.venv/bin/python -I tests/test_$t.py; done
+../.venv/bin/python -I xsim/check_bi.py     # conditions A-F played by scripts, with the real simulators
+```
 
 ### sweep_blocks: is it solvable by sweeping, and the fixed panel of 20 episodes
 
 ```bash
-MS=<HOME>/micromamba/envs/robomme/bin/python
+MS=$M2M_MANISKILL_PYTHON
 $MS -I sweep_blocks/reference_sweep.py 4 --video    # the scripted SWEEPING reference (TRUE positions; the harness's check, not a skill)
 $MS -I sweep_blocks/reference_sweep_all.py          # ... on RoboDojo's 55 saved layouts -> out/robodojo_sweep/reference_sweep.json
 $MS -I sweep_blocks/make_panel.py --n 20 --seed 5 --candidates 36 --out DIR     # candidates -> the first 20 the reference solves
@@ -202,8 +236,8 @@ puts it down to the right of the dustpan; both arms go home. No cube is picked u
 - a cube pushed low jams against the dustpan's lip (a 5 mm step in the collision shape, 3 mm in RoboDojo's mesh): the
   brush is raised as it reaches the lip, so the cube is pushed at its top and tips over it;
 - the brush see-saws about the grip: cubes far from the grip are passed over at the lip, so later strokes are centred on one cube.
-`assets/robodojo_sweep/panel20/`: `ep_00..19.json` (RoboDojo's layout format: the dustpan near the middle, its mouth within
-15 degrees of +x; 3 cubes 25 to 150 mm in front of the lip and within 35 mm of the mouth's axis; the brush on the left where
+`assets/robodojo_sweep/panel20/`: `ep_00..19.json` (RoboDojo's layout format: the dustpan near the middle, turned by up to
+15 degrees from its base orientation, so that its mouth is within about 20 degrees of +x; 3 cubes 25 to 150 mm in front of the lip and within 35 mm of the mouth's axis; the brush on the left where
 the left arm can take it), `verification.json` (all 36 candidates and their outcomes: 20 solved), `reverification.json`,
 `sheet_head.jpg`. `reference.py` and `panel20_superseded_pick_and_place/` are the earlier check that PICKED the cubes up and
 put them in: not a sweep, kept for the record only.
@@ -217,17 +251,19 @@ and each cube, and one of 10 tables (RoboDojo's red wood, a pale wood, a grey wo
 grey, slate, sand, green, blue), each table used twice over the 20 scenes. Every object's colour is at least 50 (CIE Lab)
 from the table's colour, every cube at least 30 from the dustpan and 25 from the other cubes (`panel20/looks.json`).
 Only the looks change: the sweeping reference solves all 20 with the same robot times as before.
-`$MS -I sweep_blocks/looks.py --panel DIR --seed 11` draws them; `looks.SweepBlocks` shows them. `run_panel.py`,
-`panel_sheet.py` and `reference_sweep.py` use it; `env.py`, `run_program.py --look` and `zero_shot.py` do not yet (they
-were left untouched while two zero-shot sessions were running): a layout is shown there in RoboDojo's own colours.
+`$MS -I sweep_blocks/looks.py --panel DIR --seed 11` draws them; a scene file with an "Appearance" entry is shown with
+it wherever it is loaded (`env.py` applies it at reset).
 
 ## A to F on the two-arm task: sweep_blocks (`xsim/bi/`, task `sweep_blocks`)
 
 Practice: RoboDojo's two X5 arms in MuJoCo (`xsim/bi/mj.py`) with the SAME program interface as the target
 (`sweep_blocks/program_api.py` X5Robot, unchanged: same commands, kinematics, speeds, 40 s; the same three cameras),
 the things on the table taken from an agent's practice world (MuJoCo XML of primitives, table frame).
-Target: `sweep_blocks/env.py` in ManiSkill, with each scene's looks, judged by RoboDojo's test plus one added rule:
-no block may be GRIPPED (squeezed between a gripper's two fingers for three actions running): sweeping, not picking.
+Target: `sweep_blocks/env.py` in ManiSkill, with each scene's looks, judged by RoboDojo's test plus two added rules:
+no block may be GRIPPED (squeezed between a gripper's two fingers for three actions running) and both grippers must
+end open. What that judge does and does not test (a block counts as inside by its position seen from above; there is
+no settling interval; a push with a gripper is allowed), and a stricter reading for re-scoring, are in
+`sweep_blocks/judge_strict.py`.
 
 ```bash
 PY=../.venv/bin/python
@@ -237,8 +273,10 @@ $PY -I xsim/bi/practice_run.py --world W.py --seed 3 --program P.py --out DIR --
 ```
 
 - `xsim/bi/backend.py`: practice batches, target batches, the scene sets (development panel, F's pool, the example,
-  test_id, three OOD splits: other tables, cubes 1.3 times larger, cubes 3 times heavier and half as rough on a
-  slippery table), frozen read-only with a manifest of hashes.
+  test_id, four OOD splits: other tables, cubes 1.3 times larger, cubes 3 times heavier and half as rough on a
+  slippery table, and the arrangement mirrored left-right), frozen read-only with a manifest of hashes.
+- `xsim/fork_root.py`: a second experiment root from an existing initialization (the 10 x 10 run): the snapshot and the
+  frozen scene sets, by an allow-list; never another run's execution records.
 - `xsim/bi/target_run.py`: the evaluator's episode and the agent-visible payload (no true positions, nothing of the judge).
 - Every round's record names the panel's identity and the evaluator's hash (`rounds/round_k/round.json`); a session
   stops if either differs from what it started with.

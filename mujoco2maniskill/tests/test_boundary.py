@@ -143,9 +143,12 @@ def run_both(code, task="t"):
     return (ha, a.getvalue()), (hb, b.getvalue())
 
 
-def test_1_the_checker_accepts_the_exploits():
+def test_1_the_checker_accepted_the_exploits():
     for code in (STEAL_STATE, READ_FILE, WRITE_FILE):
-        assert api.check_program(code) == [], api.check_program(code)
+        assert api.check_program(code, strict=False) == [], api.check_program(code, strict=False)   # (the check as it was: nothing to object)
+        assert api.check_program(code), "the tightened check lets it through"                        # (now refused up front as well; the boundary does not rely on it)
+    for code in (HONEST, "class K:\n    def __init__(self):\n        self._x = 1\n    def f(self):\n        return self._x\ndef run(robot, task):\n    K().f()\n"):
+        assert api.check_program(code) == [], api.check_program(code)                                # (an ordinary program is not affected)
 
 
 def test_2_hidden_state_in_process_and_boxed():
@@ -302,7 +305,7 @@ def success(state):
     self = state
     return {"ok": False, "leak": str(self._t), "pos": state.pos("w_a"), "touch": state.touching("w_b"), "arm": state.arm("left"), "names": state.names, "start": state.start}
 '''
-    assert practice_run.check_world(leaky) == []
+    assert [b for b in practice_run.check_world(leaky) if "self" not in b] == [] and api.check_program(leaky, needs=("scene",), strict=False) == []
     ns = {"__name__": "world"}; exec(compile(leaky, "world.py", "exec"), ns)
     assert ns["success"](DummyState())["leak"] == SECRET                               # (in-process: it reads what is behind the state)
     w = host.World(leaky)

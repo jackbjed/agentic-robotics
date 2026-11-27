@@ -27,8 +27,15 @@ class TimeUp(Exception):
     """The episode's robot time is spent: no further command runs."""
 
 
-def check_program(code, needs=None):
-    """(practice.check_program) -> the reasons this program is not run (none: [])."""
+_MODULE_ATTRS = {"os", "sys", "subprocess", "builtins", "importlib", "ctypes"}     # (modules that the allowed libraries carry along: cv2.os, cv2.sys, ...)
+
+
+def check_program(code, needs=None, strict=True):
+    """(practice.check_program) -> the reasons this program is not run (none: []).
+
+    This is a FIRST LINE, for clear messages: it is not what keeps a program from the simulator's state or from files.
+    That is the execution boundary (m2m/boxed): the program runs in a sandboxed process that holds neither. strict=False
+    is the check as it was before 2026-11-27 (tests/test_boundary.py shows what that one let through)."""
     try:
         tree = ast.parse(code)
     except SyntaxError as e:
@@ -49,9 +56,14 @@ def check_program(code, needs=None):
             bad += [at + f"import of {m}" for m in mods if m.split(".")[0] not in IMPORTS]
         elif isinstance(n, ast.Name) and n.id in _NAMES:
             bad.append(at + f"{n.id} is not allowed")
+        elif strict and isinstance(n, ast.Name) and n.id in ("self", "cls") and isinstance(n.ctx, (ast.Store, ast.Del)):
+            bad.append(at + f"{n.id} cannot be assigned to (it is a method's first argument only)")
+        elif strict and isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)) and any(
+                a.arg in ("self", "cls") for a in (n.args.posonlyargs + n.args.args)[1:] + n.args.kwonlyargs + [x for x in (n.args.vararg, n.args.kwarg) if x]):
+            bad.append(at + "self / cls can only be a function's first argument")
         elif isinstance(n, ast.Attribute):
             own = isinstance(n.value, ast.Name) and n.value.id in ("self", "cls")
-            if n.attr in _ATTRS or (n.attr.startswith("_") and not own and n.attr != "__init__"):
+            if n.attr in _ATTRS or (n.attr.startswith("_") and not own and n.attr != "__init__") or (strict and n.attr in _MODULE_ATTRS):
                 bad.append(at + f".{n.attr} is not allowed")
         elif isinstance(n, ast.Constant) and isinstance(n.value, str) and re.fullmatch(r"__\w+__", n.value):
             bad.append(at + f"the string {n.value!r} is not allowed")

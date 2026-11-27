@@ -155,17 +155,12 @@ def episode(scene, program, out, world=None, time_limit_s=600.0, video=False, se
         elif bad:
             how = "refused: " + "; ".join(bad)
         else:
-            linecache.cache["program.py"] = (len(code), None, code.splitlines(True), "program.py")
+            from m2m.boxed.host import run_program as run_boxed
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
                 try:
-                    if not plain_robot and wns is not None and "robot" in wns:
+                    if not plain_robot and wns is not None and "robot" in wns:   # (the WORLD file given here is the harness's or the developer's own: run here)
                         given = wns["robot"](given, np.random.default_rng([seed, 78]), api.WorldKit)
-                    ns = {"__name__": "program"}
-                    exec(compile(code, "program.py", "exec"), ns)
-                    ns["run"](given, spec["text"])
-                    how = "returned"
-                except api.TimeUp as e:
-                    how = f"time: {e}"
+                    how = run_boxed(code, given, spec["text"], log)              # (the program: in the sandbox, m2m/boxed)
                 except (Exception, SystemExit) as e:
                     traceback.print_exc(limit=-6)
                     how = f"error: {type(e).__name__}: {str(e)[:200]}"
