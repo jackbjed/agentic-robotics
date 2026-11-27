@@ -486,42 +486,101 @@ def run(task_name, rep, cond, cfg, out=OUT, agent=None):
 
 
 # ------------------------------------------------------------------------------------------------ final evaluation, report
+def ending(r):
+    """How an episode ended, in classes that do not mix a success with a timeout: the program returned | the judge ended
+    the episode (a success: the next command was refused because the episode was over) | the robot time ran out | the
+    program raised | the program was refused | the harness failed (no result of this execution, or a wall-clock stop)."""
+    e = str(r.get("ended") or "")
+    if r.get("harness_error") or e.startswith(("process failed", "the episode's process")):
+        return "harness_failure"
+    if e == "returned":
+        return "returned"
+    if e.startswith("time: the episode is over"):
+        return "ended_by_success"
+    if e.startswith("time"):
+        return "robot_time_up"
+    if e.startswith("error"):
+        return "program_error"
+    if e.startswith("refused"):
+        return "refused"
+    return "other"
+
+
+def split_summary(priv):
+    ok = [r for r in priv if r.get("success")]
+    ends = {k: 0 for k in ("returned", "ended_by_success", "robot_time_up", "program_error", "refused", "harness_failure", "other")}
+    for r in priv:
+        ends[ending(r)] += 1
+    return dict(episodes=len(priv), successes=len(ok), endings=ends,
+                errors=ends["program_error"] + ends["refused"] + ends["harness_failure"],          # (as before: every kind of failure to run)
+                timeouts=ends["robot_time_up"],                                                     # (NOT the episodes the judge ended on a success)
+                robot_s_of_successes=round(sum(r["robot_s"] for r in ok) / len(ok), 1) if ok else None,
+                robot_s_of_all=round(sum(float(r.get("robot_s") or 0) for r in priv) / max(len(priv), 1), 1),
+                wall_s_mean=round(sum(float(r.get("wall_s") or 0) for r in priv) / max(len(priv), 1), 1),
+                segmentation_calls=sum(int(r.get("segment_calls") or 0) for r in priv), per_episode=[bool(r.get("success")) for r in priv])
+
+
 def final(task_name, rep, cfg, conds=None, out=OUT, splits=None):
-    """The frozen final programs on the final test splits (fresh state each episode; nothing goes back to a session)."""
+    """The final programs on the final test splits (fresh state each episode; nothing goes back to a session).
+
+    Every evaluation is BOUND to what it is of: the program's hash, the evaluator's (target.evaluator_provenance: code,
+    assets, package versions), and the scene set's (its frozen manifest, checked before anything runs). Its record is
+    final_eval/<condition>/<split>/eval_<key>/ (evaluation.json, program.py, results.json, episodes/), the key being the
+    hash of the three. A record is reused only if its three hashes are the ones asked for and it is complete; a change
+    of any of them makes ANOTHER record, and nothing is ever written into an existing one. Records without
+    evaluation.json (those of 2026-11-27, made before this) are left as they are and never reused; their summary.json is
+    not touched (this writes summary_bound.json), and docs/AUDIT_2026-11-27.md holds the audit of those records."""
+    from xsim import provenance
     task, R = TASKS[task_name], rep_dir(task_name, rep, out)
-    T = json.loads((Path(out) / task_name / "test_private" / "splits.json").read_text())["splits"]
+    Td = Path(out) / task_name / "test_private"
+    T = json.loads((Td / "splits.json").read_text())["splits"]
+    ev = target.evaluator_provenance(task)
     res = {}
     for cond in conds or ("A",) + SESSION_CONDS:
         prog = R / cond / "final" / "program.py"
         if not prog.exists():
             continue
-        frozen = R / "final_eval" / cond / "program.py"; frozen.parent.mkdir(parents=True, exist_ok=True)
-        if not frozen.exists():
-            shutil.copy(prog, frozen); frozen.chmod(0o444)
-        res[cond] = dict(program_sha=target.sha(frozen), splits={})
-        for name, files in T.items():
+        psha = provenance.file_sha(prog)
+        res[cond] = dict(program_sha256=psha, evaluator_sha=ev["sha"], evaluator_version=ev["version"], splits={})
+        for name, listed in T.items():
             if splits and name not in splits:
                 continue
-            d = R / "final_eval" / cond / name
-            if not (d / "results.json").exists():
-                _, priv = target.run_batch(frozen, [Path(f) for f in files], task, d, None, cfg)
+            files, scenes_id = target.checked_panel(task, Td / name)        # (every scene against the split's frozen manifest)
+            if [Path(f).name for f in listed] != [f.name for f in files]:
+                raise RuntimeError(f"the split {name}: splits.json and the frozen folder do not list the same scenes")
+            key = hashlib.sha256(f"{psha}|{ev['sha']}|{scenes_id}".encode()).hexdigest()[:16]
+            base = R / "final_eval" / cond / name
+            d, n, reused = base / f"eval_{key}", 0, False
+            while d.exists():                                               # (an earlier record of the same three hashes)
+                e = json.loads((d / "evaluation.json").read_text()) if (d / "evaluation.json").exists() else {}
+                if (e.get("complete") and e.get("program_sha256") == psha and e.get("evaluator", {}).get("sha") == ev["sha"] and e.get("scenes", {}).get("id") == scenes_id
+                        and (d / "results.json").exists() and provenance.file_sha(d / "program.py") == psha):
+                    reused = True
+                    break
+                n += 1; d = base / f"eval_{key}_again{n}"                   # (incomplete or inconsistent: left as it is; a new record beside it)
+            if not reused:
+                d.mkdir(parents=True)
+                shutil.copy(prog, d / "program.py"); (d / "program.py").chmod(0o444)
+                e = dict(task=task_name, replicate=rep, condition=cond, split=name, key=key, program_sha256=psha, program_source=str(prog.relative_to(R)),
+                         evaluator=ev, scenes=dict(id=scenes_id, folder=str((Td / name).relative_to(Path(out))), files=[f.name for f in files],
+                                                   manifest_sha256=provenance.file_sha(Td / name / "panel_manifest.json")),
+                         started=time.strftime("%Y-%m-%d %H:%M:%S"), complete=False)
+                (d / "evaluation.json").write_text(json.dumps(e, indent=1))
+                _, priv = target.run_batch(d / "program.py", files, task, d / "episodes", None, cfg)
                 (d / "results.json").write_text(json.dumps(priv, indent=1, default=str))
+                e.update(complete=True, finished=time.strftime("%Y-%m-%d %H:%M:%S"))
+                (d / "evaluation.json").write_text(json.dumps(e, indent=1))
             priv = json.loads((d / "results.json").read_text())
-            ok = [r for r in priv if r.get("success")]
-            res[cond]["splits"][name] = dict(
-                episodes=len(priv), successes=len(ok), errors=sum(1 for r in priv if str(r.get("ended", "")).startswith(("error", "process", "refused"))),
-                timeouts=sum(1 for r in priv if str(r.get("ended", "")).startswith("time")),
-                robot_s_of_successes=round(sum(r["robot_s"] for r in ok) / len(ok), 1) if ok else None,
-                robot_s_of_all=round(sum(float(r.get("robot_s") or 0) for r in priv) / max(len(priv), 1), 1),
-                wall_s_mean=round(sum(float(r.get("wall_s") or 0) for r in priv) / max(len(priv), 1), 1),
-                segmentation_calls=sum(int(r.get("segment_calls") or 0) for r in priv), per_episode=[bool(r.get("success")) for r in priv])
-            log(f"final {cond} {name}: {len(ok)}/{len(priv)}")
-    sf = R / "final_eval" / "summary.json"                          # (conditions evaluated earlier stay in the summary)
+            res[cond]["splits"][name] = dict(split_summary(priv), evaluation=d.name, scenes_id=scenes_id, reused=reused,
+                                             unbound_record_beside_it=(base / "results.json").exists())
+            log(f"final {cond} {name}: {res[cond]['splits'][name]['successes']}/{len(priv)} ({'reused ' if reused else ''}{d.name})")
+    sf = R / "final_eval" / "summary_bound.json"                    # (the earlier summary.json, of the unbound records, is not touched)
     allres = json.loads(sf.read_text()) if sf.exists() else {}
-    for cond, r in res.items():                                     # (a call for some splits keeps the other splits evaluated earlier)
+    for cond, r in res.items():
         old = allres.get(cond) or {}
-        allres[cond] = dict(r, splits=dict((old.get("splits") or {}) if old.get("program_sha") == r["program_sha"] else {}, **r["splits"]))
-    sf.write_text(json.dumps(allres, indent=1))
+        same = old.get("program_sha256") == r["program_sha256"] and old.get("evaluator_sha") == r["evaluator_sha"]
+        allres[cond] = dict(r, splits=dict((old.get("splits") or {}) if same else {}, **r["splits"]))
+    sf.parent.mkdir(parents=True, exist_ok=True); sf.write_text(json.dumps(allres, indent=1))
     return res
 
 
@@ -530,7 +589,8 @@ def report(task_name, out=OUT):
     base = Path(out) / task_name
     rows, curves = [], []
     for R in sorted(base.glob("rep*")):
-        fin = json.loads((R / "final_eval" / "summary.json").read_text()) if (R / "final_eval" / "summary.json").exists() else {}
+        sb, sl = R / "final_eval" / "summary_bound.json", R / "final_eval" / "summary.json"
+        fin = json.loads(sb.read_text()) if sb.exists() else json.loads(sl.read_text()) if sl.exists() else {}   # (bound records where there are any)
         for cond in ("A",) + SESSION_CONDS:
             mf = R / cond / "manifest.json"
             if not mf.exists():

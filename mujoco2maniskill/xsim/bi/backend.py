@@ -174,9 +174,15 @@ def freeze(d):
     return man
 
 
+VARIANT_KEYS = ("cube_scale", "cube_mass_scale", "cube_friction_scale", "table_friction")
+
+
 def variant(files, out, change, log=print):
     """A final out-of-distribution split: each scene with ONE kind of change (the reference is run on the changed scenes
-    and its outcome recorded; no scene is dropped for it)."""
+    and its outcome recorded; no scene is dropped for it). Only changes of physics and size: see VARIANT_KEYS."""
+    other = sorted(set(change) - set(VARIANT_KEYS))
+    if other:                                                       # (a change this function does not make must not pass as made: mirroring is make_split's)
+        raise ValueError(f"variant() does not make the change(s) {other}")
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     for i, f in enumerate(files):
         L = json.loads(Path(f).read_text())
@@ -194,6 +200,21 @@ def variant(files, out, change, log=print):
     return panel(out)
 
 
+def make_split(T, name, k, change, cfg, log=print):
+    """One out-of-distribution test split of the task, by its kind of change. k: its place among the task's OOD splits
+    (its seeds). Used by a fresh preparation and for a split added later alike. -> its scene files."""
+    sd, n = cfg["seeds"], cfg["splits"][name]
+    seed = sd["ood"] + 10 * k
+    if change.get("looks") == "ood":
+        return make_scenes(T / name, n, seed, seed + 1, log, ood=True)
+    if change.get("mirror"):                                        # (drawn like the in-distribution scenes, mirrored, each shown solvable)
+        if set(change) - {"mirror"}:
+            raise ValueError("a mirrored split takes no other change")
+        return make_scenes(T / name, n, seed, seed + 1, log, mirror=True)
+    base = make_scenes(T / (name + "_base"), n, seed, seed + 1, log)
+    return variant(base, T / name, change, log)
+
+
 def prepare(task_name, task, rep, cfg, R, T, log=print):
     """The private target scenes of a replicate and (once per task) the final test splits; the shared look and documents."""
     from xsim import prompts
@@ -202,13 +223,7 @@ def prepare(task_name, task, rep, cfg, R, T, log=print):
         log("the final test scenes (one set for all replicates)")
         splits = dict(test_id=[str(f) for f in make_scenes(T / "test_id", cfg["splits"]["test_id"], sd["test_id"], sd["test_id"] + 1, log)])
         for k, name in enumerate(n for n in cfg["splits"] if n.startswith("ood_") and n in task["ood"]):
-            ch = task["ood"][name]
-            if ch.get("looks") == "ood":
-                files = make_scenes(T / name, cfg["splits"][name], sd["ood"] + 10 * k, sd["ood"] + 10 * k + 1, log, ood=True)
-            else:
-                base = make_scenes(T / (name + "_base"), cfg["splits"][name], sd["ood"] + 10 * k, sd["ood"] + 10 * k + 1, log)
-                files = variant(base, T / name, ch, log)
-            splits[name] = [str(f) for f in files]
+            splits[name] = [str(f) for f in make_split(T, name, k, task["ood"][name], cfg, log)]
         for name in splits:
             freeze(T / name)
         (T / "splits.json").write_text(json.dumps(dict(made=time.strftime("%Y-%m-%d %H:%M"), task=task_name, shown_solvable="every in-distribution scene, by the "
@@ -218,15 +233,11 @@ def prepare(task_name, task, rep, cfg, R, T, log=print):
         for k, name in enumerate(n for n in cfg["splits"] if n.startswith("ood_") and n in task["ood"]):
             if name in sp["splits"]:
                 continue
-            ch = task["ood"][name]
-            if not ch.get("mirror"):
-                raise SystemExit(f"the split {name} is not in the frozen splits.json and is not one that can be added later")
             log(f"a further final test split: {name}")
-            files = make_scenes(T / name, cfg["splits"][name], sd["ood"] + 10 * k, sd["ood"] + 10 * k + 1, log, mirror=True)
+            files = make_split(T, name, k, task["ood"][name], cfg, log)
             freeze(T / name)
             sp["splits"][name] = [str(f) for f in files]
-            sp.setdefault("added_later", {})[name] = dict(made=time.strftime("%Y-%m-%d %H:%M"), how="drawn like the in-distribution scenes, then mirrored "
-                                                          "left-right; each shown solvable by the sweeping reference (its mirrored mode)")
+            sp.setdefault("added_later", {})[name] = dict(made=time.strftime("%Y-%m-%d %H:%M"), change=task["ood"][name])
             (T / "splits.json").write_text(json.dumps(sp, indent=1))
     if not (priv / "dev" / "panel_manifest.json").exists():
         log(f"replicate {rep}: the development panel, F's practice pool, the example scene")

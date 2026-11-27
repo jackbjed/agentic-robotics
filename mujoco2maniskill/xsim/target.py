@@ -193,11 +193,127 @@ def evaluator_files(task):
     return [Path(task["target_world"]), HERE / "run_episode.py", HERE / "m2m" / "env.py", HERE / "m2m" / "rig.py", HERE / "m2m" / "api.py"]
 
 
-def evaluator_sha(task):
+def legacy_evaluator_sha(task):
+    """The hash recorded with the runs of 2026-11-27 (evaluator version 1): the files of evaluator_files() only."""
     h = hashlib.sha256()
     for f in evaluator_files(task):
         h.update(f.name.encode()); h.update(Path(f).read_bytes())
     return h.hexdigest()[:16]
+
+
+# Version 1: programs ran in the simulator's process; the hash covered seven files. Version 2 (the execution boundary,
+# m2m/boxed): the hash covers every local file the episode runner imports, the robot's and the objects' assets, and the
+# versions of the simulator's packages.
+EVALUATOR_VERSION = "2"
+_SHA_CACHE, _DEPS = {}, {}
+
+
+def _file_sha(f):
+    f = Path(f); st = f.stat(); k = (str(f), st.st_mtime_ns, st.st_size)
+    if k not in _SHA_CACHE:
+        _SHA_CACHE[k] = hashlib.sha256(f.read_bytes()).hexdigest()
+    return _SHA_CACHE[k]
+
+
+def local_imports(entries):
+    """Every file of this folder that the entry files import, directly or not (read from their source: imports inside
+    functions count). -> sorted paths."""
+    import ast
+    seen, todo = set(), [Path(e).resolve() for e in entries]
+
+    def find(mod, base):
+        parts = mod.split(".")
+        for root in (HERE, base):
+            for cand in (root.joinpath(*parts).with_suffix(".py"), root.joinpath(*parts) / "__init__.py"):
+                if cand.is_file() and HERE in cand.resolve().parents:
+                    return cand.resolve()
+        return None
+    while todo:
+        f = todo.pop()
+        if f in seen:
+            continue
+        seen.add(f)
+        try:
+            tree = ast.parse(f.read_text())
+        except SyntaxError:
+            continue
+        for n in ast.walk(tree):
+            mods = []
+            if isinstance(n, ast.Import):
+                mods = [a.name for a in n.names]
+            elif isinstance(n, ast.ImportFrom):
+                pkg = f.parent
+                for _ in range(max(n.level - 1, 0)):
+                    pkg = pkg.parent
+                base = (n.module or "")
+                if n.level:
+                    rel = pkg.joinpath(*base.split(".")) if base else pkg
+                    for cand in [rel.with_suffix(".py"), rel / "__init__.py"] + [rel / (a.name + ".py") for a in n.names]:
+                        if cand.is_file():
+                            todo.append(cand.resolve())
+                    continue
+                mods = [base] + [base + "." + a.name for a in n.names]
+            for m in mods:
+                for k in range(len(m.split(".")), 0, -1):          # (a.b.c: the module, and the packages on the way)
+                    g = find(".".join(m.split(".")[:k]), f.parent)
+                    if g is not None:
+                        todo.append(g)
+    return sorted(seen)
+
+
+def _dependencies():
+    """The versions of what simulates and renders, read in the ManiSkill environment (once per process)."""
+    py = maniskill_python()
+    if py not in _DEPS:
+        code = ("import json, sys, importlib.metadata as m\n"
+                "def v(n):\n    try:\n        return m.version(n)\n    except Exception:\n        return None\n"
+                "print(json.dumps(dict(python=sys.version.split()[0], **{n: v(n) for n in ('mani_skill', 'sapien', 'torch', 'numpy', 'scipy', 'opencv-python', "
+                "'opencv-python-headless', 'gymnasium')})))")
+        r = subprocess.run([py, "-I", "-c", code], capture_output=True, text=True, timeout=120)
+        _DEPS[py] = json.loads(r.stdout.strip().splitlines()[-1]) if r.returncode == 0 and r.stdout.strip() else dict(error=r.stderr[-300:])
+    return _DEPS[py]
+
+
+def _segmentation_service():
+    """The segmentation service an episode calls, as configured (its weights are not hashed: they are not ours to read)."""
+    import re
+    f = PROJECT / "configs" / "services.yaml"
+    if not f.exists():
+        return dict(configured=False)
+    m = re.search(r"^sam3_text:.*?(?=^\S|\Z)", f.read_text(), re.M | re.S)
+    block = m.group(0) if m else ""
+    script = re.search(r"script:\s*(\S+)", block)
+    sf = PROJECT / script.group(1) if script else None
+    return dict(configured=bool(block), config_sha256=hashlib.sha256(" ".join(block.split()).encode()).hexdigest(),
+                script=script.group(1) if script else None, script_sha256=_file_sha(sf) if sf and sf.is_file() else None)
+
+
+def evaluator_provenance(task):
+    """What the target's verdicts depend on, for a task: the code the episode runner runs (every local file it imports,
+    and what runs inside the sandbox), the robot's and the objects' assets, the simulator's packages, the segmentation
+    service's configuration. -> dict(version, sha, files={relative path: sha256}, dependencies, segmentation_service, machine)."""
+    if task.get("rig") == "x5":
+        code = local_imports([HERE / "xsim" / "bi" / "target_run.py", HERE / "m2m" / "boxed" / "child.py", HERE / "x5" / "build.py"])
+        A, X = HERE / "assets" / "robodojo_sweep", HERE / "assets" / "x5"
+        assets = [f for f in sorted(A.rglob("*")) if f.is_file() and f.relative_to(A).parts[0] not in ("panel20", "panel20_superseded_pick_and_place", "layouts")
+                  and not f.name.startswith("sheet_")]
+        assets += [f for f in sorted(X.rglob("*")) if f.is_file() and "generated" not in f.relative_to(X).parts]
+    else:
+        code = local_imports([HERE / "run_episode.py", HERE / "m2m" / "boxed" / "child.py", Path(task["target_world"])])
+        assets = [f for f in sorted((HERE / "assets").glob("*")) if f.is_file()]
+    files = {str(Path(f).relative_to(HERE)): _file_sha(f) for f in sorted(set(code) | set(assets))}
+    core = dict(version=EVALUATOR_VERSION, files=files, dependencies=_dependencies(), segmentation_service=_segmentation_service())
+    out = dict(core, sha=hashlib.sha256(json.dumps(core, sort_keys=True).encode()).hexdigest()[:16])
+    try:
+        r = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"], capture_output=True, text=True, timeout=20)
+        out["machine"] = dict(gpus=sorted(set(r.stdout.strip().splitlines())), note="recorded, not part of the hash")
+    except Exception:
+        out["machine"] = dict(gpus=None)
+    return out
+
+
+def evaluator_sha(task):
+    return evaluator_provenance(task)["sha"]
 
 
 def panel_files(task, d, n=None):
