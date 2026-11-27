@@ -5,7 +5,8 @@ allowance (the same number of submissions, each on the same frozen development s
 and that nothing D may do (revising its practice world) reaches those scenes or their judge.
 
     PYTHONNOUSERSITE=1 MUJOCO_GL=egl ../.venv/bin/python -I xsim/check_bi.py     -> out/xsim_check_bi/report.json
-    ... xsim/check_bi.py --config FILE.json --out DIR                            the same under a run's own settings
+    ... xsim/check_bi.py --config FILE.json --out DIR [--src DIR]                the same under a run's own settings (--src: a root
+                                                                                 that holds the prepared scene sets, if not out/xsim)
 
 It copies the real replicate's prepared scenes (out/xsim/sweep_blocks/rep0: run `launch.py prepare` first) into its own
 folder; the real experiment's records are not touched."""
@@ -28,6 +29,8 @@ CFG = dict(target_jobs=10, practice_jobs=4)                         # (everythin
 if "--small" in sys.argv:                                           # (a quick run of the same checks on a cut-down copy: SRC OUT after --small)
     REAL, OUT = Path(sys.argv[sys.argv.index("--small") + 1]), Path(sys.argv[sys.argv.index("--small") + 2])
     CFG.update(target_panel=2, target_submissions=2, f_pool=2, submission_scenes=dict(B=2, C=2, D=2, F=2))
+if "--src" in sys.argv:                                             # (the prepared scene sets to copy, at the real settings: --src DIR --out DIR)
+    REAL = Path(sys.argv[sys.argv.index("--src") + 1]).resolve()
 if "--config" in sys.argv:                                          # (the same checks under a run's own settings: --config FILE.json --out DIR)
     CFG.update(json.loads(Path(sys.argv[sys.argv.index("--config") + 1]).read_text()))
 if "--out" in sys.argv:
