@@ -1,6 +1,10 @@
-"""A STRICTER reading of a sweep_blocks success, separately versioned: a proposal and a re-scoring tool. It is NOT the
-judge of the experiments run so far (sweep_blocks/env.py info(), "judge 1": what the task text states and what every
-session was given feedback from), and nothing here changes that judge.
+"""SENSITIVITY ANALYSES of a sweep_blocks success, separately named and versioned. They are NOT the judge: the
+experiment's definition of success is and stays the original judge (sweep_blocks/env.py info(), "judge 1": what the
+task text states and what every session was given feedback from). Nothing here changes that judge or replaces a
+score; what is here is reported NEXT to it, for every condition alike:
+
+    settled-and-resting    clauses 1 and 2 below (verdict()["settled_and_resting"])
+    no-robot-contact       clause 3 below (verdict()["no_robot_contact"])
 
 What judge 1 tests (env.py info(), evaluated after every action; the episode ends, a success, the first time all hold):
   - every cube's CENTRE, seen from above, is inside one of the dustpan's support circles or over its handle's
@@ -21,9 +25,11 @@ Strict reading, version "strict-1" (verdict() below), applied to an episode judg
             REST_HIGH_MM above the table (on the pan's floor, ramp or ridge; not on the table, not on top of something);
   3. SWEPT  before the success no cube was pushed by the robot itself: no link of either arm pressed on a cube with
             more than PUSH_N for PUSH_ACTIONS actions running (a brush in the gripper pressing on a cube is not that).
-It can only turn a judge-1 success into a failure, and it needs the episode to be simulated again with its contacts
-recorded (record() below; the target replays exactly: see docs/AUDIT_2026-11-27.md). To be used, if at all, for EVERY
-condition alike, as a second reported number next to judge 1's."""
+Each can only say of a judge-1 success that it does not also meet a further condition; it needs the episode to be
+simulated again with its contacts recorded (record() below; on the scenes tested, the target replayed exactly: see
+docs/AUDIT_2026-11-27.md). Clause 3 as written also counts a brief contact of the fingers that hold the brush: it
+does not by itself mean that a cube was pushed in by the gripper (the trace record() keeps has each cube's travel
+during such a contact)."""
 from __future__ import annotations
 
 STRICT_VERSION = "strict-1"
@@ -36,7 +42,8 @@ def verdict(trace):
     dict(v1=bool, cubes={name: dict(bottom_mm, speed_mm_s, robot_n, brush_n)}). -> dict(v1, strict, held, rests, swept, why)."""
     k = next((i for i, r in enumerate(trace) if r["v1"]), None)
     if k is None:
-        return dict(version=STRICT_VERSION, v1=False, strict=False, held=None, rests=None, swept=None, why=["judge 1: no success"])
+        return dict(version=STRICT_VERSION, v1=False, settled_and_resting=False, no_robot_contact=None, strict=False, held=None, rests=None, swept=None,
+                    why=["judge 1: no success"])
     n = int(round(SETTLE_S / ACTION_S)); why = []
     window = trace[k:k + n + 1]
     held = len(window) == n + 1 and all(r["v1"] for r in window)
@@ -58,8 +65,8 @@ def verdict(trace):
         pushed[c] = best
     swept = all(v < PUSH_ACTIONS for v in pushed.values())
     why += [f"{c} was pushed by the robot itself ({v} actions running)" for c, v in pushed.items() if v >= PUSH_ACTIONS]
-    return dict(version=STRICT_VERSION, v1=True, v1_at_action=k + 1, strict=bool(held and rests and swept), held=bool(held), rests=bool(rests), swept=bool(swept),
-                robot_push_actions=pushed, why=why)
+    return dict(version=STRICT_VERSION, v1=True, v1_at_action=k + 1, settled_and_resting=bool(held and rests), no_robot_contact=bool(swept),
+                strict=bool(held and rests and swept), held=bool(held), rests=bool(rests), swept=bool(swept), robot_push_actions=pushed, why=why)
 
 
 def record(layout, program, out, task_text, segmenter=True):
@@ -96,7 +103,7 @@ def record(layout, program, out, task_text, segmenter=True):
             f = lambda other: float(np.linalg.norm(sc.get_pairwise_contact_forces(U.objects[n], other)[0].cpu().numpy()))
             v = float(np.linalg.norm(p - prev[n]) / ACTION_S * 1000) if n in prev else 0.0
             prev[n] = p
-            cubes[n] = dict(bottom_mm=round(float(p[2] - TABLE_Z) * 1000 - 9.62 * scale, 2), speed_mm_s=round(v, 1),
+            cubes[n] = dict(xy_mm=[round(float(p[0]) * 1000, 1), round(float(p[1]) * 1000, 1)], bottom_mm=round(float(p[2] - TABLE_Z) * 1000 - 9.62 * scale, 2), speed_mm_s=round(v, 1),
                             robot_n=round(max(f(l) for l in links), 2), brush_n=round(f(U.objects["broom"]), 2), pan_n=round(f(U.objects["broom_shovel"]), 2))
         trace.append(dict(v1=bool(env.info()["success"]), cubes=cubes))
     robot = X5Robot(env, segmenter=seg, on_step=rec)
@@ -120,6 +127,7 @@ def record(layout, program, out, task_text, segmenter=True):
                    actions_with_brush_contact={n: sum(1 for r in trace if r["cubes"][n]["brush_n"] > 0.2) for n in env.cubes} if trace else None,
                    actions_with_robot_contact={n: sum(1 for r in trace if r["cubes"][n]["robot_n"] > 0.2) for n in env.cubes} if trace else None)
     (out / "strict.json").write_text(json.dumps(summary, indent=1))
+    (out / "trace.json").write_text(json.dumps(trace))              # (every action: each cube's place, height, speed and contact forces)
     env.close()
     return summary
 

@@ -29,6 +29,7 @@ def test_1_an_honest_sweep_passes():
     t = trace(lambda i: three(bottom=0.0, speed=60.0, brush=2.0), lambda j: three(bottom=5.0, speed=0.5))
     v = J.verdict(t)
     assert v["v1"] and v["strict"] and v["held"] and v["rests"] and v["swept"] and v["why"] == [] and v["v1_at_action"] == 51, v
+    assert v["settled_and_resting"] and v["no_robot_contact"]
 
 
 def test_2_a_cube_above_the_pan_but_not_in_it_fails():
@@ -60,6 +61,7 @@ def test_5_cubes_pushed_in_by_the_gripper_fail():
         return c
     v = J.verdict(trace(before, lambda j: three(bottom=5.0)))
     assert v["v1"] and v["held"] and v["rests"] and not v["swept"] and not v["strict"] and v["robot_push_actions"]["cube_2"] == 20, v
+    assert v["settled_and_resting"] and not v["no_robot_contact"]            # (the two analyses are reported apart)
     graze = lambda i: three(bottom=0.0, robot=3.0 if i in (10, 11, 20) else 0.0, brush=2.0)       # touched twice in passing: not a push
     assert J.verdict(trace(graze, lambda j: three(bottom=5.0)))["strict"]
 

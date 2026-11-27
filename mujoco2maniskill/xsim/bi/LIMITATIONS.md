@@ -26,9 +26,15 @@
 - **The judge is RoboDojo's test plus two added conditions** (no block ever gripped; both grippers open), stated in
   the task text. A block pushed in with a closed gripper, without the brush, still counts; a block counts as inside
   by its position seen from above alone (no height, no contact); and success is declared at the first instant all
-  conditions hold (no settling interval). `sweep_blocks/judge_strict.py` states this exactly and holds a stricter
-  reading ("strict-1": held for 1 s, resting in the pan, not pushed by the robot itself) for re-scoring; the audit of
-  2026-11-27 replayed every judged success of the first run under it (`docs/AUDIT_2026-11-27.md`).
+  conditions hold (no settling interval). `sweep_blocks/judge_strict.py` states this exactly and holds two
+  separately named sensitivity analyses of a success (settled-and-resting; no-robot-contact), reported next to the
+  judge's count and never in place of it; the audit of 2026-11-27 replayed every judged success of the first run
+  under them (`docs/AUDIT_2026-11-27.md`).
+- **The one-arm practice path has no state boundary yet.** Programs of the one-arm tasks (`insert`, `sweep`) practise
+  through the main project's `bimanual/practice.py`, which runs simulator and program in one sandboxed process: files
+  and network are closed, the simulator's true state is not. It needs its own fix (a program process apart from the
+  simulator's, as `m2m/boxed` does) before those tasks are run with agents. The two-arm task's runners and the
+  one-arm TARGET runner have the boundary.
 - **Practice episodes that use the segmentation service are not reproducible run to run**: the same program on the
   same practice scene gave different segmentation scores and different outcomes in three runs (the same episodes
   without segmentation, and target episodes with it, were identical run to run). A practice success rate is noisier

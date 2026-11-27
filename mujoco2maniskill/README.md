@@ -197,6 +197,9 @@ writable file) and reaches its host only through a socket: a program, the docume
 `scene()` and `success(state)` with the documented state queries (the true state of the author's own practice
 world). The syntax check of a program (`m2m/api.py check_program`) is a first line for clear messages, not the
 boundary. `tests/test_boundary.py` reproduces with dummy state what the syntax check alone let through.
+Not covered: the one-arm tasks' PRACTICE path, which is the main project's (`bimanual/practice.py`): it sandboxes the
+whole episode, simulator and program in one process, so the true state is not closed off there. It needs its own
+fix before the one-arm tasks are run with agents.
 
 ### Whose result is this (`xsim/provenance.py`)
 
@@ -262,8 +265,9 @@ the things on the table taken from an agent's practice world (MuJoCo XML of prim
 Target: `sweep_blocks/env.py` in ManiSkill, with each scene's looks, judged by RoboDojo's test plus two added rules:
 no block may be GRIPPED (squeezed between a gripper's two fingers for three actions running) and both grippers must
 end open. What that judge does and does not test (a block counts as inside by its position seen from above; there is
-no settling interval; a push with a gripper is allowed), and a stricter reading for re-scoring, are in
-`sweep_blocks/judge_strict.py`.
+no settling interval; a push with a gripper is allowed) is written out in `sweep_blocks/judge_strict.py`, with two
+separately named sensitivity analyses (settled-and-resting; no-robot-contact) that are reported next to the judge's
+count, never in place of it.
 
 ```bash
 PY=../.venv/bin/python
