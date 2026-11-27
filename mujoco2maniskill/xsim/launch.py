@@ -243,7 +243,7 @@ def give_shared(R, ws, cond, task=None):
     if cond in ("build", "C", "D", "E"):
         (ws / "docs" / "worlds.md").write_text(prompts.worlds_doc(task or {}) + "\n")
     if cond in ("B", "C", "D", "F"):
-        (ws / "docs" / "target.md").write_text(prompts.target_doc(task or {}) + "\n")
+        (ws / "docs" / "target.md").write_text(prompts.target_doc(task or {}, cond) + "\n")
     if cond == "F" and (task or {}).get("rig") == "x5":
         (ws / "docs" / "practice.md").write_text(prompts.practice_doc(task) + "\n")
     (ws / "notes.md").write_text("")
@@ -487,10 +487,12 @@ def run(task_name, rep, cond, cfg, out=OUT, agent=None):
                wall_s=use.get("wall_s"), versions=len(st["versions"]), worlds=len(st["worlds"]), checkpoints=st["checkpoints"], final=st["final"],
                workspace=str(root / "workspace"), observation=cfg["observation"])
     if cond == "F":
+        man["label"] = "oracle-simulator practice with sparse external evaluation"
         man["oracle_reference"] = ("F practises in the target simulator itself: up to " + str(cfg["practice_episode_cap"]) + " practice episodes and scene checks, plus "
                                    + str(int(cfg["target_submissions"]) * config.scenes(cfg, cond)) + " judged episodes in its submissions = up to "
                                    + str(int(cfg["practice_episode_cap"]) + int(cfg["target_submissions"]) * config.scenes(cfg, cond))
-                                   + " target-simulator interactions. It is an oracle reference, not a target-interaction-matched comparison with B, C or D.")
+                                   + " target-simulator interactions. Its extra target-simulator practice makes it an oracle reference, not a "
+                                   "target-interaction-matched comparison with B, C or D.")
     man["agent_notes"] = dict(kept=kept, summary_written="summary.md" in kept, where="final/notes.md, final/summary.md; rounds/round_k/agent_notes/; checkpoints/")
     if agent is None:
         man["audit"] = audit_paths(s.dir, root / "workspace")

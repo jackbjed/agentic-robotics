@@ -38,11 +38,14 @@
 - **Condition F is an oracle reference, not a target-interaction-matched comparison.** F ("oracle-simulator practice with
   sparse external evaluation") practises in the target simulator itself, with the target's things and physics: up to
   300 practice episodes and scene checks, plus the 25 judged episodes of its five submissions = up to 325 interactions
-  with the target simulator, against 25 for B, C and D. Its practice is judged by its own self-check (the official
-  judge is not asked and not shown in practice); only its submissions get the official feedback, the same as B, C
-  and D. Its practice scenes come from a generator (`sweep_blocks/scene_gen.py`): fresh ones are drawn the way the
-  development scenes were drawn but are not checked with the scripted reference (about half of such draws were
-  solved by it), and F may ask for other placements, turns, colours and plain table colours. It cannot change the
+  with the target simulator, against 25 for B, C and D (under the expanded allowances: up to 600 + 100 = 700, against
+  100). Its extra target-simulator practice makes it an oracle reference. Its practice is judged by its own self-check
+  (the official verdict is not exposed to it and does not control practice termination; what the judge would have
+  said is computed privately and stays unavailable to it); only its submissions get the official feedback, the same
+  as B, C and D. Its practice scenes come from a generator (`sweep_blocks/scene_gen.py`): fresh ones are drawn the way the
+  development scenes were drawn but are not filtered by the scripted reference (of such draws about half were not
+  solved by the reference, which does not make them unsolvable), and F may ask for other placements, turns, colours
+  and plain table colours. How its fresh scenes differ from the development and test scenes: `docs/F_ORACLE.md`. It cannot change the
   things, the robot, the sensors or the physics, and cannot ask for the tables of the final appearance test.
 - **Practice episodes that use the segmentation service are not reproducible run to run**: the same program on the
   same practice scene gave different segmentation scores and different outcomes in three runs (the same episodes

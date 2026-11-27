@@ -11,14 +11,16 @@
   "build": 30.0,
   "B": 80.0,
   "C": 80.0,
-  "D": 80.0
+  "D": 80.0,
+  "F": 80.0
  },
  "practice_episode_cap": 300,
  "target_submissions": 5,
  "submission_scenes": {
   "B": 5,
   "C": 5,
-  "D": 5
+  "D": 5,
+  "F": 5
  },
  "checkpoints_usd": [
   2,
@@ -39,7 +41,8 @@
   "build": 3.0,
   "B": 10.0,
   "C": 10.0,
-  "D": 10.0
+  "D": 10.0,
+  "F": 10.0
  },
  "build_validation_cap": 40,
  "target_panel": 20,

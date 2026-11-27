@@ -107,9 +107,10 @@ SUB = dict(
                '                              run a version of the program on scenes of a practice file, IN THE TARGET SIMULATOR (the\n'
                '                              target\'s own things, robot, sensors and physics), at most 8 episodes a call. An episode ends\n'
                '                              when the program returns, when YOUR success(state) says so, when the robot time is spent, or\n'
-               '                              on an error. For each you get the verdict of your own success() (NOT the target judge\'s: the\n'
-               '                              judge is not asked in practice, and what it would say is not shown), how the program ended,\n'
-               '                              the robot time, the episode\'s log with the TRUE positions of the things, the scene as built,\n'
+               '                              on an error. For each you get the verdict of your own success(), NOT the target judge\'s.\n'
+               '                              The official verdict is not exposed to you and does not control practice termination.\n'
+               '                              You also get how the program ended, the robot time, the episode\'s log with the TRUE\n'
+               '                              positions of the things, the scene as built,\n'
                '                              and videos and frames of the same kinds as a target episode gives. The session\'s practice\n'
                '                              allowance is {cap} episodes in all: every practice episode asked for counts one, whatever its\n'
                '                              outcome (an invalid scene, a failed or crashed run too), and so does every scene checked by\n'
@@ -148,9 +149,9 @@ START = dict(
     F="\nprogram.py is the starting program (saved as v0; written from the same look, never run). In this session you practise IN THE "
       "TARGET SIMULATOR ITSELF: the target's own things, robot, sensors and physics. practice.py is your practice file (saved as p0; "
       "docs/practice.md): it says which scenes you practise on (fresh ones drawn by the harness, or scenes you ask for) and holds your own "
-      "check of a practice episode, success(state), which you write and may revise. In practice the target's judge is not asked: an episode "
-      "is judged by your own check only, from the TRUE state of the practice scene, which your check and you may see and the program may "
-      "not. The target's judge speaks only through submit_target.",
+      "check of a practice episode, success(state), which you write and may revise. The official verdict is not exposed to you and does "
+      "not control practice termination. A practice episode is judged and ended by your own check only, from the TRUE state of the "
+      "practice scene, which your check and you may see and the program may not. The target's judge speaks only through submit_target.",
 )
 WHICH = dict(build=["save_world_build", "validate_world"], B=["save_program", "submit_target"],
              C=["save_program", "validate_world", "practice", "submit_target"],
@@ -228,11 +229,23 @@ VIDEOS_BI = ("  videos/        the episode's videos: overview_rgb.mp4 (a camera 
              "  frames/        eight frames of each video, evenly over the episode (a file's name carries the robot time)")
 
 
-def target_doc(task):
+F_TARGET = ("Final evaluation uses the same target simulator as your practice environment, on held-out configurations you cannot access. "
+            "Practice uses your own success checks; official development and final evaluations use the independent target judge.")
+F_NOT_EXPOSED = "The official verdict is not exposed to you and does not control practice termination."
+
+
+def target_doc(task, cond=None):
+    """What a session is told of the target. cond "F" (oracle-simulator practice): the paragraph that says the target is not
+    the practice simulator would contradict what F is; it is replaced by F_TARGET (the user's wording, 2026-11-27)."""
     if task.get("rig") != "x5":
         return TARGET_DOC
     a = TARGET_DOC.index("  frames/        frames of the episode's video"); b = TARGET_DOC.index("  shown/")
-    return (TARGET_DOC[:a] + VIDEOS_BI + "\n" + TARGET_DOC[b:]).replace(", of segmentation calls and of safety stops", " and of segmentation calls")
+    doc = (TARGET_DOC[:a] + VIDEOS_BI + "\n" + TARGET_DOC[b:]).replace(", of segmentation calls and of safety stops", " and of segmentation calls")
+    if cond == "F":
+        i, j = doc.index("THE TARGET ENVIRONMENT. ") + len("THE TARGET ENVIRONMENT. "), doc.index("\n\nFEEDBACK from an episode in the target")
+        assert "It is not the practice simulator" in doc[i:j]
+        doc = doc[:i] + F_TARGET + doc[j:]
+    return doc
 
 
 def worlds_doc(task):
@@ -265,8 +278,8 @@ PRACTICE_DOC = """A practice file is a Python file for practising in the TARGET 
                                    state.held(name) ("left" / "right" / None: squeezed between the two fingers of one
                                    gripper), state.arm("left" | "right") ({{"tcp_mm", "opening_mm", "from_start_mm",
                                    "from_start_deg"}}). It is evaluated after every action: when it says ok the episode
-                                   ends, a success by YOUR check. The target has its own judge, which is not asked in
-                                   practice and which you cannot see.
+                                   ends, a success by YOUR check. The target has its own judge.
+                                   The official verdict is not exposed to you and does not control practice termination.
 
 Fixed by the harness, whatever the file says: the things themselves (the target's dustpan, brush and three cubes: their
 shapes, sizes, weights and surfaces), the robot and its commands, the cameras, the table, the physics, the task's text
@@ -314,7 +327,7 @@ def system_text(cond, task, cfg, cmd=None, pool=None):
         if cond in ("B", "C", "D", "F"):
             block += "\n\n" + NOTES
         if cond in ("B", "C", "D", "F"):
-            block += "\n\n" + target_doc(task)
+            block += "\n\n" + target_doc(task, cond)
     text = SHARED.format(interface=interface(task), rules=RULES, task=task["text"], condition=block,
                          panel=config.scenes(cfg, cond if cond in ("B", "C", "D") else "C"))
     if task.get("rig") == "x5":

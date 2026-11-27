@@ -1,9 +1,10 @@
 {
  "_about": {
-  "experiment": "sweep_blocks, condition F: oracle-simulator practice with sparse external evaluation. NOT RUN YET (prepared 2026-11-27).",
-  "root": "a root of its own, forked (xsim/fork_root.py) from the snapshot of out/xsim/sweep_blocks/rep0: the same initial program A",
-  "development": "F starts from the same initial program as B, C and D (no practice world: it practises in the target simulator). $80 after initialization; 300 practice episodes in the target simulator, scene checks counted, judged by its own self-check (the official judge is not asked and not shown); separately at most 5 submissions x the same first 5 scenes of the frozen development panel, judged by the official evaluator, as for B, C and D.",
-  "oracle_reference": "F receives up to 300 + 25 = 325 target-simulator interactions. It is an oracle reference, not a target-interaction-matched comparison."
+  "label": "oracle-simulator practice with sparse external evaluation",
+  "experiment": "sweep_blocks, condition F under the original allowances. NOT RUN (prepared 2026-11-27).",
+  "compared_with": "the 5 x 5 experiment (sweep_blocks_5x5_usd80_sim300.json): the same initial program A (the snapshot of out/xsim/sweep_blocks/rep0) and the same development panel (the first 5 scenes of the frozen 20), in a root of its own made with xsim/fork_root.py",
+  "development": "$80 after initialization; 300 practice interactions in the target simulator, executed scene checks counted, judged by F's own self-check (the official verdict is not exposed to it and does not control practice termination); separately at most 5 submissions x 5 development scenes, judged by the official evaluator, as for B, C and D.",
+  "oracle_reference": "F receives up to 300 + 25 = 325 target-simulator interactions (B, C, D: 25). Its extra target-simulator practice makes it an oracle reference, not a target-interaction-matched comparison."
  },
  "budget_usd": {
   "A": 20.0,
