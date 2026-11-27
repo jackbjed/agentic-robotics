@@ -267,8 +267,10 @@ def main():
             refused.append(type(x).__name__ == "Refused")
     check("the simulator allowance is enforced for practice and for world checks alike (with 1 left, 2 are refused)", refused == [True, True], refused)
     texts = {c_: launch.prompts.system_text(c_, task, cfg, cmd="", pool=40) for c_ in ("A", "build", "B", "C", "D", "E", "F")}
-    check("the notes-and-summary request is in every developing session (B to F), word for word the same, and not in A or the world's builder",
-          all(launch.prompts.NOTES in texts[c_] for c_ in "BCDEF") and not any(launch.prompts.NOTES[:40] in texts[c_] for c_ in ("A", "build")))
+    check("the notes-and-summary request is in every developing session: word for word the same in B, C, D and F; in E with 'practice' for 'feedback'; not in A or the builder",
+          all(launch.prompts.NOTES in texts[c_] for c_ in "BCDF") and launch.prompts.NOTES not in texts["E"]
+          and launch.prompts.NOTES.replace("feedback\nrounds", "practice\nresults").replace("what the feedback showed", "what practice showed") in texts["E"]
+          and not any(launch.prompts.NOTES[:40] in texts[c_] for c_ in ("A", "build")))
     check("E's text: no target submission, no target feedback document; it may revise what D may; F's two clarifications are F's only",
           "submit_target" not in texts["E"] and "FEEDBACK from an episode in the target" not in texts["E"]
           and "its things' shapes and physical properties, its scenes, how they vary, and its self-check" in texts["E"] and "its things' shapes and physical properties, its scenes, how they vary, and its self-check" in texts["D"]
